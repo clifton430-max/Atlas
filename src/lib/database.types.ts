@@ -628,6 +628,30 @@ export type Database = {
           },
         ]
       }
+      place_details: {
+        Row: {
+          children: Json | null
+          children_fetched_at: string | null
+          details: Json
+          fetched_at: string
+          ref: string
+        }
+        Insert: {
+          children?: Json | null
+          children_fetched_at?: string | null
+          details: Json
+          fetched_at?: string
+          ref: string
+        }
+        Update: {
+          children?: Json | null
+          children_fetched_at?: string | null
+          details?: Json
+          fetched_at?: string
+          ref?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
