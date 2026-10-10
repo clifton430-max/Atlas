@@ -20,6 +20,7 @@ import { CustomPinDialog } from '@/features/pins/CustomPinDialog';
 import { Button } from '@/components/ui/Button';
 import { ErrorMessage, Spinner } from '@/components/ui/Feedback';
 import { useMaps } from './api';
+import { InspectorPortal } from '@/app/Inspector';
 
 export function PersonalMapView() {
   const { mapId = '' } = useParams();
@@ -109,7 +110,7 @@ export function PersonalMapView() {
       {pins.error && <Overlay><ErrorMessage error={pins.error} /></Overlay>}
 
       {placing && (
-        <div className="absolute left-1/2 top-[68px] z-10 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white shadow-float" role="status">
+        <div className="absolute left-1/2 top-4 z-10 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white shadow-float" role="status">
           <MousePointerClick className="size-4" aria-hidden />
           Click the map to place your pin.
           <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => uiStore.set({ placingPin: false })}>Cancel (Esc)</Button>
@@ -117,7 +118,7 @@ export function PersonalMapView() {
       )}
 
       {movingPinId && (
-        <div className="absolute left-1/2 top-[68px] z-20 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white shadow-float" role="status">
+        <div className="absolute left-1/2 top-4 z-20 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white shadow-float" role="status">
           <MousePointerClick className="size-4" aria-hidden />
           {moveTarget ? 'New location chosen.' : 'Click the map to choose the new location.'}
           <Button size="sm" variant="primary" className="bg-white text-neutral-900 hover:bg-neutral-100" disabled={!moveTarget} loading={updateDetails.isPending} onClick={saveMove}>Save location</Button>
@@ -126,9 +127,9 @@ export function PersonalMapView() {
       )}
 
       {selected && (
-        <div className="absolute left-4 top-[68px] z-10">
+        <InspectorPortal title="Pin details" openKey={`pin:${selected.id}`}>
           <PinDetailsCard key={selected.id} pin={selected} groups={groups.data ?? []} onClose={() => uiStore.set({ selectedPinId: null })} />
-        </div>
+        </InspectorPortal>
       )}
 
       {newPinAt && <CustomPinDialog mapId={mapId} at={newPinAt} onClose={() => uiStore.set({ newPinAt: null })} />}
@@ -137,5 +138,5 @@ export function PersonalMapView() {
 }
 
 function Overlay({ children }: { children: React.ReactNode }) {
-  return <div className="absolute left-1/2 top-[68px] z-10 -translate-x-1/2 rounded-xl bg-white px-4 py-2 shadow-panel">{children}</div>;
+  return <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2 rounded-xl bg-white px-4 py-2 shadow-panel">{children}</div>;
 }

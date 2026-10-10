@@ -2,11 +2,21 @@
 @import "maplibre-gl/dist/maplibre-gl.css";
 
 /*
- * Atlas design tokens. Grayscale foundation (Tailwind neutral) with a single
- * restrained accent. Components use these via Tailwind utilities.
+ * Atlas design tokens (editor-style redesign). Light, warm-neutral chrome with
+ * white panels, a lime primary action colour, a green brand colour (logo,
+ * active navigation) and a blue selection accent. Components use these via
+ * Tailwind utilities (bg-lime, text-brand, bg-canvas, ...).
  */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-canvas: #f4f3ef;
+  --color-line: #e7e5df;
+  --color-lime: #d6f36b;
+  --color-lime-strong: #c4e550;
+  --color-lime-soft: #f1fbd2;
+  --color-lime-ink: #1d2a05;
+  --color-brand: #17915f;
+  --color-brand-soft: #e3f5ec;
   --color-accent: #2f5bea;
   --color-accent-strong: #2348c2;
   --color-accent-soft: #e8eefe;
@@ -15,6 +25,7 @@
   --color-success: #1d7a46;
   --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.08);
   --shadow-float: 0 2px 6px rgb(0 0 0 / 0.08), 0 16px 40px rgb(0 0 0 / 0.14);
+  --shadow-chip: 0 1px 2px rgb(0 0 0 / 0.06), 0 2px 8px rgb(0 0 0 / 0.06);
   --animate-fade-in: fade-in 160ms ease-out;
   --animate-rise-in: rise-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 
@@ -25,7 +36,7 @@
 @layer base {
   html, body, #root { height: 100%; }
   body {
-    @apply bg-neutral-100 text-neutral-900 antialiased;
+    @apply bg-canvas text-neutral-900 antialiased;
     font-feature-settings: "cv11", "ss01";
   }
   /* Visible, consistent keyboard focus everywhere. */
@@ -49,7 +60,10 @@
   }
 }
 
-/* MapLibre controls blend with the grayscale UI. */
+/* Thin, quiet scrollbars inside panels. */
+.atlas-scroll { scrollbar-width: thin; scrollbar-color: rgb(0 0 0 / 0.15) transparent; }
+
+/* MapLibre controls blend with the UI. */
 .maplibregl-ctrl-group {
   border-radius: 10px !important;
   box-shadow: var(--shadow-panel) !important;
@@ -59,3 +73,14 @@
 
 /* HTML markers (pins) should not show the default marker chrome. */
 .atlas-marker { cursor: pointer; }
+
+/* Selected-place halo (SelectionEmphasis). */
+.atlas-halo { animation: atlas-halo 1.8s ease-out infinite; }
+@keyframes atlas-halo {
+  0% { transform: scale(0.55); opacity: 0.95; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Static ring instead of a pulse (the global rule would end on the invisible frame). */
+  .atlas-halo { animation: none !important; transform: scale(0.85); opacity: 0.8; }
+}

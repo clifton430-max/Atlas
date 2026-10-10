@@ -27,7 +27,8 @@ test('personal map: create map, custom pin with required group, group filter, im
   const pinTitle = `E2E pin ${RUN}`;
   const groupName = `E2E group ${RUN}`;
 
-  // Create a map
+  // Create a map (My Maps tab)
+  await page.getByRole('navigation', { name: 'Map contexts' }).getByRole('link', { name: 'My Maps' }).click();
   await page.getByRole('button', { name: 'New map' }).click();
   await page.getByRole('dialog', { name: 'New private map' }).getByLabel('Name').fill(mapName);
   await page.getByRole('button', { name: 'Create map' }).click();
@@ -121,20 +122,21 @@ test('discover: saving an event requires a group and does not duplicate', async 
   await item.click();
   const card = page.getByRole('article', { name: /Atlas live-test event/ });
   await expect(card.getByText('Development sample', { exact: true })).toBeVisible();
-  await card.getByRole('button', { name: 'Save to map' }).click();
-  const dlg = page.getByRole('dialog', { name: 'Save event to a map' });
-  await dlg.getByRole('button', { name: 'Save' }).click();
-  await expect(dlg.getByText('Choose at least one group.')).toBeVisible();
-  if (await dlg.getByRole('button', { name: 'New group' }).isVisible()) await dlg.getByRole('button', { name: 'New group' }).click();
-  await dlg.getByLabel('New group name').fill(`Saved ${RUN}`);
-  await dlg.getByRole('button', { name: 'Add group' }).click();
-  await dlg.getByRole('button', { name: 'Save' }).click();
-  await expect(dlg).toBeHidden();
-  await expect(card.getByRole('button', { name: /Saved · edit groups/ })).toBeVisible();
-  // Saving again opens "update" mode instead of creating a duplicate
-  await card.getByRole('button', { name: /Saved · edit groups/ }).click();
-  await expect(page.getByRole('dialog', { name: 'Update saved event' })).toBeVisible();
-  await page.getByRole('button', { name: 'Cancel' }).click();
+  const form = card.getByRole('region', { name: 'Add to map' });
+  await form.getByRole('button', { name: 'Add to map', exact: true }).click();
+  await expect(form.getByText('Choose at least one group.')).toBeVisible();
+  if (await form.getByRole('button', { name: 'New group' }).isVisible()) await form.getByRole('button', { name: 'New group' }).click();
+  await form.getByLabel('New group name').fill(`Saved ${RUN}`);
+  await form.getByRole('button', { name: 'Add group' }).click();
+  await form.getByRole('button', { name: 'Add to map', exact: true }).click();
+  await expect(form.getByRole('status')).toContainText('Added to');
+  await expect(card.getByRole('button', { name: 'Saved to a map — edit' })).toBeVisible();
+  // Saving again updates instead of creating a duplicate
+  await expect(form.getByText(/already on this map/)).toBeVisible();
+  await form.getByRole('button', { name: 'Update on map' }).click();
+  await expect(form.getByRole('status')).toContainText('Updated on');
+  const pins = (await client.from('pins').select('id').eq('event_id', ev.data!.id)).data!;
+  expect(pins).toHaveLength(1);
 
   // Clean up: delete the saved pin and group via Settings
   await page.goto('/settings/pins');
@@ -155,6 +157,7 @@ test('collaboration: invite link, explicit accept, viewer role, removal revokes 
   const collabName = `E2E collab ${RUN}`;
 
   await signIn(owner, 'A');
+  await owner.getByRole('navigation', { name: 'Map contexts' }).getByRole('link', { name: 'Shared' }).click();
   await owner.getByRole('button', { name: 'New collaboration map' }).click();
   await owner.getByRole('dialog', { name: 'New collaboration map' }).getByLabel('Name').fill(collabName);
   await owner.getByRole('button', { name: 'Create', exact: true }).click();
@@ -192,7 +195,7 @@ test('collaboration: invite link, explicit accept, viewer role, removal revokes 
   // Owner deletes the collaboration map
   await owner.getByRole('button', { name: 'Delete', exact: true }).click();
   await owner.getByRole('button', { name: 'Delete map' }).click();
-  await expect(owner).toHaveURL(/\/$/);
+  await expect(owner).toHaveURL(/\/collab$/);
   await ownerCtx.close();
   await memberCtx.close();
 });

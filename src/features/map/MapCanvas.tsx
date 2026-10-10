@@ -14,8 +14,12 @@ import * as maplibregl from 'maplibre-gl';
 // and in production builds alike.
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { useMapInstance, useMapRegistrar } from './MapContext';
+import { injectAtlasLayers } from './atlasStyle';
+import { ensureMarkerImages } from '@/features/places/markerImages';
 import { uiStore } from '@/app/store';
 import { normalizeBBox } from '@/services/events/types';
+import { BEARING_3D, getViewMode, PITCH_3D } from './viewPrefs';
+import { MapViewEffects } from './MapViewEffects';
 
 maplibregl.setWorkerUrl(workerUrl);
 
@@ -47,19 +51,22 @@ export function MapCanvas({ styleUrl, children }: { styleUrl: string; children?:
       const view = loadViewport();
       instance = new maplibregl.Map({
         container: el,
-        style: initialStyle.current,
+        // Start empty, then load the real style through injectAtlasLayers (see atlasStyle.ts).
+        style: { version: 8, sources: {}, layers: [] },
         center: view.center,
         zoom: view.zoom,
+        // 3D (default): tilted, slightly rotated city view. Right-drag / Ctrl-drag rotates and tilts.
+        pitch: getViewMode() === '3d' ? PITCH_3D : 0,
+        bearing: getViewMode() === '3d' ? BEARING_3D : 0,
         attributionControl: { compact: true },
-        dragRotate: false,
-        pitchWithRotate: false,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'The map could not be initialized (WebGL may be unavailable).');
       return;
     }
-    instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
-    instance.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+    instance.setStyle(initialStyle.current, { transformStyle: injectAtlasLayers, diff: false });
+    // Zoom / tilt / orientation live in the app's MapToolbar.
+    instance.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
     instance.getCanvas().setAttribute('aria-label', 'Interactive map. Use arrow keys to pan and plus/minus to zoom.');
 
     let raf = 0;
@@ -85,7 +92,12 @@ export function MapCanvas({ styleUrl, children }: { styleUrl: string; children?:
       clearTimeout(moveTimer);
       moveTimer = setTimeout(publishBounds, 350);
     };
-    const onStyle = () => setInstance((s) => ({ ...s, styleVersion: s.styleVersion + 1 }));
+    const onStyle = () => {
+      // Ignore the initial empty style; count only real basemap loads.
+      if (!instance.getStyle()?.layers?.length) return;
+      void ensureMarkerImages(instance);
+      setInstance((s) => ({ ...s, styleVersion: s.styleVersion + 1 }));
+    };
 
     instance.on('zoom', onZoom);
     instance.on('moveend', onMoveEnd);
@@ -117,7 +129,7 @@ export function MapCanvas({ styleUrl, children }: { styleUrl: string; children?:
   useEffect(() => {
     if (map && styleUrl !== initialStyle.current) {
       initialStyle.current = styleUrl;
-      map.setStyle(styleUrl);
+      map.setStyle(styleUrl, { transformStyle: injectAtlasLayers });
     }
   }, [map, styleUrl]);
 
@@ -136,6 +148,7 @@ export function MapCanvas({ styleUrl, children }: { styleUrl: string; children?:
           </div>
         </div>
       )}
+      {map && <MapViewEffects />}
       {map && children}
     </>
   );

@@ -1,11 +1,10 @@
 /**
- * Left panel: Discover entry, the user's private maps (CRUD), and the
- * context-specific section — events in view (Discover) or groups + add-pin
- * (Personal map). Collapsible from the AppShell.
+ * "My Maps" side panel: the user's private maps (CRUD) and, for the open map,
+ * custom pins and groups. Discover has its own panel (DiscoverPanel).
  */
-import { useState } from 'react';
-import { NavLink, useMatch, useNavigate } from 'react-router-dom';
-import { Compass, HardDrive, Lock, Map as MapIcon, MapPinPlus, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { NavLink, useMatch, useNavigate, useSearchParams } from 'react-router-dom';
+import { HardDrive, Lock, Map as MapIcon, MapPinPlus, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { uiStore, useUi } from '@/app/store';
 import type { PersonalMap } from '@/lib/types';
@@ -16,27 +15,36 @@ import { ErrorMessage, Spinner } from '@/components/ui/Feedback';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/components/ui/cn';
 import { GroupsSection } from '@/features/groups/GroupsSection';
-import { DiscoverEventList } from '@/features/discover/DiscoverEventList';
+import { GroupFilterControl } from '@/features/map/FilterControl';
 import { useMapMutations, useMaps } from './api';
+import { setActiveMapId } from './activeMap';
 
 const navCls = ({ isActive }: { isActive: boolean }) =>
-  cn('flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm', isActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100');
+  cn('flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm', isActive ? 'bg-lime-soft font-medium text-neutral-900 ring-1 ring-lime-strong/60' : 'text-neutral-700 hover:bg-neutral-100');
 
 export function MapsPanel() {
   const ws = useWorkspace();
   const maps = useMaps();
   const personal = useMatch('/maps/:mapId');
-  const discover = useMatch('/');
   const placing = useUi((s) => s.placingPin);
   const [dialog, setDialog] = useState<{ kind: 'edit'; map?: PersonalMap } | { kind: 'delete'; map: PersonalMap } | null>(null);
+  const [params, setParams] = useSearchParams();
+  const openMapId = personal?.params.mapId;
+
+  // "New map…" from the map switcher arrives as ?new=1.
+  useEffect(() => {
+    if (params.get('new') !== '1') return;
+    setDialog({ kind: 'edit' });
+    setParams((p) => { p.delete('new'); return p; }, { replace: true });
+  }, [params, setParams]);
+  // Remember the open map so "My Maps" returns to it.
+  useEffect(() => {
+    if (openMapId && maps.data?.some((m) => m.id === openMapId)) setActiveMapId(ws.scope, openMapId);
+  }, [openMapId, maps.data, ws.scope]);
 
   return (
     <div className="flex h-full flex-col">
-      <nav aria-label="Maps" className="space-y-4 px-2 pt-3">
-        <NavLink to="/" end className={navCls} data-tour="nav-discover">
-          <Compass className="size-4" aria-hidden />Discover
-        </NavLink>
-
+      <nav aria-label="Maps" className="space-y-4 px-3">
         <section aria-labelledby="my-maps-heading" data-tour="my-maps">
           <div className="flex items-center justify-between px-2 pb-1">
             <h2 id="my-maps-heading" className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -68,7 +76,7 @@ export function MapsPanel() {
         </section>
       </nav>
 
-      <div className="mt-4 min-h-0 flex-1 overflow-y-auto border-t border-neutral-200 px-2 pb-4 pt-3">
+      <div className="atlas-scroll mt-4 min-h-0 flex-1 overflow-y-auto border-t border-line px-3 pb-4 pt-3">
         {personal && (
           <div className="space-y-4">
             <Button
@@ -82,10 +90,10 @@ export function MapsPanel() {
             >
               {placing ? 'Click the map… (cancel)' : 'Add custom pin'}
             </Button>
+            <GroupFilterControl mapId={personal.params.mapId!} />
             <GroupsSection mapId={personal.params.mapId!} />
           </div>
         )}
-        {discover && <DiscoverEventList />}
       </div>
 
       {dialog?.kind === 'edit' && <MapFormDialog map={dialog.map} onClose={() => setDialog(null)} />}
@@ -138,7 +146,7 @@ function DeleteMapDialog({ map, onClose }: { map: PersonalMap; onClose: () => vo
         onSuccess: () => {
           toast.success('Map deleted.');
           onClose();
-          if (current?.params.mapId === map.id) navigate('/');
+          if (current?.params.mapId === map.id) navigate('/maps');
         },
         onError: (e) => toast.error(e),
       })}

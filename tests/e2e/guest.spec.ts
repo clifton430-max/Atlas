@@ -4,7 +4,7 @@
  * account-only features explain themselves instead of faking success.
  */
 import { expect, test } from '@playwright/test';
-import { clickMapAt, createGroupInPicker, freshGuest, makePng, waitForMap, type AtlasWindow } from './helpers';
+import { clickMapAt, createGroupInPicker, freshGuest, makePng, mapLink, openMap, openMyMaps, openShared, waitForMap, type AtlasWindow } from './helpers';
 
 test.beforeEach(async ({ page }) => freshGuest(page));
 
@@ -15,15 +15,15 @@ test('opens without an auth wall and shows Guest Mode clearly', async ({ page })
   await page.getByRole('button', { name: /Guest · on this device/ }).click();
   await expect(page.getByText('saved only in this browser on this device', { exact: false })).toBeVisible();
   await page.keyboard.press('Escape');
-  // A ready-to-use local map exists.
-  await expect(page.getByRole('link', { name: 'My Map' })).toBeVisible();
-  await page.getByRole('link', { name: 'My Map' }).click();
+  // A ready-to-use local map exists; the My Maps tab opens it.
+  await openMyMaps(page);
+  await expect(mapLink(page, 'My Map')).toBeVisible();
   await expect(page).toHaveURL(/\/maps\//);
   await expect(page.getByRole('button', { name: 'Add custom pin' })).toBeVisible();
 });
 
 test('guest maps, groups (with icons), pins, edit, move, OR filter, persistence and deletion', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/maps');
   await waitForMap(page);
 
   // Create + rename a map
@@ -113,7 +113,7 @@ test('guest maps, groups (with icons), pins, edit, move, OR filter, persistence 
 
 test('guest image upload becomes the actual, anchored, interactive map marker', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: 'My Map' }).click();
+  await openMap(page);
   await waitForMap(page);
   await page.getByRole('button', { name: 'Add custom pin' }).click();
   await clickMapAt(page);
@@ -170,15 +170,17 @@ test('guest can save a public event with a required group', async ({ page }) => 
   await waitForMap(page);
   await page.getByRole('button', { name: /Late Night Jazz/ }).click();
   const card = page.getByRole('article', { name: /Late Night Jazz/ });
-  await card.getByRole('button', { name: 'Save to map' }).click();
-  const dlg = page.getByRole('dialog', { name: 'Save event to a map' });
-  await expect(dlg.getByText('Saved only in this browser on this device.')).toBeVisible();
-  await dlg.getByRole('button', { name: 'Save' }).click();
-  await expect(dlg.getByText('Choose at least one group.')).toBeVisible();
-  await createGroupInPicker(dlg, 'Jazz');
-  await dlg.getByRole('button', { name: 'Save' }).click();
-  await expect(card.getByRole('button', { name: /Saved · edit groups/ })).toBeVisible();
-  await page.getByRole('link', { name: 'My Map' }).click();
+  const form = card.getByRole('region', { name: 'Add to map' });
+  await card.getByRole('button', { name: 'Bookmark: add to a map' }).click();
+  await expect(form.getByLabel('Select map')).toBeFocused();
+  await expect(form.getByText('Saved only in this browser on this device.')).toBeVisible();
+  await form.getByRole('button', { name: 'Add to map', exact: true }).click();
+  await expect(form.getByText('Choose at least one group.')).toBeVisible();
+  await createGroupInPicker(form, 'Jazz');
+  await form.getByRole('button', { name: 'Add to map', exact: true }).click();
+  await expect(form.getByRole('status')).toContainText('Added to My Map');
+  await expect(card.getByRole('button', { name: 'Saved to a map — edit' })).toBeVisible();
+  await openMap(page);
   await expect(page.getByRole('button', { name: /Late Night Jazz/ }).first()).toBeVisible();
 });
 
@@ -191,7 +193,8 @@ test('account-only features explain the need for an account and never fake succe
 
   // Collaboration demo: clearly labelled, invite explains instead of pretending.
   await page.goto('/');
-  await page.getByRole('link', { name: /Weekend trip \(demo\)/ }).click();
+  await openShared(page);
+  await mapLink(page, /Weekend trip \(demo\)/).click();
   await expect(page).toHaveURL(/\/collab\/demo$/);
   await expect(page.getByText(/Demo collaboration map — stored only on this device/)).toBeVisible();
   await page.getByRole('button', { name: 'Invite people…' }).click();
@@ -205,7 +208,7 @@ test('account-only features explain the need for an account and never fake succe
 
 test('sharing a guest pin goes to the local demo map only', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: 'My Map' }).click();
+  await openMap(page);
   await waitForMap(page);
   await page.getByRole('button', { name: 'Add custom pin' }).click();
   await clickMapAt(page);
@@ -220,7 +223,8 @@ test('sharing a guest pin goes to the local demo map only', async ({ page }) => 
   await share.getByRole('button', { name: 'Review' }).click();
   await share.getByRole('button', { name: 'Share to demo' }).click();
   await expect(page.getByText('Shared a copy to the demo map (only on this device).')).toBeVisible();
-  await page.getByRole('link', { name: /Weekend trip \(demo\)/ }).click();
+  await openShared(page);
+  await mapLink(page, /Weekend trip \(demo\)/).click();
   await page.getByRole('button', { name: /Shared spot \(demo shared copy\)/ }).click();
   const copy = page.getByRole('article', { name: /Demo shared pin: Shared spot/ });
   await expect(copy).toBeVisible();
@@ -228,7 +232,7 @@ test('sharing a guest pin goes to the local demo map only', async ({ page }) => 
 });
 
 test('reset guest workspace from Settings → Guest data', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/maps');
   await page.getByRole('button', { name: 'New map' }).click();
   await page.getByRole('dialog', { name: 'New private map' }).getByLabel('Name').fill('Temp');
   await page.getByRole('button', { name: 'Create map' }).click();
@@ -237,9 +241,9 @@ test('reset guest workspace from Settings → Guest data', async ({ page }) => {
   await page.getByRole('button', { name: 'Reset guest workspace' }).click();
   await page.getByRole('button', { name: 'Reset', exact: true }).click();
   await expect(page.getByText(/1 map, 0 groups, 0 pins/)).toBeVisible();
-  await page.goto('/');
-  await expect(page.getByRole('link', { name: 'Temp' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'My Map' })).toBeVisible();
+  await page.goto('/maps');
+  await expect(mapLink(page, 'Temp')).toHaveCount(0);
+  await expect(mapLink(page, 'My Map')).toBeVisible();
 });
 
 test('corrupt local data is backed up and the app still loads', async ({ page }) => {
@@ -255,8 +259,8 @@ test('corrupt local data is backed up and the app still loads', async ({ page })
 });
 
 test('full browser storage is reported and nothing is half-saved', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByRole('link', { name: 'My Map' })).toBeVisible();
+  await page.goto('/maps');
+  await expect(mapLink(page, 'My Map')).toBeVisible();
   // Simulate a full quota from now on.
   await page.evaluate(() => {
     const orig = Storage.prototype.setItem;

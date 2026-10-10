@@ -79,7 +79,7 @@ export function CollabPanel() {
   );
 }
 
-function PendingInvites() {
+export function PendingInvites() {
   const toast = useToast();
   const invites = useMyPendingInvitations();
   const { respondInvite } = useCollabMutations();
@@ -223,7 +223,7 @@ function ActiveCollab({ map }: { map: CollabMap }) {
         message="All members lose access and every shared copy in this map is removed. Members’ private original pins are not affected."
         onClose={() => setDialog(null)}
         onConfirm={() => m.remove.mutate(map.id, {
-          onSuccess: () => { toast.success('Collaboration map deleted.'); setDialog(null); navigate('/'); },
+          onSuccess: () => { toast.success('Collaboration map deleted.'); setDialog(null); navigate('/collab'); },
           onError: (e) => toast.error(e),
         })}
       />
@@ -233,7 +233,7 @@ function ActiveCollab({ map }: { map: CollabMap }) {
         message="You’ll lose access immediately. Pins you shared stay in the map until you or the owner remove them (remove them first if you want them gone)."
         onClose={() => setDialog(null)}
         onConfirm={() => m.leave.mutate({ mapId: map.id, userId: user!.id }, {
-          onSuccess: () => { toast.success(`You left ${map.name}.`); setDialog(null); navigate('/'); },
+          onSuccess: () => { toast.success(`You left ${map.name}.`); setDialog(null); navigate('/collab'); },
           onError: (e) => toast.error(e),
         })}
       />

@@ -6,6 +6,7 @@
 import { expect, test, type Page, type Request } from '@playwright/test';
 import { signedIn } from '../live/env';
 import { RUN, signIn, waitForMap } from './helpers';
+import { openMap } from '../e2e/helpers';
 
 // Read-only RPCs that PostgREST invokes with POST.
 const READ_ONLY_RPC = /\/rpc\/(my_pending_invitations|get_my_friend_code|my_orphaned_pin_images|preview_collab_invitation)$/;
@@ -45,7 +46,7 @@ test('guest work never touches private tables or Storage; sign-in does not uploa
 
   await page.goto('/');
   await expect(page.getByRole('button', { name: /Guest · on this device/ })).toBeVisible();
-  await page.getByRole('link', { name: 'My Map' }).click();
+  await openMap(page);
   await waitForMap(page);
   await page.getByRole('button', { name: 'Add custom pin' }).click();
   const box = (await page.getByTestId('map-canvas').boundingBox())!;
@@ -78,14 +79,14 @@ test('guest work never touches private tables or Storage; sign-in does not uploa
   await page.getByRole('button', { name: /Account menu for/ }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('button', { name: /Guest · on this device/ })).toBeVisible();
-  await page.getByRole('link', { name: 'My Map' }).click();
+  await openMap(page);
   await expect(page.getByRole('button', { name: `Guest pin ${RUN}`, exact: true })).toBeVisible();
 });
 
 test('explicit import copies guest data into the account without overwriting anything', async ({ page }) => {
   const before = await accountCounts();
   await page.goto('/');
-  await page.getByRole('link', { name: 'My Map' }).click();
+  await openMap(page);
   await waitForMap(page);
   await page.getByRole('button', { name: 'Add custom pin' }).click();
   const box = (await page.getByTestId('map-canvas').boundingBox())!;

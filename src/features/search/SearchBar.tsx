@@ -157,7 +157,7 @@ export function SearchBar() {
 
   return (
     <div className="relative w-full max-w-[560px]" data-tour="search">
-      <div className="flex h-10 items-center gap-2 rounded-xl bg-white px-3 shadow-panel ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-accent">
+      <div className="flex h-10 items-center gap-2 rounded-full bg-white px-4 ring-1 ring-line transition-shadow hover:ring-neutral-300 focus-within:ring-2 focus-within:ring-accent">
         <Search className="size-4 shrink-0 text-neutral-400" aria-hidden />
         <input
           ref={inputRef}

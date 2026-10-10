@@ -22,11 +22,12 @@ export interface GroupSelection {
 export const emptySelection = (ids: string[] = []): GroupSelection => ({ selectedIds: ids, pending: [] });
 export const selectionCount = (s: GroupSelection) => s.selectedIds.length + s.pending.length;
 
-export function GroupPicker({ groups, value, onChange, error }: {
+export function GroupPicker({ groups, value, onChange, error, legend = 'Groups' }: {
   groups: Group[];
   value: GroupSelection;
   onChange: (v: GroupSelection) => void;
   error?: string | null;
+  legend?: string;
 }) {
   const [adding, setAdding] = useState(groups.length === 0);
   const [name, setName] = useState('');
@@ -55,7 +56,7 @@ export function GroupPicker({ groups, value, onChange, error }: {
 
   return (
     <fieldset className="space-y-2" aria-describedby={error ? 'group-picker-error' : undefined}>
-      <legend className="text-[13px] font-medium text-neutral-700">Groups <span className="font-normal text-neutral-500">(choose at least one)</span></legend>
+      <legend className="text-[13px] font-medium text-neutral-700">{legend} <span className="font-normal text-neutral-500">(choose at least one)</span></legend>
       <div className="max-h-52 space-y-0.5 overflow-y-auto rounded-lg border border-neutral-200 p-1">
         {groups.length === 0 && value.pending.length === 0 && (
           <p className="px-2 py-2 text-xs text-neutral-500">You don’t have any groups yet. Create one below.</p>
@@ -107,8 +108,8 @@ export function GroupPicker({ groups, value, onChange, error }: {
           </div>
         </div>
       ) : (
-        <Button size="sm" variant="ghost" icon={<Plus className="size-4" aria-hidden />} onClick={() => setAdding(true)}>
-          New group
+        <Button size="sm" variant="ghost" className="text-brand" icon={<Plus className="size-4" aria-hidden />} onClick={() => setAdding(true)}>
+          Create new group
         </Button>
       )}
     </fieldset>

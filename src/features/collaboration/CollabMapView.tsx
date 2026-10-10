@@ -18,6 +18,7 @@ import { Badge, ErrorMessage, Spinner } from '@/components/ui/Feedback';
 import { Button, IconButton } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { useCollabMaps, useCollabMutations, useSharedPins } from './api';
+import { InspectorPortal } from '@/app/Inspector';
 
 export function CollabMapView() {
   const { mapId = '' } = useParams();
@@ -31,7 +32,7 @@ export function CollabMapView() {
 
   if (maps.isSuccess && !current) {
     return (
-      <div className="absolute left-1/2 top-[68px] z-10 -translate-x-1/2">
+      <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2">
         <ErrorMessage error="This collaboration map doesn’t exist or you’re no longer a member." className="shadow-panel" />
       </div>
     );
@@ -53,13 +54,13 @@ export function CollabMapView() {
         />
       ))}
       {(shared.isLoading || maps.isLoading) && (
-        <div className="absolute left-1/2 top-[68px] z-10 -translate-x-1/2 rounded-xl bg-white px-4 py-2 shadow-panel"><Spinner label="Loading shared pins" /></div>
+        <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2 rounded-xl bg-white px-4 py-2 shadow-panel"><Spinner label="Loading shared pins" /></div>
       )}
-      {shared.error && <div className="absolute left-1/2 top-[68px] z-10 -translate-x-1/2"><ErrorMessage error={shared.error} /></div>}
+      {shared.error && <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2"><ErrorMessage error={shared.error} /></div>}
       {selected && current && (
-        <div className="absolute left-4 top-[68px] z-10">
+        <InspectorPortal title="Shared pin" openKey={`shared:${selected.id}`}>
           <SharedPinCard key={selected.id} pin={selected} map={current} onClose={() => uiStore.set({ selectedSharedPinId: null })} />
-        </div>
+        </InspectorPortal>
       )}
     </>
   );
@@ -81,7 +82,7 @@ function SharedPinCard({ pin, map, onClose }: { pin: SharedPin; map: CollabMap; 
 
   return (
     <div className="flex items-start gap-3">
-      <article aria-label={`Shared pin: ${pin.title}`} className="w-[340px] rounded-2xl bg-white p-4 shadow-float animate-rise-in">
+      <article aria-label={`Shared pin: ${pin.title}`} className="w-full p-4 animate-rise-in">
         <header className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex gap-1.5"><Badge tone="accent">Shared</Badge>{pin.eventId && <Badge>Event</Badge>}</div>
@@ -91,6 +92,9 @@ function SharedPinCard({ pin, map, onClose }: { pin: SharedPin; map: CollabMap; 
           <IconButton label="Close shared pin" size="sm" onClick={onClose}><X className="size-4" aria-hidden /></IconButton>
         </header>
         <p className="mt-3 text-xs text-neutral-500">Shared by {isMine ? 'you' : pin.sharedByName ?? 'a former member'} · {new Date(pin.createdAt).toLocaleDateString()}</p>
+        {pin.attendance && (
+          <p className="mt-1 text-xs font-medium text-neutral-700">{isMine ? 'You’re' : `${pin.sharedByName ?? 'This member'} is`} {pin.attendance === 'going' ? 'going' : 'interested'}</p>
+        )}
         {pin.note && <p className="mt-2 whitespace-pre-wrap rounded-lg bg-neutral-50 p-2 text-sm text-neutral-700">{pin.note}</p>}
         {canRemove && (
           <div className="mt-3 flex justify-end">

@@ -122,8 +122,14 @@ export interface Pin {
   appearance: PinAppearance;
   image: PinImage | null;
   groupIds: string[];
+  /** Saved events only: whether the owner is going / interested (null = not set). */
+  attendance: Attendance | null;
+  /** Set when the pin was saved from an OpenStreetMap place ("osm:node/123"). */
+  placeRef: string | null;
   createdAt: string;
 }
+
+export type Attendance = 'going' | 'interested';
 
 export type CollabRole = 'owner' | 'editor' | 'viewer';
 
@@ -157,6 +163,8 @@ export interface SharedPin {
   address: string | null;
   appearance: PinAppearance;
   image: PinImage | null;
+  /** Events added directly to a collaboration map may record attendance. */
+  attendance?: Attendance | null;
   createdAt: string;
 }
 

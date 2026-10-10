@@ -11,54 +11,74 @@ import { EMPTY_FILTERS, PRICE_BANDS, type DiscoverFilters, type TimeWindow } fro
 
 export const KNOWN_CATEGORIES = ['Music', 'Sports', 'Arts & Theatre', 'Film', 'Miscellaneous'];
 
-export function DiscoverFilterPanel({ availableCategories }: { availableCategories: string[] }) {
+type SetFilters = (patch: Partial<DiscoverFilters>) => void;
+const toggleIn = <T,>(list: T[], v: T, on: boolean) => (on ? [...list, v] : list.filter((x) => x !== v));
+
+function useFilters(): [DiscoverFilters, SetFilters] {
   const f = useUi((s) => s.discoverFilters);
-  const set = (patch: Partial<DiscoverFilters>) => uiStore.set((s) => ({ discoverFilters: { ...s.discoverFilters, ...patch } }));
+  const set: SetFilters = (patch) => uiStore.set((s) => ({ discoverFilters: { ...s.discoverFilters, ...patch } }));
+  return [f, set];
+}
+
+export function CategoryFilterSection({ availableCategories }: { availableCategories: string[] }) {
+  const [f, set] = useFilters();
   const categories = [...new Set([...KNOWN_CATEGORIES, ...availableCategories])].sort();
-  const toggleIn = <T,>(list: T[], v: T, on: boolean) => (on ? [...list, v] : list.filter((x) => x !== v));
-
   return (
-    <div className="w-[340px] space-y-4 p-4">
-      <Section title="Category" tour="filter-category">
-        <div className="grid grid-cols-2 gap-x-1">
-          {categories.map((c) => (
-            <Checkbox key={c} label={c} checked={f.categories.includes(c)} onChange={(on) => set({ categories: toggleIn(f.categories, c, on) })} />
-          ))}
-        </div>
-      </Section>
+    <Section title="Event category" tour="filter-category">
+      <div className="grid grid-cols-2 gap-x-1">
+        {categories.map((c) => (
+          <Checkbox key={c} label={c} checked={f.categories.includes(c)} onChange={(on) => set({ categories: toggleIn(f.categories, c, on) })} />
+        ))}
+      </div>
+    </Section>
+  );
+}
 
-      <Section title="Price (lowest ticket price)" tour="filter-price">
-        <div className="grid grid-cols-2 gap-x-1">
-          {PRICE_BANDS.map((b) => (
-            <Checkbox key={b.id} label={b.label} checked={f.priceBands.includes(b.id)} onChange={(on) => set({ priceBands: toggleIn(f.priceBands, b.id, on) })} />
-          ))}
-        </div>
-        <div className="mt-2">
-          <Switch
-            label="Include unknown prices"
-            description="Unknown is never treated as free."
-            checked={f.includeUnknownPrice}
-            onChange={(v) => set({ includeUnknownPrice: v })}
-            disabled={f.priceBands.length === 0}
-          />
-        </div>
-      </Section>
+export function PriceFilterSection() {
+  const [f, set] = useFilters();
+  return (
+    <Section title="Price (lowest ticket price)" tour="filter-price">
+      <div className="grid grid-cols-2 gap-x-1">
+        {PRICE_BANDS.map((b) => (
+          <Checkbox key={b.id} label={b.label} checked={f.priceBands.includes(b.id)} onChange={(on) => set({ priceBands: toggleIn(f.priceBands, b.id, on) })} />
+        ))}
+      </div>
+      <div className="mt-2">
+        <Switch
+          label="Include unknown prices"
+          description="Unknown is never treated as free."
+          checked={f.includeUnknownPrice}
+          onChange={(v) => set({ includeUnknownPrice: v })}
+          disabled={f.priceBands.length === 0}
+        />
+      </div>
+    </Section>
+  );
+}
 
-      <Section title="Date (event local date)">
-        <div className="grid grid-cols-2 gap-2">
-          <DateInput label="From" value={f.dateFrom} onChange={(v) => set({ dateFrom: v })} />
-          <DateInput label="To" value={f.dateTo} onChange={(v) => set({ dateTo: v })} />
-        </div>
-      </Section>
+export function DateFilterSection() {
+  const [f, set] = useFilters();
+  return (
+    <Section title="Date (event local date)">
+      <div className="grid grid-cols-2 gap-2">
+        <DateInput label="From" value={f.dateFrom} onChange={(v) => set({ dateFrom: v })} />
+        <DateInput label="To" value={f.dateTo} onChange={(v) => set({ dateTo: v })} />
+      </div>
+    </Section>
+  );
+}
 
+/** Time windows, venue hours and the "include unknown" option. */
+export function MoreFiltersSection() {
+  const [f, set] = useFilters();
+  return (
+    <div className="space-y-4">
       <Section title="Event start time" tour="filter-event-time">
         <WindowInput value={f.eventTime} onChange={(w) => set({ eventTime: w })} idPrefix="event" />
       </Section>
-
       <Section title="Venue open during" tour="filter-venue-hours">
         <WindowInput value={f.venueHours} onChange={(w) => set({ venueHours: w })} idPrefix="venue" />
       </Section>
-
       <Switch
         label="Include unknown dates and times"
         description="Times use each event’s local timezone. Windows may cross midnight."
@@ -66,10 +86,23 @@ export function DiscoverFilterPanel({ availableCategories }: { availableCategori
         onChange={(v) => set({ includeUnknownTime: v })}
         disabled={!f.eventTime && !f.venueHours && !f.dateFrom && !f.dateTo}
       />
+    </div>
+  );
+}
 
-      <div className="flex justify-end border-t border-neutral-100 pt-3">
-        <Button size="sm" variant="ghost" onClick={() => uiStore.set({ discoverFilters: EMPTY_FILTERS })}>Clear all filters</Button>
-      </div>
+export function ClearFiltersButton() {
+  return <Button size="sm" variant="ghost" onClick={() => uiStore.set({ discoverFilters: EMPTY_FILTERS })}>Clear all filters</Button>;
+}
+
+/** Every event filter in one panel. */
+export function DiscoverFilterPanel({ availableCategories }: { availableCategories: string[] }) {
+  return (
+    <div className="w-[340px] space-y-4 p-4">
+      <CategoryFilterSection availableCategories={availableCategories} />
+      <PriceFilterSection />
+      <DateFilterSection />
+      <MoreFiltersSection />
+      <div className="flex justify-end border-t border-neutral-100 pt-3"><ClearFiltersButton /></div>
     </div>
   );
 }

@@ -11,7 +11,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { requireSupabase, unwrap } from '@/lib/supabase';
 import { qk } from '@/lib/queryClient';
-import type { AtlasEvent, Pin, PinAppearance, PinImage } from '@/lib/types';
+import type { AtlasEvent, Attendance, Pin, PinAppearance, PinImage } from '@/lib/types';
+import type { Place } from '@/features/places/types';
 import { EVENT_COLUMNS, eventFromRow, type EventRow } from '@/services/events/mapRow';
 import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import type { Database } from '@/lib/database.types';
@@ -20,7 +21,7 @@ import { tryDeleteImage } from './images';
 type Row = Record<string, unknown>;
 
 export const IMAGE_COLUMNS = 'id, storage_path, mime_type, byte_size, width, height';
-const PIN_SELECT = `id, map_id, kind, event_id, title, note, latitude, longitude, address, created_at,
+const PIN_SELECT = `id, map_id, kind, event_id, title, note, latitude, longitude, address, created_at, attendance, place_ref,
   color, shape, icon, size, border_color, border_width, image_id, image_mask,
   event:events(${EVENT_COLUMNS}),
   image:pin_images(${IMAGE_COLUMNS}),
@@ -59,6 +60,8 @@ export function pinFromRow(r: Row): Pin {
     appearance: appearanceFromRow(r),
     image: imageFromRow(r.image as Row | null),
     groupIds: ((r.pin_groups as Row[] | null) ?? []).map((g) => String(g.group_id)),
+    attendance: (r.attendance as Pin['attendance']) ?? null,
+    placeRef: (r.place_ref as string | null) ?? null,
     createdAt: String(r.created_at),
   };
 }
@@ -99,23 +102,27 @@ export function useSavedEvents() {
     enabled: ws.scope !== 'pending',
     queryFn: async () => {
       if (ws.local) {
-        const byEvent = new Map<string, { pinId: string; mapId: string; groupIds: string[] }[]>();
+        const byEvent = new Map<string, { pinId: string; mapId: string; groupIds: string[]; attendance?: Attendance | null }[]>();
         for (const p of ws.local.listPins()) {
-          if (p.kind !== 'event' || !p.eventId) continue;
-          byEvent.set(p.eventId, [...(byEvent.get(p.eventId) ?? []), { pinId: p.id, mapId: p.mapId, groupIds: p.groupIds }]);
+          const key = p.kind === 'event' ? p.eventId : p.placeRef;
+          if (!key) continue;
+          byEvent.set(key, [...(byEvent.get(key) ?? []), { pinId: p.id, mapId: p.mapId, groupIds: p.groupIds, attendance: p.attendance }]);
         }
         return byEvent;
       }
       const rows = unwrap(await requireSupabase().from('pins')
-        .select('id, map_id, event_id, pin_groups(group_id)').eq('kind', 'event'));
-      const byEvent = new Map<string, { pinId: string; mapId: string; groupIds: string[] }[]>();
+        .select('id, map_id, event_id, place_ref, attendance, pin_groups(group_id)').or('kind.eq.event,place_ref.not.is.null'));
+      // Keyed by event id or place ref: lets Discover show "saved" state for both.
+      const byEvent = new Map<string, { pinId: string; mapId: string; groupIds: string[]; attendance?: Attendance | null }[]>();
       for (const r of rows as Row[]) {
-        const list = byEvent.get(String(r.event_id)) ?? [];
+        const key = String(r.event_id ?? r.place_ref);
+        const list = byEvent.get(key) ?? [];
         list.push({
           pinId: String(r.id), mapId: String(r.map_id),
           groupIds: ((r.pin_groups as Row[]) ?? []).map((g) => String(g.group_id)),
+          attendance: (r.attendance as Attendance | null) ?? null,
         });
-        byEvent.set(String(r.event_id), list);
+        byEvent.set(key, list);
       }
       return byEvent;
     },
@@ -132,15 +139,37 @@ export function usePinMutations() {
 
   return {
     saveEvent: useMutation({
-      mutationFn: async (input: { mapId: string; eventId: string; groupIds: string[]; event?: AtlasEvent }) => {
+      mutationFn: async (input: { mapId: string; eventId: string; groupIds: string[]; event?: AtlasEvent; attendance?: Attendance | null }) => {
         if (!input.groupIds.length) throw new Error('Choose at least one group.');
         if (ws.local) {
           if (!input.event) throw new Error('Event details are required to save locally.');
-          return ws.local.saveEvent(input.mapId, input.event, input.groupIds);
+          return ws.local.saveEvent(input.mapId, input.event, input.groupIds, input.attendance ?? null);
         }
         return unwrap(await requireSupabase().rpc('save_event_pin', {
           p_map_id: input.mapId, p_event_id: input.eventId, p_group_ids: input.groupIds,
+          p_attendance: input.attendance ?? undefined,
         })) as string;
+      },
+      onSuccess: invalidatePins,
+    }),
+    /** Save an OpenStreetMap place to a personal map (group required; one per map). */
+    savePlace: useMutation({
+      mutationFn: async (input: { mapId: string; place: Place; address: string | null; groupIds: string[] }) => {
+        if (!input.groupIds.length) throw new Error('Choose at least one group.');
+        if (ws.local) return ws.local.savePlace(input.mapId, input.place, input.address, input.groupIds);
+        return unwrap(await requireSupabase().rpc('save_place_pin', {
+          p_map_id: input.mapId, p_place_ref: input.place.ref, p_title: input.place.name,
+          p_latitude: input.place.latitude, p_longitude: input.place.longitude, p_address: input.address ?? '',
+          p_group_ids: input.groupIds,
+        })) as string;
+      },
+      onSuccess: invalidatePins,
+    }),
+    /** Change attendance on a saved event (owner only; RLS). */
+    setAttendance: useMutation({
+      mutationFn: async (input: { pinId: string; attendance: Attendance | null }) => {
+        if (ws.local) return ws.local.setAttendance(input.pinId, input.attendance);
+        unwrap(await requireSupabase().from('pins').update({ attendance: input.attendance }).eq('id', input.pinId).select('id').single());
       },
       onSuccess: invalidatePins,
     }),
@@ -185,7 +214,7 @@ export function usePinMutations() {
         if (input.note !== undefined) patch.note = input.note?.trim() || null;
         if (input.address !== undefined) patch.address = input.address?.trim() || null;
         const res = await requireSupabase().from('pins').update(patch).eq('id', input.pinId).select('id').single();
-        if (res.error?.code === '23505') throw new Error('That event is already saved on the destination map.');
+        if (res.error?.code === '23505') throw new Error('That event or place is already saved on the destination map.');
         unwrap(res);
       },
       onSuccess: invalidatePins,

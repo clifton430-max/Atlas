@@ -548,3 +548,69 @@ describe('function execute privileges', () => {
     expect(r.v).toBe(true); // always "in use" (deny) for paths outside the caller's folder
   });
 });
+
+describe('living-map: places, attendance and direct collaboration adds', () => {
+  it('save_place_pin requires a group and never duplicates a place on a map', async () => {
+    const g = await makeGroup(alice, 'Food');
+    await t.as(alice);
+    expect(await t.fails(`select public.save_place_pin($1, 'osm:node/42', 'Cafe', 1, 2, '', '{}')`, [aliceMap])).toMatch(/at least one group/);
+    const a = await t.one<{ save_place_pin: string }>(`select public.save_place_pin($1, 'osm:node/42', 'Cafe', 1, 2, '', $2)`, [aliceMap, [g]]);
+    const b = await t.one<{ save_place_pin: string }>(`select public.save_place_pin($1, 'osm:node/42', 'Cafe', 1, 2, '', $2)`, [aliceMap, [g]]);
+    expect(b.save_place_pin).toBe(a.save_place_pin);
+    expect(await t.fails(`select public.save_place_pin($1, 'not-a-ref', 'X', 1, 2, '', $2)`, [aliceMap, [g]])).toMatch(/check constraint/);
+    // Another user can't save into Alice's map.
+    const bg = await makeGroup(bob, 'B');
+    await t.as(bob);
+    expect(await t.fails(`select public.save_place_pin($1, 'osm:node/43', 'X', 1, 2, '', $2)`, [aliceMap, [bg]])).toMatch(/row-level security/);
+  });
+
+  it('attendance is stored for events only and must be a known value', async () => {
+    const g = await makeGroup(alice, 'Events');
+    await t.as(alice);
+    const { save_event_pin: pin } = await t.one<{ save_event_pin: string }>(`select public.save_event_pin($1, $2, $3, 'going')`, [aliceMap, eventId, [g]]);
+    expect(await t.one(`select attendance from public.pins where id = $1`, [pin])).toEqual({ attendance: 'going' });
+    await t.query(`select public.save_event_pin($1, $2, $3, 'interested')`, [aliceMap, eventId, [g]]);
+    expect(await t.one(`select attendance from public.pins where id = $1`, [pin])).toEqual({ attendance: 'interested' });
+    expect(await t.fails(`select public.save_event_pin($1, $2, $3, 'maybe')`, [aliceMap, eventId, [g]])).toMatch(/Invalid attendance/);
+    const { create_custom_pin: c } = await t.one<{ create_custom_pin: string }>(`select public.create_custom_pin($1, 'X', null, 1, 1, null, $2)`, [aliceMap, [g]]);
+    expect(await t.fails(`update public.pins set attendance = 'going' where id = $1`, [c])).toMatch(/pins_attendance_events_only/);
+  });
+
+  it('add_to_collab: editors/owners only, server-side event coordinates, no duplicates', async () => {
+    await t.as(alice);
+    const { create_collab_map: mapId } = await t.one<{ create_collab_map: string }>(`select public.create_collab_map('Trip', null)`);
+    const inv = await t.one<{ token: string }>(`select * from public.create_collab_invitation($1, 'viewer', null, 24, null)`, [mapId]);
+    const r1 = await t.one<{ add_to_collab: string }>(`select public.add_to_collab($1, p_event_id => $2, p_attendance => 'going')`, [mapId, eventId]);
+    const row = await t.one<{ latitude: number; attendance: string; shared_by: string }>(`select latitude, attendance, shared_by from public.shared_pins where id = $1`, [r1.add_to_collab]);
+    expect(row).toEqual({ latitude: 40.75, attendance: 'going', shared_by: alice }); // coordinates from public.events
+    const r2 = await t.one<{ add_to_collab: string }>(`select public.add_to_collab($1, p_event_id => $2, p_attendance => 'interested')`, [mapId, eventId]);
+    expect(r2.add_to_collab).toBe(r1.add_to_collab);
+    expect(await t.fails(`select public.add_to_collab($1, p_place_ref => 'osm:node/1', p_title => 'X', p_latitude => 1, p_longitude => 1, p_attendance => 'going')`, [mapId])).toMatch(/events only/);
+    expect(await t.fails(`select public.add_to_collab($1, p_event_id => $2, p_place_ref => 'osm:node/1')`, [mapId, eventId])).toMatch(/exactly one/);
+
+    // Viewer and stranger are refused.
+    await t.as(bob);
+    await t.query(`select public.accept_collab_invitation($1)`, [inv.token]);
+    expect(await t.fails(`select public.add_to_collab($1, p_event_id => $2)`, [mapId, eventId])).toMatch(/editor access/);
+    await t.as(carol);
+    expect(await t.fails(`select public.add_to_collab($1, p_event_id => $2)`, [mapId, eventId])).toMatch(/editor access/);
+    // Editor can add a place.
+    await t.as(alice);
+    await t.query(`select public.set_collab_member_role($1, $2, 'editor')`, [mapId, bob]);
+    await t.as(bob);
+    const p = await t.one<{ add_to_collab: string }>(`select public.add_to_collab($1, p_place_ref => 'osm:way/9', p_title => 'Park', p_latitude => 40.7, p_longitude => -73.9)`, [mapId]);
+    expect(await t.one(`select place_ref, title from public.shared_pins where id = $1`, [p.add_to_collab])).toEqual({ place_ref: 'osm:way/9', title: 'Park' });
+    // Stranger still can't read it.
+    await t.as(carol);
+    expect(await t.query(`select id from public.shared_pins where collab_map_id = $1`, [mapId])).toEqual([]);
+  });
+
+  it('new functions are not executable by anon', async () => {
+    await t.asAdmin();
+    const rows = await t.query<{ f: string; ok: boolean }>(`select f, has_function_privilege('anon', f, 'execute') ok from unnest(array[
+      'public.save_place_pin(uuid,text,text,double precision,double precision,text,uuid[])',
+      'public.add_to_collab(uuid,uuid,text,text,double precision,double precision,text,text)',
+      'public.save_event_pin(uuid,uuid,uuid[],text)']) f`);
+    expect(rows.filter((r) => r.ok)).toEqual([]);
+  });
+});

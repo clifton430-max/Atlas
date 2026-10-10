@@ -16,9 +16,11 @@ export interface MapMarkerProps {
   /** Anchor point of the element relative to the coordinate. */
   anchor?: maplibregl.PositionAnchor;
   zIndex?: number;
+  /** false for purely visual markers (previews, halos) so they never intercept map clicks. */
+  interactive?: boolean;
 }
 
-export function MapMarker({ longitude, latitude, children, anchor = 'center', zIndex }: MapMarkerProps) {
+export function MapMarker({ longitude, latitude, children, anchor = 'center', zIndex, interactive = true }: MapMarkerProps) {
   const { map } = useMapInstance();
   const [element] = useState(() => {
     const el = document.createElement('div');
@@ -45,7 +47,8 @@ export function MapMarker({ longitude, latitude, children, anchor = 'center', zI
 
   useEffect(() => {
     element.style.zIndex = zIndex != null ? String(zIndex) : '';
-  }, [element, zIndex]);
+    element.style.pointerEvents = interactive ? '' : 'none';
+  }, [element, zIndex, interactive]);
 
   return createPortal(children, element);
 }

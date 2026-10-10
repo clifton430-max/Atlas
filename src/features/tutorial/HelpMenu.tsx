@@ -17,8 +17,8 @@ export function HelpMenu() {
   return (
     <Popover label="Help and tutorial" trigger={({ open, toggle, id }) => (
       <button type="button" aria-expanded={open} aria-controls={id} onClick={toggle} data-tour="help-button" aria-label="Help and tutorial"
-        className="flex h-10 items-center gap-1.5 rounded-xl bg-white px-3 text-sm font-medium shadow-panel ring-1 ring-black/5 hover:bg-neutral-50">
-        <CircleHelp className="size-4" aria-hidden />Help
+        title="Help and tutorial" className="grid size-9 place-items-center rounded-lg text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900">
+        <CircleHelp className="size-[18px]" aria-hidden />
       </button>
     )}>
       {(close) => (

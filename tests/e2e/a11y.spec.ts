@@ -61,3 +61,23 @@ test('guest, tutorial and demo collaboration screens have no WCAG A/AA violation
   await expect(page.getByRole('heading', { name: 'An account is needed for this' })).toBeVisible();
   await audit(page);
 });
+
+test('category Discover, place card and category dropdown have no WCAG A/AA violations', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('__b')) return;
+    sessionStorage.setItem('__b', '1');
+    localStorage.setItem('atlas.viewport', JSON.stringify({ center: [-73.9705, 40.7735], zoom: 15.5 }));
+    localStorage.setItem('atlas.discover.categories.v1', JSON.stringify({ visible: ['events', 'food', 'parks'], subs: {} }));
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('welcome-overlay')).toBeHidden({ timeout: 3000 });
+  const item = page.locator('[data-tour="places-in-view"] li button').first();
+  await expect(item).toBeVisible({ timeout: 20_000 });
+  await audit(page);
+  await item.click();
+  await expect(page.locator('[data-tour="place-card"]')).toBeVisible();
+  await audit(page);
+  await page.getByRole('button', { name: 'Food & Drink types' }).click();
+  await expect(page.getByRole('dialog', { name: 'Food & Drink options' })).toBeVisible();
+  await audit(page);
+});

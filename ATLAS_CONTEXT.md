@@ -155,8 +155,10 @@ filter when required data is unknown.
 
 ## Design and accessibility
 
-Use a grayscale foundation with restrained accents. Keep the map
-dominant. Use reusable UI primitives, consistent spacing, subtle
+Use a light, warm-neutral editor-style interface (white panels on a
+warm canvas) with restrained accents: lime for primary calls to action
+(Share, Add to map), green for brand/active navigation, blue for
+selection. Keep the map dominant. Use reusable UI primitives, consistent spacing, subtle
 borders/shadows, restrained animation, visible focus, keyboard access,
 labels for icon-only controls, adequate contrast, correct dialog focus
 handling, Escape support where appropriate, screen-reader-friendly
@@ -195,6 +197,96 @@ workspaces, selected automatically and shown by a badge in the left panel:
     offered on the first visit and can be started, resumed or restarted
     from **Help**. It runs in the disposable sandbox, so it never changes
     account or guest data.
+
+## Living map and rich discovery (merged from `ATLAS_CONTEXT_ADDENDUM_LIVING_MAP.md`)
+
+Atlas should feel like a lively, interactive map of the real world without
+becoming cluttered, slow or inaccurate. Every invariant above still applies.
+In particular, nothing is fabricated: events, places, photos, coordinates,
+distances, attendance and provider results are all real or explicitly unknown.
+
+**Interactive markers and details.**
+-   Every supported Discover marker (events and places) shows a compact
+    preview on hover *or* keyboard focus: name, category (icon, label and
+    color), a trustworthy thumbnail when one exists, and distance when it can
+    be calculated.
+-   Click or press Enter to open rich details with verified fields only.
+-   Details end with **Save to a map…**. The destination is one of your
+    personal maps, or a collaboration map where you are owner or editor. A
+    group is required for personal maps, and events can record attendance
+    (*going* / *interested*). Guests save to their local workspace.
+
+**Categories.**
+-   Discover has category navigation: Events, Food & Drink, Things to Do,
+    Parks & Outdoors, Scenic Views, Tourist Attractions, Arts & Culture and
+    Sports. Each category has subcategories and a structured results list kept
+    in sync with the map.
+-   Several categories can be shown at once.
+-   **Hide all / Show all** affects Discover overlays only. It never deletes
+    data or touches personal or collaboration pins.
+-   Event types are color-coded only where Ticketmaster supplies a segment.
+    Color is always paired with an icon and a label.
+
+**Places and imagery.**
+-   Points of interest are real OpenStreetMap features from the basemap's
+    vector tiles.
+-   Extra details come from the OSM API, and photos come only from Wikimedia
+    Commons files explicitly linked to the place, shown with author and
+    license.
+-   Points of interest inside a parent place (parks, stadiums, museums…) come
+    from OSM area containment.
+-   When any of these are unavailable, the UI says so.
+
+**Distance.**
+-   Distance appears only after the user clicks "Use my location".
+-   It is always labelled **straight line**, never as walking or driving.
+-   The location stays on the device.
+
+**A more alive map.**
+-   The selected item gets a halo. When it sits inside a real OSM building
+    footprint, that footprint is highlighted. Footprints are never invented.
+-   Optional ambient life (Settings → Map appearance) moves a few dots along
+    real road, rail and path geometry, and adds a warm glow at real nightlife
+    venues after dark. It is explicitly decorative, not real-time traffic.
+-   Ambient life is off under reduced motion, pauses when the tab is hidden or
+    the map moves, and switches itself off if performance drops.
+-   Model separation is preserved: events, places/POIs, user-owned pins and
+    shared representations remain distinct.
+
+## Map and interface redesign (2026-10-10)
+
+The visual reference is an editor-style ("Rive-like") layout over an
+illustrated isometric city. Atlas implements that layout around the
+real, interactive map — the illustration is a style target, never an
+image overlaid as a fake map.
+
+-   **Shell:** top navigation (logo, map switcher, Discover / My Maps /
+    Shared tabs, global search, notifications, help, account, lime
+    Share) · left icon rail · collapsible side panel whose content
+    follows the tab · central map with a bottom toolbar (locate, 2D/3D,
+    zoom, reset orientation, map animations, layers) · collapsible right
+    inspector that shows whatever is selected, or the map legend.
+-   **Tabs = map contexts.** Discover (`/`), My Maps (`/maps` → last
+    used map), Shared (`/collab`). The isolation rules in "Map
+    contexts" are unchanged.
+-   **Real vs decorative must stay distinguishable.** Roads, water,
+    parks, building footprints/heights and places come from
+    OpenStreetMap; events from Ticketmaster. Building colours, tree
+    symbols inside mapped parks/woods, vehicles and walkers are
+    decorative and are labelled as such in the legend. Nothing is ever
+    placed where the data doesn't put it.
+-   **Notifications** show only real items (pending collaboration
+    invitations, incoming friend requests). **Share** offers only what
+    works in the current context: public source links on Discover; an
+    explanation that personal maps are private; invitations for
+    collaboration-map owners (re-checked by the database).
+-   **Lighting and motion:** day/night lighting (Auto by approximate
+    local time, or forced) is a colour change; ambient vehicles/walkers
+    are decorative motion on real geometry, pausable, speed-adjustable,
+    and off under reduced motion.
+-   **Responsive:** below 1280 px the inspector overlays the map; below
+    1024 px the side panel does too; below 768 px the icon rail is
+    replaced by a floating toggle and the tabs wrap to a second row.
 
 ## Development process
 

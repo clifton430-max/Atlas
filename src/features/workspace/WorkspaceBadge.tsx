@@ -22,7 +22,7 @@ export function WorkspaceBadge() {
           ? 'flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent-strong'
           : 'flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 ring-1 ring-amber-200'}>
         {sandbox ? <GraduationCap className="size-3.5" aria-hidden /> : <HardDrive className="size-3.5" aria-hidden />}
-        {sandbox ? 'Tutorial sandbox' : 'Guest · on this device'}
+        <span className="sr-only xl:not-sr-only">{sandbox ? 'Tutorial sandbox' : 'Guest · on this device'}</span>
       </button>
     )}>
       <div className="w-72 space-y-2 p-4 text-sm text-neutral-700">

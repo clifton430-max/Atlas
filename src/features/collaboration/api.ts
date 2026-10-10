@@ -69,6 +69,7 @@ export const sharedPinFromRow = (r: Row): SharedPin => {
     title: String(r.title), note: (r.note as string) ?? null,
     latitude: Number(r.latitude), longitude: Number(r.longitude), address: (r.address as string) ?? null,
     appearance: appearanceFromRow(r), image: imageFromRow(r.image as Row | null),
+    attendance: (r.attendance as SharedPin['attendance']) ?? null,
     createdAt: String(r.created_at),
   };
 };
@@ -80,7 +81,7 @@ export function useSharedPins(mapId: string | undefined) {
     queryFn: async () => {
       const rows = unwrap(await requireSupabase().from('shared_pins')
         .select(`id, collab_map_id, shared_by, source_pin_id, event_id, title, note, latitude, longitude, address,
-          color, shape, icon, size, border_color, border_width, image_id, image_mask, created_at,
+          color, shape, icon, size, border_color, border_width, image_id, image_mask, created_at, attendance, place_ref,
           image:pin_images(${IMAGE_COLUMNS}),
           sharer:profiles!shared_pins_shared_by_fkey(username, display_name)`)
         .eq('collab_map_id', mapId!).order('created_at'));
@@ -268,6 +269,28 @@ export function useCollabMutations() {
         qc.invalidateQueries({ queryKey: qk.sharedPins(v.collabMapId) });
         qc.invalidateQueries({ queryKey: qk.pinShares(v.pinId) });
       },
+    }),
+    /**
+     * Pin a public event or an OpenStreetMap place straight into a collaboration
+     * map (owner/editor only — enforced by add_to_collab on the server).
+     */
+    addToCollab: useMutation({
+      mutationFn: async (input: {
+        collabMapId: string;
+        eventId?: string;
+        place?: { ref: string; name: string; latitude: number; longitude: number; address: string | null };
+        attendance?: 'going' | 'interested' | null;
+      }) => unwrap(await sb().rpc('add_to_collab', {
+        p_collab_map_id: input.collabMapId,
+        p_event_id: input.eventId,
+        p_place_ref: input.place?.ref,
+        p_title: input.place?.name,
+        p_latitude: input.place?.latitude,
+        p_longitude: input.place?.longitude,
+        p_address: input.place?.address ?? undefined,
+        p_attendance: input.attendance ?? undefined,
+      })) as string,
+      onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: qk.sharedPins(v.collabMapId) }),
     }),
     removeSharedPin: useMutation({
       /** Removes ONLY the representation; the private original and its image remain. */

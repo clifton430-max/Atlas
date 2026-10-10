@@ -8,3 +8,8 @@ project_id = "atlas"
 # it also works with Supabase's newer non-JWT publishable keys. Provider calls
 # are rate-limited by the event_fetch_log cache.
 verify_jwt = false
+
+[functions.place-details]
+# Public, read-only OpenStreetMap/Wikimedia details (no user data); protected
+# by per-client rate limits, upstream budgets and a server-side cache.
+verify_jwt = false

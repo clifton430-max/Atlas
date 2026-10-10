@@ -1,6 +1,129 @@
 # Atlas — Implementation Status & Acceptance Checklist
 
-_Last updated: 2026-10-10 (Guest Mode + interactive tutorial session)._
+_Last updated: 2026-10-10 (Map & interface redesign session). Earlier sections below are kept for history._
+
+## Map & interface redesign — this session
+
+Reference: editor-style UI over an isometric city. Implemented on the
+real MapLibre map; nothing is an illustration laid over the map.
+
+| Phase | Status | Verified by |
+|---|---|---|
+| 1. Design system and shell | ✅ Complete | typecheck, lint, 105 unit/DB, 41 fixture E2E, 14 live E2E; screenshots at 1440 / 820 / 390 px |
+| 2. Markers and details | ✅ Complete | 105 unit/DB, 48 fixture E2E (7 new in `redesign.spec.ts`) |
+| 3. Discovery and filtering | ✅ Complete | 113 unit/DB (8 new: Nightlife mapping, uniqueness, sort), 50 fixture E2E (2 new: Nightlife from real tiles, dropdown filters + sort) |
+| 4. Add to Map workflow | ✅ Complete | 50 fixture E2E, **14 live E2E** (inline flow on the real backend: no duplicate, viewer maps excluded, collaboration add with attendance), 33 live API tests |
+| 5. Geographic visual upgrade | ✅ Complete | 120 unit/DB (7 new transform tests), 51 fixture E2E (new: buildings and trees only from real tile features) ; screenshots of Midtown, Central Park and the Battery |
+| 6. Ambient animations | ✅ Complete | 122 unit/DB (2 new pose/box tests), 53 fixture E2E (2 new: vehicles in a personal-map context, pause/resume, night/day tint; reduced motion) |
+
+### Final test results (this session)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` / `npm run lint` / `npm run build` | ✅ pass. The app chunk is 405 KB (it was 352 KB). MapLibre is unchanged. **No new dependencies.** |
+| `npm test` (unit + PGlite DB/RLS) | ✅ **122 / 122** (+17 this session) |
+| `npm run test:e2e` (no backend, real OpenFreeMap tiles) | ✅ **53 / 53**, including 12 in the new `tests/e2e/redesign.spec.ts` |
+| `npm run test:e2e:live` (real Supabase + Ticketmaster) | ✅ **14 / 14** (save, collaboration, guest and tutorial flows updated for the new layout and the inline Add to map) |
+| `npm run test:live` (backend API) | ✅ **33 / 33** (+1 opt-in skipped). No backend or migration changes were made in this session. |
+| Bundle secret scan | ✅ The only JWT in the bundle has role `anon` (the public key). `sb_secret_` appears only as a string literal inside supabase-js. |
+
+### Verified vs. decorative vs. not done
+
+- **Verified real data:**
+  - Building footprints and heights, roads, rail, paths, water, parks, gardens, woods and places all come from OpenStreetMap tiles.
+  - Events come from Ticketmaster.
+  - Place details come from the OSM API, and photos from Wikimedia Commons.
+- **Decorative (labelled in the legend and Layers):**
+  - building facade colours
+  - tree canopies, drawn only inside mapped parks and woods
+  - vehicle and walker motion and size, which are not live
+  - day/night tint, which uses approximate solar time
+- **Intentionally not reproduced from the reference** (no trustworthy data source, so nothing is fabricated):
+  - "Popular times", "price range" and "Open now"
+  - per-row place photos in lists (quota)
+  - 3D tree models (a 3D engine dependency)
+- **Still externally blocked (unchanged):**
+  - "Inside this place": Overpass is blocked from Supabase egress. Set the `OVERPASS_URL` secret to fix it.
+  - SMTP email delivery has not been verified.
+
+Phase 1 notes:
+-   No features were removed. Old locations moved: the collaboration panel is now the Shared tab's side panel, and selection cards now open in the right inspector. Group filters moved into the My Maps panel and Discover filters into the Discover panel.
+-   Notifications are real data only (pending invitations, incoming friend requests). Guests see an explanation instead.
+-   Share is context-aware and never offers a link that wouldn't work. Personal maps have no public link, by design.
+
+
+## Living map & rich discovery — this session
+
+### Test results (final run)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` / `npm run lint` / `npm run build` | ✅ pass. App chunk 352 KB (109 KB gzip), up from 301 KB; MapLibre chunk unchanged. |
+| `npm test` | ✅ **105 / 105**, including new places, categories, distance and OSM/Wikimedia parsing tests and DB tests for migration 0012 |
+| `npm run test:e2e` (no backend, real OpenFreeMap tiles) | ✅ **41 / 41**, including 9 new living-map tests and 1 new axe audit |
+| `npm run test:live` | ✅ **33 / 33** (+1 opt-in skipped), including 4 new tests: place-details, `save_place_pin`, attendance, `add_to_collab` roles |
+| `npm run test:e2e:live` | ✅ **14 / 14**, including 2 new: live place card with Commons photo; save to an editable collaboration map, with viewer maps excluded |
+| `deno check` (both Edge Functions) | ✅ pass |
+| Supabase advisors | Anon can execute 0 functions. The new `add_to_collab` is listed among the intended signed-in RPCs; it re-checks the role server-side. |
+| Secret scan (committable files + bundle) | ✅ 0 matches |
+
+### What powers each feature
+
+| Feature | Source | Notes |
+|---|---|---|
+| Event markers, previews, details | Ticketmaster via `discover-events` (verified live) | Icon and color by Ticketmaster segment; "type unknown" when the segment is missing |
+| Place markers, categories, results list | **OpenStreetMap POIs in the OpenFreeMap vector tiles** (`poi` layer, injected into the style) | No extra network requests (measured: 0 when toggling categories); ODbL attribution shown |
+| Place details (address, hours as listed, website, phone, cuisine, links) | OSM API via the new `place-details` Edge Function | Cached 7 days, rate-limited, sends an identifying User-Agent |
+| Place photos | **Wikimedia Commons only** (explicit `wikimedia_commons`/`image` tag or Wikidata P18) | Shown with license, author and file link. Verified live: ESB (Public domain), Central Park (CC BY-SA 2.0). |
+| Points of interest inside a place | Overpass area containment (`place-details`) | ⚠️ Currently blocked externally (see below) |
+| Distance | Browser geolocation on explicit click, great-circle formula | Labelled "straight line"; never sent anywhere |
+| Selected-place emphasis | **Real OSM building footprint** under the selected point (tiles) plus a halo | Nothing is drawn when no footprint contains the point |
+| Ambient life | **Real road, rail and path geometry** from the tiles; **stylized motion** (not real-time traffic); real POIs for the night glow | Optional; off under reduced motion |
+
+### Status per requirement
+
+See ATLAS_DEV_NOTES.md → Phase 11 for the full checklist. Summary:
+
+- **Complete and verified:**
+  - interactive markers with hover and keyboard previews
+  - rich details
+  - save to personal or collaboration maps, with group and attendance rules
+  - guest local saves
+  - category Discover with subcategories
+  - Hide all / Show all
+  - list/map sync
+  - category colors with icons
+  - distance
+  - building-footprint emphasis
+  - ambient life with setting, reduced motion and performance guard
+  - security preservation
+- **Implemented, partially verified:**
+  - place thumbnails in hover previews (dwell-then-cache by design; no live UI test)
+  - night glow (approximate solar time; unit-tested only)
+  - places-plus-keyword interaction (defined, not separately tested)
+- **Externally blocked:** "Inside this place" lists.
+  - Public Overpass instances return 406/504 for requests from Supabase's egress. It worked live once (ESB, 6 POIs). The UI says it couldn't be loaded.
+  - **Fix:** `supabase secrets set OVERPASS_URL=https://<your overpass instance>/api/interpreter`. It's tried first, and no redeploy is needed.
+- **Not implemented, by design:**
+  - 3D extrusion lift (the map is top-down with pitch disabled, so it would be invisible)
+  - trees and picnic scenes (no geographically defensible data; would be invented decoration)
+
+### Performance (headless Chrome, Midtown NYC, z15.5, 217 place markers)
+
+| | Avg frame | p95 frame |
+|---|---|---|
+| Ambient off | 16.6 ms | 16.7 ms |
+| Ambient on (16 moving dots) | 16.6 ms | 16.8 ms |
+
+Toggling 4 place categories made **0 provider requests**.
+
+### Deployment changes this session
+
+- **Migrations 0012 and 0013 applied** (dry-run first). Both are additive. `save_event_pin` was re-created with an optional `p_attendance`; no data changed.
+- **Edge Function `place-details` deployed** with `verify_jwt=false`. It is public read-only and rate-limited.
+- **Optional new secret: `OVERPASS_URL`.**
+
+---
 
 **Legend:** ✅ verified by a passing automated test or a live check · 🟡 implemented, not fully verifiable here (reason given) · 🔴 blocked
 
@@ -30,7 +153,7 @@ _Last updated: 2026-10-10 (Guest Mode + interactive tutorial session)._
 | Private data and Storage stay protected | ✅ | Live API suite (29) and the advisor/privilege checks from the previous session. RLS was never weakened, and anon can still execute 0 functions. |
 | Guest data never migrates silently | ✅ | `guest.live.spec.ts`: account row counts are unchanged after sign-in; import happens only on explicit request and inserts only |
 | Tutorial works without signing in | ✅ | `tutorial.spec.ts` runs in no-backend mode |
-| Every major feature has an interactive chapter | ✅ | 7 chapters, 44 steps; the walkthrough test reaches every step of all 7 chapters and finishes |
+| Every major feature has an interactive chapter | ✅ | 7 chapters, 47 steps; the walkthrough test reaches every step of all 7 chapters and finishes |
 | Tutorial controls, progress, restart, accessibility, and safe demo behaviour | ✅ | `tutorial.spec.ts` (9) and axe. Sandbox isolation is checked both locally and live. |
 | Ticketmaster verified with real live data | ✅ | Deployed function: `source: ticketmaster, fetched: true`. 276 real NYC events across 3 days in one viewport. Live UI shows "Live from Ticketmaster". |
 | Email flows verified end to end | 🔴 **External blocker** | Supabase rejects reserved test domains before sending, no real mailbox was available, and the project uses the rate-limited built-in mailer. The code paths are implemented, and their failures are explained to users. |

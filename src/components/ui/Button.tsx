@@ -2,7 +2,8 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from './cn';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+/** `cta` is the lime call-to-action (Share, Add to map); `primary` stays dark for dialogs. */
+type Variant = 'primary' | 'cta' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -15,6 +16,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<Variant, string> = {
   primary: 'bg-neutral-900 text-white hover:bg-neutral-800 disabled:bg-neutral-400',
+  cta: 'bg-lime text-lime-ink hover:bg-lime-strong disabled:bg-neutral-200 disabled:text-neutral-500',
   secondary: 'bg-white text-neutral-900 border border-neutral-300 hover:bg-neutral-50 disabled:text-neutral-400',
   ghost: 'text-neutral-700 hover:bg-neutral-200/70 disabled:text-neutral-400',
   danger: 'bg-danger text-white hover:brightness-95 disabled:opacity-50',

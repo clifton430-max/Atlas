@@ -10,6 +10,7 @@ import { Eye, HardDrive, Map as MapIcon, Palette, Shield, Tags, UserRound, Users
 import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { GuestDataSection } from '@/features/workspace/GuestDataSection';
 import { useLocalSnapshot } from '@/features/workspace/useLocalSnapshot';
+import { setAmbientEnabled, useAmbientEnabled, useReducedMotion } from '@/features/places/ambient';
 import { AccountRequiredCard, type AccountReason } from '@/features/workspace/AccountRequired';
 import { useAuth } from '@/app/AuthProvider';
 import { uiStore } from '@/app/store';
@@ -230,8 +231,11 @@ function AppearanceSection() {
       try { ws.local.setMapStyle(id); toast.success('Map style saved on this device.'); } catch (e) { toast.error(e); }
     } else update.mutate({ mapStyle: id }, { onSuccess: () => toast.success('Map style saved.'), onError: (e) => toast.error(e) });
   };
+  const ambient = useAmbientEnabled();
+  const reduced = useReducedMotion();
   return (
-    <div className="max-w-xl">
+    <div className="max-w-xl space-y-8">
+      <div>
       <H2 sub="Choose the basemap style.">Map appearance</H2>
       {!isMapStyleCustomizable ? (
         <Notice>This deployment uses a custom map style (VITE_MAP_STYLE_URL), so the style can’t be changed here.</Notice>
@@ -250,6 +254,16 @@ function AppearanceSection() {
           <p className="pt-1 text-xs text-neutral-500">Basemaps by OpenFreeMap © OpenMapTiles, data © OpenStreetMap contributors.</p>
         </fieldset>
       )}
+      </div>
+      <Switch
+        label="Ambient map life"
+        description={reduced
+          ? 'Off because your system asks for reduced motion.'
+          : 'Decorative motion when zoomed in: a few small vehicles and walkers moving along real roads, rail lines and footpaths. It is not real-time traffic or transit. Pause or change speed from the map toolbar. Saved on this device.'}
+        checked={ambient && !reduced}
+        disabled={reduced}
+        onChange={setAmbientEnabled}
+      />
     </div>
   );
 }

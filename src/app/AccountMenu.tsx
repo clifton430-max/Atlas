@@ -15,8 +15,8 @@ export function AccountMenu() {
 
   if (!user) {
     return (
-      <Link to="/auth" data-tour="account-menu" className="flex h-10 items-center gap-2 rounded-xl bg-white px-3 text-sm font-medium shadow-panel ring-1 ring-black/5 hover:bg-neutral-50">
-        <LogIn className="size-4" aria-hidden />Sign in
+      <Link to="/auth" data-tour="account-menu" className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-neutral-800 ring-1 ring-line hover:bg-neutral-100">
+        <LogIn className="size-4" aria-hidden /><span className="sr-only sm:not-sr-only">Sign in</span>
       </Link>
     );
   }
@@ -25,7 +25,7 @@ export function AccountMenu() {
   return (
     <Popover label="Account menu" trigger={({ open, toggle, id }) => (
       <button type="button" aria-expanded={open} aria-controls={id} onClick={toggle} data-tour="account-menu" aria-label={`Account menu for ${name}`}
-        className="grid size-10 place-items-center rounded-xl bg-white text-sm font-semibold uppercase shadow-panel ring-1 ring-black/5 hover:bg-neutral-50">
+        className="grid size-9 place-items-center rounded-full bg-brand-soft text-sm font-semibold uppercase text-brand ring-2 ring-white hover:ring-brand/30">
         {profile.data ? name[0] : <UserRound className="size-4" aria-hidden />}
       </button>
     )}>

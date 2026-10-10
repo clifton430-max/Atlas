@@ -4,7 +4,7 @@
  * touches the guest workspace.
  */
 import { expect, test, type Page } from '@playwright/test';
-import { clickMapAt, freshGuest, waitForMap } from './helpers';
+import { clickMapAt, freshGuest, mapLink, openMyMaps, waitForMap } from './helpers';
 
 const card = (page: Page) => page.getByTestId('tour-card');
 const counter = (page: Page) => page.getByTestId('tour-counter');
@@ -86,24 +86,24 @@ test('panel tasks reopen hidden panels; collapsing then expanding completes the 
   await freshGuest(page);
   await page.goto('/');
   // Hide the left panel before the tour: the "contexts" step must reopen it.
-  await page.getByRole('button', { name: 'Collapse maps panel' }).click();
+  await page.getByRole('button', { name: 'Collapse side panel' }).click();
   await openHelpChapter(page, '1. Getting around Atlas');
   await next(page).click();
   await expect(card(page).getByRole('heading', { name: 'Three kinds of map' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Collapse maps panel' })).toBeVisible(); // reopened
+  await expect(page.getByRole('button', { name: 'Collapse side panel' })).toBeVisible(); // reopened
   for (let i = 0; i < 3; i++) {
     const s = card(page).getByRole('button', { name: 'Skip step' });
     if (await s.isVisible()) await s.click(); else await next(page).click();
   }
   await expect(card(page).getByRole('heading', { name: 'Panels open and close' })).toBeVisible();
-  await page.getByRole('button', { name: 'Collapse maps panel' }).click();
-  await page.getByRole('button', { name: 'Expand maps panel' }).click();
+  await page.getByRole('button', { name: 'Collapse side panel' }).click();
+  await page.getByRole('button', { name: 'Expand side panel' }).click();
   await expect(card(page).getByText('Done!')).toBeVisible();
 });
 
 test('practice actions are verified, and the sandbox never touches guest data', async ({ page }) => {
   await freshGuest(page);
-  await page.goto('/');
+  await page.goto('/maps');
   // A guest map that must survive the tour untouched.
   await page.getByRole('button', { name: 'New map' }).click();
   await page.getByRole('dialog', { name: 'New private map' }).getByLabel('Name').fill('Keep me');
@@ -112,7 +112,7 @@ test('practice actions are verified, and the sandbox never touches guest data', 
 
   await openHelpChapter(page, '3. Personal maps');
   await expect(card(page).getByRole('heading', { name: 'Create a map' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Keep me' })).toHaveCount(0); // sandbox shows practice maps only
+  await expect(mapLink(page, 'Keep me')).toHaveCount(0); // sandbox shows practice maps only
   await page.getByRole('button', { name: 'New map' }).click();
   await page.getByRole('dialog', { name: 'New private map' }).getByLabel('Name').fill('Practice A');
   await page.getByRole('button', { name: 'Create map' }).click();
@@ -135,8 +135,9 @@ test('practice actions are verified, and the sandbox never touches guest data', 
 
   // Exit: sandbox discarded, guest workspace byte-for-byte unchanged.
   await card(page).getByRole('button', { name: 'Exit tour' }).click();
-  await expect(page.getByRole('link', { name: 'Keep me' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Practice A' })).toHaveCount(0);
+  await openMyMaps(page);
+  await expect(mapLink(page, 'Keep me')).toBeVisible();
+  await expect(mapLink(page, 'Practice A')).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('atlas.guest.v1'))).toBe(before);
   expect(await page.evaluate(() => localStorage.getItem('atlas.sandbox.v1'))).toBeNull();
 });

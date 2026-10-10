@@ -19,7 +19,7 @@
  *   - Data loaded from storage is validated record-by-record; malformed records
  *     are dropped and unreadable data is backed up instead of crashing the app.
  */
-import { DEFAULT_APPEARANCE, type AtlasEvent, type Group, type ImageMask, type PersonalMap, type Pin, type PinAppearance, type PinShape } from '@/lib/types';
+import { DEFAULT_APPEARANCE, type Attendance, type AtlasEvent, type Group, type ImageMask, type PersonalMap, type Pin, type PinAppearance, type PinShape } from '@/lib/types';
 import { isValidLatLng } from '@/lib/validation';
 
 export const LOCAL_SCHEMA_VERSION = 1;
@@ -31,6 +31,10 @@ export interface LocalPin {
   id: string; mapId: string; kind: 'event' | 'custom'; eventId: string | null; event: AtlasEvent | null;
   title: string | null; note: string | null; latitude: number | null; longitude: number | null; address: string | null;
   appearance: PinAppearance; groupIds: string[]; createdAt: string; updatedAt: string;
+  /** Saved events only. Optional for backward compatibility with older guest data. */
+  attendance?: Attendance | null;
+  /** OpenStreetMap place this pin was saved from ("osm:node/123"). */
+  placeRef?: string | null;
 }
 /** Demonstration-only collaboration state (never server-backed; always labelled "Demo"). */
 export interface DemoMember { id: string; name: string; role: 'owner' | 'editor' | 'viewer'; isYou: boolean }
@@ -151,6 +155,8 @@ export function validateState(raw: unknown): { state: LocalState; dropped: numbe
       address: p.address ?? null, appearance,
       groupIds: Array.isArray(p.groupIds) ? [...new Set<string>(p.groupIds.filter((g: unknown) => typeof g === 'string' && groupIds.has(g as string)))] : [],
       createdAt: isIso(p.createdAt) ? p.createdAt : now(), updatedAt: isIso(p.updatedAt) ? p.updatedAt : now(),
+      attendance: p.kind === 'event' && (p.attendance === 'going' || p.attendance === 'interested') ? p.attendance : null,
+      placeRef: typeof p.placeRef === 'string' && /^osm:(node|way|relation)\/\d{1,15}$/.test(p.placeRef) ? p.placeRef : null,
     });
   }
   const demo = r.demo as Record<string, unknown> | undefined;
@@ -381,7 +387,7 @@ export class LocalWorkspace {
       longitude: p.kind === 'event' ? p.event?.longitude ?? null : p.longitude,
       address: p.address, appearance: { ...p.appearance },
       image: img ? { id: img.id, storagePath: `local:${img.id}`, mimeType: img.mimeType, byteSize: img.byteSize, width: img.width, height: img.height } : null,
-      groupIds: [...p.groupIds], createdAt: p.createdAt,
+      groupIds: [...p.groupIds], attendance: p.attendance ?? null, placeRef: p.placeRef ?? null, createdAt: p.createdAt,
     };
   }
 
@@ -396,13 +402,15 @@ export class LocalWorkspace {
   }
 
   /** Save a public event; idempotent per map (updates memberships instead of duplicating). */
-  saveEvent(mapId: string, event: AtlasEvent, groupIds: string[]): string {
+  saveEvent(mapId: string, event: AtlasEvent, groupIds: string[], attendance: Attendance | null = null): string {
+    if (attendance !== null && attendance !== 'going' && attendance !== 'interested') throw new LocalWorkspaceError('Invalid attendance.', 'validation');
     return this.commit((d) => {
       if (!d.maps.some((m) => m.id === mapId)) throw new LocalWorkspaceError('Map not found.', 'not_found');
       this.requireGroups(d, groupIds);
       const existing = d.pins.find((p) => p.mapId === mapId && p.kind === 'event' && p.eventId === event.id);
       if (existing) {
         existing.groupIds = [...new Set(groupIds)];
+        existing.attendance = attendance;
         existing.event = structuredClone(event);
         existing.updatedAt = now();
         return existing.id;
@@ -410,7 +418,7 @@ export class LocalWorkspace {
       const p: LocalPin = {
         id: uuid(), mapId, kind: 'event', eventId: event.id, event: structuredClone(event), title: null, note: null,
         latitude: null, longitude: null, address: null, appearance: { ...DEFAULT_APPEARANCE }, groupIds: [...new Set(groupIds)],
-        createdAt: now(), updatedAt: now(),
+        createdAt: now(), updatedAt: now(), attendance, placeRef: null,
       };
       d.pins.push(p);
       return p.id;
@@ -432,6 +440,40 @@ export class LocalWorkspace {
       };
       d.pins.push(p);
       return p.id;
+    });
+  }
+
+  /** Save an OpenStreetMap place as a custom pin at its location; one per map (updates groups). */
+  savePlace(mapId: string, place: { ref: string; name: string; latitude: number; longitude: number }, address: string | null, groupIds: string[]): string {
+    if (!/^osm:(node|way|relation)\/\d{1,15}$/.test(place.ref)) throw new LocalWorkspaceError('Invalid place.', 'validation');
+    return this.commit((d) => {
+      if (!d.maps.some((m) => m.id === mapId)) throw new LocalWorkspaceError('Map not found.', 'not_found');
+      this.requireGroups(d, groupIds);
+      const existing = d.pins.find((p) => p.mapId === mapId && p.placeRef === place.ref);
+      if (existing) {
+        existing.groupIds = [...new Set(groupIds)];
+        existing.updatedAt = now();
+        return existing.id;
+      }
+      if (!isValidLatLng(place.latitude, place.longitude)) throw new LocalWorkspaceError('Invalid location.', 'validation');
+      const p: LocalPin = {
+        id: uuid(), mapId, kind: 'custom', eventId: null, event: null, title: place.name.slice(0, 120), note: null,
+        latitude: place.latitude, longitude: place.longitude, address: address?.slice(0, 300) ?? null,
+        appearance: { ...DEFAULT_APPEARANCE }, groupIds: [...new Set(groupIds)], createdAt: now(), updatedAt: now(),
+        attendance: null, placeRef: place.ref,
+      };
+      d.pins.push(p);
+      return p.id;
+    });
+  }
+
+  setAttendance(pinId: string, attendance: Attendance | null) {
+    this.commit((d) => {
+      const p = d.pins.find((x) => x.id === pinId);
+      if (!p) throw new LocalWorkspaceError('Pin not found.', 'not_found');
+      if (p.kind !== 'event' && attendance) throw new LocalWorkspaceError('Attendance applies to events only.', 'validation');
+      p.attendance = attendance;
+      p.updatedAt = now();
     });
   }
 
@@ -470,6 +512,9 @@ export class LocalWorkspace {
         if (!d.maps.some((m) => m.id === input.mapId)) throw new LocalWorkspaceError('Map not found.', 'not_found');
         if (p.kind === 'event' && d.pins.some((x) => x.mapId === input.mapId && x.kind === 'event' && x.eventId === p.eventId)) {
           throw new LocalWorkspaceError('That event is already saved on the destination map.', 'conflict');
+        }
+        if (p.placeRef && d.pins.some((x) => x.mapId === input.mapId && x.placeRef === p.placeRef)) {
+          throw new LocalWorkspaceError('That place is already saved on the destination map.', 'conflict');
         }
         p.mapId = input.mapId;
       }

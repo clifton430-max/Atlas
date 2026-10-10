@@ -8,6 +8,35 @@ Atlas is a desktop-first, map-first web app. You can discover public events on a
 
 > **Current state (2026-10-10):** Atlas works without an account (**Guest Mode**, data stored on this device) and includes an **interactive tutorial**. Signed in, it runs against the linked Supabase project. Ticketmaster live data is verified through the deployed Edge Function. The one remaining external blocker is public email delivery, which needs custom SMTP. See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md).
 
+## Interface and 3D city (redesign, 2026-10-10)
+
+- **Editor-style layout.**
+  - Top navigation: map switcher, the **Discover / My Maps / Shared** tabs, search, notifications, help, account and a lime **Share** button.
+  - A left icon rail and a collapsible side panel that follows the tab.
+  - The map, with a bottom toolbar: locate, 2D/3D, zoom, reset orientation, map animations, and Layers.
+  - A collapsible right **inspector** for whatever is selected, including an inline **Add to map** form.
+  - Panels become overlays on narrow screens.
+- **3D city from real data.**
+  - OpenStreetMap building footprints are extruded to their mapped heights.
+  - Parks, water and streets get a warm, illustrated palette.
+  - **Decorative** touches are labelled as such in the legend: building colours, tree canopies (only inside mapped parks and woods), and moving vehicles (not live traffic).
+  - The Layers panel has toggles for 3D, trees, and lighting (Auto / Day / Night).
+- **Device-local view preferences:** `atlas.view.v1` (2D/3D), `atlas.trees.v1`, `atlas.lighting.v1`, `atlas.ambient.v1` (animations), `atlas.activeMap.v1` (the last map opened under My Maps).
+- **No new dependencies.** Everything uses MapLibre features that were already in use (fill-extrusion, light, pitch, symbol and pattern layers).
+
+## Living map & Discover categories
+
+- **Interactive markers.** Teardrop pins, with the tip on the real coordinate. Hover a pin, or focus a result with the keyboard, for a preview. Click for rich details in the inspector, then **Add to map**: personal maps (a group is required) or collaboration maps you can edit, with *going* / *interested* for events.
+- **Categories.** Events, Food & Drink, Parks & Outdoors, Arts & Culture, Scenic Views, Nightlife, Tourist Attractions, Things to Do and Sports. Each has subcategories and a results list. **Hide all / Show all** affects Discover only.
+- **Filters and sort.** Date, Price, Category and More filters (for events), plus sorting by Soonest, Nearest, Lowest price or Name. Sorting reorders the lists only.
+- **Real places.**
+  - Points of interest come from the OpenStreetMap data already in the map tiles, so there are no extra requests.
+  - Details come from the OSM API, and photos only from Wikimedia Commons, with author and license, via the `place-details` Edge Function.
+- **Distance.** Shown only after you click **Distance** (your location stays on the device), always labelled straight-line.
+- **Alive map.**
+  - The selected place is highlighted using its real building footprint.
+  - Optional ambient life: small 3D vehicles and walkers moving on real roads, rail and paths, with pause and 0.5×/1×/2× speed, plus a night glow at real venues. It can be turned off from the toolbar or Settings → Map appearance, and is off under reduced motion.
+
 ## Guest Mode
 
 You can open Atlas and use it straight away, without an account:
@@ -37,7 +66,7 @@ You can open Atlas and use it straight away, without an account:
 ## Interactive tutorial
 
 - **Starting it:** first-time visitors are offered a tour (start or skip). It is always available from **Help** in the top bar, where you can take it, restart it, or jump to a chapter.
-- **Content:** 7 chapters and 44 steps covering every feature. They highlight the real controls and include "Try it yourself" tasks that are checked before you continue.
+- **Content:** 7 chapters and 47 steps covering every feature. They highlight the real controls and include "Try it yourself" tasks that are checked before you continue.
 - **Safety:** the tour runs in a **disposable sandbox** (`atlas.sandbox.v1`), for guests and signed-in users alike, so it never changes your maps and never sends anything. The sandbox is discarded when the tour ends, and progress survives a refresh.
 - **Accessibility:** keyboard operable, focus-managed, Escape to exit, live announcements, and reduced-motion support.
 
@@ -74,6 +103,7 @@ src/
     auth/              Sign in / sign up / password reset (friendly email-error messages)
     workspace/         Account / guest / tutorial-sandbox workspaces, local store, import, account-required prompts
     tutorial/          Interactive tour engine, steps (7 chapters), Help menu, first-visit offer
+    places/            Categories, OSM places layer, place details, previews, distance, emphasis, ambient life
   lib/                 Env, Supabase client, domain types, validation, formatting, timezone helpers
   services/events/     EventProvider interface, Supabase/Edge provider, fixture provider, geocoder
   dev/                 Dev-only verification harness (excluded from production builds)
@@ -158,7 +188,8 @@ cp .env.example .env   # first-time setup only — re-running this erases your c
 | `VITE_GEOCODER_URL` | `.env` (optional) | Yes | Photon-compatible geocoder. Defaults to `https://photon.komoot.io/api/` |
 | `TICKETMASTER_API_KEY` | **Supabase Edge Function secret** | **No, server only** | Ticketmaster consumer key |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Injected into Edge Functions by Supabase | **No** | Used by `discover-events` to upsert events and apply rate limits |
-| `ATLAS_ALLOWED_ORIGINS` | Edge Function secret (optional) | n/a | Comma-separated CORS origins for `discover-events`. Defaults to `*`. |
+| `ATLAS_ALLOWED_ORIGINS` | Edge Function secret (optional) | n/a | Comma-separated CORS origins for `discover-events` / `place-details`. Defaults to `*`. |
+| `OVERPASS_URL` | Edge Function secret (optional) | n/a | Dedicated Overpass API endpoint for "Inside this place" lists (tried before public instances) |
 | `ATLAS_LIVE_*` | `.env.live.local` (generated, gitignored) | Test accounts only | Live test accounts, written by `npm run test:live:provision` |
 
 Never prefix server secrets with `VITE_`, because every `VITE_` variable is compiled into the browser bundle.
@@ -185,12 +216,20 @@ npm run seed:generate                  # regenerates supabase/seed.sql from the 
 psql "$SUPABASE_DB_URL" -f supabase/seed.sql   # or paste it into the SQL editor
 ```
 
-### 4. Edge Function (live Ticketmaster data)
+### 4. Edge Functions (live events and place details)
 
 ```bash
 supabase secrets set TICKETMASTER_API_KEY=<your key>
 supabase functions deploy discover-events
+supabase functions deploy place-details          # OSM + Wikimedia details for places (no key needed)
+# optional: a dedicated Overpass instance for "Inside this place" lists
+supabase secrets set OVERPASS_URL=https://<your overpass>/api/interpreter
 ```
+
+`place-details` is public and read-only.
+- It caches results in `public.place_details` (service-role only) and rate-limits each client to 120 requests per minute.
+- It sends an identifying User-Agent, as the OSM and Wikimedia API policies require.
+- Public Overpass instances often reject or time out requests from cloud egress. Without `OVERPASS_URL`, "Inside this place" may show "couldn't be loaded".
 
 `supabase/config.toml` sets `verify_jwt = false` for this function. It serves only public Discover data, so it works signed-out and with non-JWT publishable keys.
 
@@ -309,3 +348,9 @@ See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for the full 
 - The Edge Function is covered by shared-module unit tests and live HTTP tests, but has no Deno-native tests.
 - `@supabase/ssr` is listed as a dependency but unused by this SPA. It's safe to remove; it was left because it was added in the initial backup.
 - `Atlas.py` (an empty file that existed before this work) is unused.
+- **Redesign vs. the reference image:**
+  - Trees are a flat canopy pattern, not 3D models; real 3D trees would need a 3D engine dependency.
+  - Building heights are OpenMapTiles' mapped or estimated heights.
+  - Vehicle sizes are exaggerated so they stay visible.
+  - "Popular times", "price range" and "open now" from the reference are **not shown**: there is no reliable data source for them, and hours are shown exactly as listed.
+  - List rows show Ticketmaster images for events but not per-place photos, which would cost one Commons lookup per row. Place photos appear in the inspector.

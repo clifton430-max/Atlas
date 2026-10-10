@@ -15,6 +15,7 @@ import { PinMarker } from '@/features/pins/PinMarker';
 import { Badge } from '@/components/ui/Feedback';
 import { Button, IconButton } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { InspectorPortal } from '@/app/Inspector';
 
 export function DemoCollabView() {
   const ws = useWorkspace();
@@ -38,17 +39,18 @@ export function DemoCollabView() {
           appearance={s.appearance} image={imageOf(s.imageId)} fallbackIcon="map-pin"
           selected={s.id === selectedId} onSelect={() => uiStore.set({ selectedSharedPinId: s.id })} />
       ))}
-      <div className="absolute left-1/2 top-[68px] z-10 flex -translate-x-1/2 items-center gap-2 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900 shadow-panel ring-1 ring-amber-200" role="status" data-tour="demo-banner">
+      <div className="absolute left-1/2 top-4 z-10 flex -translate-x-1/2 items-center gap-2 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900 shadow-panel ring-1 ring-amber-200" role="status" data-tour="demo-banner">
         <FlaskConical className="size-4" aria-hidden />
         Demo collaboration map — stored only on this device. Nothing is sent to anyone.
       </div>
       {shares.length === 0 && (
-        <div className="absolute bottom-10 left-1/2 z-10 -translate-x-1/2 rounded-xl bg-white px-4 py-2 text-sm text-neutral-600 shadow-panel">
+        <div className="absolute bottom-24 left-1/2 z-10 -translate-x-1/2 rounded-xl bg-white px-4 py-2 text-sm text-neutral-600 shadow-panel">
           No shared pins yet. Open one of your pins and choose <strong>Share</strong> to add a copy here.
         </div>
       )}
       {selected && (
-        <article aria-label={`Demo shared pin: ${selected.title}`} className="absolute left-4 top-[68px] z-10 w-[340px] rounded-2xl bg-white p-4 shadow-float">
+        <InspectorPortal title="Shared pin (demo)" openKey={`demo:${selected.id}`}>
+        <article aria-label={`Demo shared pin: ${selected.title}`} className="w-full p-4 animate-rise-in">
           <header className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
               <div className="mb-1 flex gap-1.5"><Badge tone="warning">Demo</Badge><Badge tone="accent">Shared copy</Badge></div>
@@ -68,6 +70,7 @@ export function DemoCollabView() {
             }}>Remove from demo map</Button>
           </div>
         </article>
+        </InspectorPortal>
       )}
     </>
   );

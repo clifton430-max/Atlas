@@ -97,8 +97,8 @@ export const STEPS: TourStep[] = [
     route: () => '/', prepare: panels,
   },
   {
-    id: 'contexts', chapter: 0, title: 'Three kinds of map', target: 'my-maps',
-    body: 'Atlas has three views of the same map. Discover shows public events. Your personal maps (here) hold your own pins and are private. Collaboration maps, on the right, contain only pins people deliberately share.',
+    id: 'contexts', chapter: 0, title: 'Three kinds of map', target: 'nav-contexts',
+    body: 'Atlas has three views of the same map, switched with these tabs. Discover shows public events and places. My Maps holds your own pins and is private. Shared holds collaboration maps, which contain only pins people deliberately share.',
     route: () => '/', prepare: panels,
   },
   {
@@ -109,21 +109,21 @@ export const STEPS: TourStep[] = [
   },
   {
     id: 'select-marker', chapter: 0, title: 'Select an event', target: 'events-in-view',
-    body: 'Blue dots are events; dark circles with numbers are clusters (click to zoom in). This list mirrors the events in view and works with the keyboard.',
+    body: 'Event markers show the event type; dark circles with numbers are clusters (click to zoom in). This list in the side panel mirrors the events in view and works with the keyboard. Details open in the panel on the right.',
     task: 'Select an event from the list or click a marker on the map.',
     route: () => '/', prepare: (c) => { panels(); uiStore.set({ selectedEventId: null }); void c; },
     done: (c) => !!c.ui.selectedEventId,
   },
   {
     id: 'panels', chapter: 0, title: 'Panels open and close', target: 'toggle-left',
-    body: 'Collapse the side panels to give the map more room. Your view stays exactly where it is.',
-    task: 'Collapse the maps panel, then open it again.',
+    body: 'Collapse the side panel to give the map more room. Your view stays exactly where it is.',
+    task: 'Collapse the side panel, then open it again.',
     prepare: () => uiStore.set({ selectedEventId: null }),
     done: (c, b) => c.ui.panelToggles >= b.ui.panelToggles + 2 && c.ui.leftPanelOpen,
   },
   {
-    id: 'right-panel', chapter: 0, title: 'Collaboration panel', target: 'toggle-right',
-    body: 'The right panel holds collaboration maps, members and invitations. Use this button to show or hide it.',
+    id: 'right-panel', chapter: 0, title: 'Details panel', target: 'toggle-right',
+    body: 'The right panel shows details of whatever you select — an event, place or pin — and lets you add it to a map. With nothing selected it shows the map legend. Use this button to show or hide it.',
     prepare: panels,
   },
   {
@@ -151,6 +151,21 @@ export const STEPS: TourStep[] = [
   {
     id: 'sources', chapter: 1, title: 'Live or sample data?', target: 'discover-status',
     body: 'Atlas tells you where events come from: “Live from Ticketmaster”, how long ago results were fetched, or a clear notice when live data is unavailable. Development sample events are always labelled “Sample” and are never presented as real listings.',
+  },
+  {
+    id: 'categories', chapter: 1, title: 'Discover by category', target: 'category-bar',
+    body: 'Show events and real places from OpenStreetMap: Food & Drink, Parks, Scenic Views, Attractions and more. Each category has its own icon and color, and the arrow next to it picks subcategories. Hover a marker (or focus a result) for a preview; click for details and “Add to map”.',
+    task: 'Turn on another category (for example Food & Drink).',
+    route: () => '/',
+    done: (c, b) => c.ui.discoverCategories.some((id) => !b.ui.discoverCategories.includes(id)),
+  },
+  {
+    id: 'hide-all', chapter: 1, title: 'Hide all, show all', target: 'hide-all',
+    body: '“Hide all” clears every Discover overlay so you can read the map; “Show all” brings everything back. It only affects Discover — your own pins are never hidden or deleted.',
+  },
+  {
+    id: 'distance', chapter: 1, title: 'How far is it?', target: 'use-location',
+    body: 'Click Distance to share your location with Atlas on this device only. Previews, lists and details then show straight-line distance (never walking or driving time).',
   },
   {
     id: 'filters-open', chapter: 1, title: 'Filters', target: 'filters-button',
@@ -184,19 +199,19 @@ export const STEPS: TourStep[] = [
     id: 'new-map', chapter: 2, title: 'Create a map', target: 'new-map',
     body: 'Keep separate maps for trips, cities or projects. Maps are private: in the tour they’re practice maps.',
     task: 'Click + and create a map.',
-    route: () => '/', prepare: panels,
+    route: (c) => practicePath(c) ?? '/maps', prepare: panels,
     done: (c, b) => c.snap.maps.length > b.snap.maps.length,
   },
   {
     id: 'open-map', chapter: 2, title: 'Your maps', target: 'my-maps',
-    body: 'The highlighted map is the one you’re viewing. Hover a map to rename or delete it.',
+    body: 'The highlighted map is the one you’re viewing. Hover a map to rename or delete it. The My Maps tab always brings you back to the map you used last.',
     task: 'Open your map from the list.',
     done: (c) => c.path.startsWith('/maps/'),
   },
   {
     id: 'save-event', chapter: 2, title: 'Save an event', target: 'save-to-map',
-    body: 'Saving puts a public event on one of your maps. You must choose at least one group — you can create one right in the dialog. Saving the same event again only updates its groups; it never makes a duplicate.',
-    task: 'Select an event, press “Save to map”, create a group and save.',
+    body: 'The details panel has an “Add to map” section: pick Personal or Collaboration map, choose the map, and choose at least one group — you can create one right there. Adding the same event again only updates it; it never makes a duplicate.',
+    task: 'Select an event, choose or create a group under “Add to map”, and press Add to map.',
     route: () => '/', prepare: selectFirstEvent,
     done: (c) => c.snap.pins.some((p) => p.kind === 'event'),
   },
@@ -307,9 +322,9 @@ export const STEPS: TourStep[] = [
   },
   {
     id: 'open-demo', chapter: 5, title: 'Collaboration maps', target: 'open-demo-collab',
-    body: 'Collaboration maps are shared with people the owner invites. Here you can explore a local demo — sample members, nothing is sent anywhere.',
+    body: 'Collaboration maps live under the Shared tab and are shared with people the owner invites. Here you can explore a local demo — sample members, nothing is sent anywhere.',
     task: 'Open the demo collaboration map.',
-    route: () => '/', prepare: panels,
+    route: () => '/collab', prepare: panels,
     done: (c) => c.path === '/collab/demo',
   },
   {

@@ -1,7 +1,9 @@
 /**
  * Route map. Three isolated map contexts share one persistent map canvas:
  *   /                Discover (public events; works signed-out)
- *   /maps/:mapId     Personal map (auth)
+ *   /maps            "My Maps" tab -> last-used personal map
+ *   /maps/:mapId     Personal map (account or guest workspace)
+ *   /collab          "Shared" tab (choose a collaboration map)
  *   /collab/:mapId   Collaboration map (auth)
  * Plus overlay routes: /settings/:section, /invite/:token, /friend/:code,
  * and the standalone /auth page.
@@ -16,6 +18,8 @@ import { TutorialRoot } from '@/features/tutorial/TutorialRoot';
 import { DiscoverView } from '@/features/discover/DiscoverView';
 import { PersonalMapView } from '@/features/maps/PersonalMapView';
 import { CollabMapView } from '@/features/collaboration/CollabMapView';
+import { MapsHome } from '@/features/maps/MapsHome';
+import { CollabHome } from '@/features/collaboration/CollabHome';
 import { Spinner } from '@/components/ui/Feedback';
 
 // Infrequently used routes are code-split so the initial bundle stays small.
@@ -47,8 +51,10 @@ export function App() {
         <Route element={<AppShell />}>
           <Route index element={<DiscoverView />} />
           {/* Personal maps work for guests too (local workspace) — no auth wall. */}
+          <Route path="maps" element={<MapsHome />} />
           <Route path="maps/:mapId" element={<PersonalMapView />} />
           {/* Local, clearly-labelled collaboration demo; real collaboration needs an account. */}
+          <Route path="collab" element={<CollabHome />} />
           <Route path="collab/demo" element={<DemoCollabView />} />
           <Route path="collab/:mapId" element={<RequireAuth><CollabMapView /></RequireAuth>} />
           <Route path="invite/:token" element={<RequireAuth reason="invite"><InvitePage /></RequireAuth>} />

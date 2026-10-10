@@ -136,13 +136,14 @@ test('collapsing panels preserves the map viewport', async ({ page }) => {
   await page.goto('/');
   await waitForMap(page);
   const before = await page.evaluate(() => (window as AtlasWindow).__atlasMap!.getCenter().toArray());
-  await page.getByRole('button', { name: 'Collapse maps panel' }).click();
-  await page.getByRole('button', { name: 'Collapse collaboration panel' }).click();
+  await page.getByRole('button', { name: 'Collapse side panel' }).click();
+  await page.getByRole('button', { name: 'Collapse details panel' }).click();
   await page.waitForTimeout(400);
   const after = await page.evaluate(() => (window as AtlasWindow).__atlasMap!.getCenter().toArray());
   expect(after[0]).toBeCloseTo(before[0], 4);
   expect(after[1]).toBeCloseTo(before[1], 4);
-  await expect(page.getByRole('button', { name: 'Expand maps panel' })).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('button', { name: 'Expand side panel' }).first()).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('button', { name: 'Expand details panel' })).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('auth page explains missing configuration honestly', async ({ page }) => {

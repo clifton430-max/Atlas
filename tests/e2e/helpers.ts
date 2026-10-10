@@ -43,3 +43,30 @@ export async function createGroupInPicker(scope: import('@playwright/test').Loca
   await scope.getByRole('button', { name: 'Add group' }).click();
   await expect(scope.getByRole('checkbox', { name })).toBeChecked();
 }
+
+// ---- Navigation in the tabbed shell ------------------------------------------------
+const tabs = (page: Page) => page.getByRole('navigation', { name: 'Map contexts' });
+export const sidePanel = (page: Page) => page.getByRole('complementary', { name: 'Side panel' });
+export const inspector = (page: Page) => page.getByRole('complementary', { name: 'Details' });
+/** A personal/collab map link in the side panel (exact name: "My Map" ≠ the "My Maps" tab). */
+export const mapLink = (page: Page, name: string | RegExp) =>
+  sidePanel(page).getByRole('link', typeof name === 'string' ? { name, exact: true } : { name });
+
+export async function openDiscover(page: Page) {
+  await tabs(page).getByRole('link', { name: 'Discover' }).click();
+  await expect(page).toHaveURL(/\/$/);
+}
+/** "My Maps" tab: lands on the last-used (or first) personal map. */
+export async function openMyMaps(page: Page) {
+  await tabs(page).getByRole('link', { name: 'My Maps' }).click();
+  await expect(page).toHaveURL(/\/maps/);
+}
+export async function openMap(page: Page, name = 'My Map') {
+  await openMyMaps(page);
+  await mapLink(page, name).click();
+  await expect(mapLink(page, name)).toHaveAttribute('aria-current', 'page');
+}
+export async function openShared(page: Page) {
+  await tabs(page).getByRole('link', { name: 'Shared' }).click();
+  await expect(page).toHaveURL(/\/collab/);
+}

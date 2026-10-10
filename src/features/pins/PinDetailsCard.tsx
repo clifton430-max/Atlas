@@ -27,7 +27,7 @@ const SharePinDialog = lazy(() => import('@/features/collaboration/SharePinDialo
 export function PinDetailsCard({ pin, groups, onClose }: { pin: Pin; groups: Group[]; onClose: () => void }) {
   const toast = useToast();
   const ws = useWorkspace();
-  const { updateDetails, remove } = usePinMutations();
+  const { updateDetails, remove, setAttendance } = usePinMutations();
   const shares = usePinShares(pin.id);
   const { removeSharedPin } = useCollabMutations();
   const [dialog, setDialog] = useState<'groups' | 'appearance' | 'share' | 'delete' | 'event' | null>(null);
@@ -61,7 +61,7 @@ export function PinDetailsCard({ pin, groups, onClose }: { pin: Pin; groups: Gro
   };
 
   return (
-    <article data-tour="pin-card" aria-label={`Pin: ${pinTitle(pin)}`} className="w-[360px] rounded-2xl bg-white shadow-float animate-rise-in">
+    <article data-tour="pin-card" aria-label={`Pin: ${pinTitle(pin)}`} className="w-full animate-rise-in">
       <header className="flex items-start gap-2 border-b border-neutral-100 p-4 pb-3">
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex gap-1.5">
@@ -108,6 +108,27 @@ export function PinDetailsCard({ pin, groups, onClose }: { pin: Pin; groups: Gro
             <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Private note</h3>
             {pin.note ? <p className="whitespace-pre-wrap text-sm text-neutral-700">{pin.note}</p> : <p className="text-sm text-neutral-400">No note</p>}
           </section>
+        )}
+
+        {pin.kind === 'event' && (
+          <section>
+            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">Are you going?</h3>
+            <div className="flex gap-1" role="radiogroup" aria-label="Attendance">
+              {([[null, 'Not set'], ['interested', 'Interested'], ['going', 'Going']] as const).map(([v, label]) => (
+                <button key={label} type="button" role="radio" aria-checked={pin.attendance === v} disabled={setAttendance.isPending}
+                  onClick={() => setAttendance.mutate({ pinId: pin.id, attendance: v }, { onError: (e) => toast.error(e) })}
+                  className={pin.attendance === v ? 'h-7 rounded-lg bg-neutral-900 px-2.5 text-xs font-medium text-white' : 'h-7 rounded-lg px-2.5 text-xs font-medium ring-1 ring-neutral-300 hover:bg-neutral-50'}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+        {pin.placeRef && (
+          <p className="text-xs text-neutral-500">
+            Saved from an OpenStreetMap place ·{' '}
+            <a className="underline" target="_blank" rel="noopener noreferrer" href={`https://www.openstreetmap.org/${pin.placeRef.slice(4)}`}>view on OSM</a>
+          </p>
         )}
 
         <section>

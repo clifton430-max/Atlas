@@ -185,20 +185,29 @@ export type Database = {
         Row: {
           cache_key: string
           fetched_at: string
+          last_error: string | null
           provider: string
           result_count: number
+          retry_after: string | null
+          total_available: number | null
         }
         Insert: {
           cache_key: string
           fetched_at?: string
+          last_error?: string | null
           provider: string
           result_count?: number
+          retry_after?: string | null
+          total_available?: number | null
         }
         Update: {
           cache_key?: string
           fetched_at?: string
+          last_error?: string | null
           provider?: string
           result_count?: number
+          retry_after?: string | null
+          total_available?: number | null
         }
         Relationships: []
       }
@@ -518,6 +527,7 @@ export type Database = {
       pins: {
         Row: {
           address: string | null
+          attendance: string | null
           border_color: string | null
           border_width: number
           color: string | null
@@ -533,6 +543,7 @@ export type Database = {
           map_id: string
           note: string | null
           owner_id: string
+          place_ref: string | null
           shape: Database["public"]["Enums"]["pin_shape"]
           size: number
           title: string | null
@@ -540,6 +551,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          attendance?: string | null
           border_color?: string | null
           border_width?: number
           color?: string | null
@@ -555,6 +567,7 @@ export type Database = {
           map_id: string
           note?: string | null
           owner_id?: string
+          place_ref?: string | null
           shape?: Database["public"]["Enums"]["pin_shape"]
           size?: number
           title?: string | null
@@ -562,6 +575,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          attendance?: string | null
           border_color?: string | null
           border_width?: number
           color?: string | null
@@ -577,6 +591,7 @@ export type Database = {
           map_id?: string
           note?: string | null
           owner_id?: string
+          place_ref?: string | null
           shape?: Database["public"]["Enums"]["pin_shape"]
           size?: number
           title?: string | null
@@ -649,6 +664,7 @@ export type Database = {
       shared_pins: {
         Row: {
           address: string | null
+          attendance: string | null
           border_color: string | null
           border_width: number
           collab_map_id: string
@@ -662,6 +678,7 @@ export type Database = {
           latitude: number
           longitude: number
           note: string | null
+          place_ref: string | null
           shape: Database["public"]["Enums"]["pin_shape"]
           shared_by: string
           size: number
@@ -671,6 +688,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          attendance?: string | null
           border_color?: string | null
           border_width?: number
           collab_map_id: string
@@ -684,6 +702,7 @@ export type Database = {
           latitude: number
           longitude: number
           note?: string | null
+          place_ref?: string | null
           shape?: Database["public"]["Enums"]["pin_shape"]
           shared_by: string
           size?: number
@@ -693,6 +712,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          attendance?: string | null
           border_color?: string | null
           border_width?: number
           collab_map_id?: string
@@ -706,6 +726,7 @@ export type Database = {
           latitude?: number
           longitude?: number
           note?: string | null
+          place_ref?: string | null
           shape?: Database["public"]["Enums"]["pin_shape"]
           shared_by?: string
           size?: number
@@ -761,6 +782,19 @@ export type Database = {
         Args: {
           i: Database["public"]["Tables"]["collab_invitations"]["Row"]
           p_me: string
+        }
+        Returns: string
+      }
+      add_to_collab: {
+        Args: {
+          p_address?: string
+          p_attendance?: string
+          p_collab_map_id: string
+          p_event_id?: string
+          p_latitude?: number
+          p_longitude?: number
+          p_place_ref?: string
+          p_title?: string
         }
         Returns: string
       }
@@ -889,7 +923,24 @@ export type Database = {
         Returns: undefined
       }
       save_event_pin: {
-        Args: { p_event_id: string; p_group_ids: string[]; p_map_id: string }
+        Args: {
+          p_attendance?: string
+          p_event_id: string
+          p_group_ids: string[]
+          p_map_id: string
+        }
+        Returns: string
+      }
+      save_place_pin: {
+        Args: {
+          p_address: string
+          p_group_ids: string[]
+          p_latitude: number
+          p_longitude: number
+          p_map_id: string
+          p_place_ref: string
+          p_title: string
+        }
         Returns: string
       }
       send_friend_request: { Args: { p_target: string }; Returns: string }

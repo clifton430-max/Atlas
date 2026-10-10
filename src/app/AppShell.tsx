@@ -1,31 +1,37 @@
 /**
- * Desktop app shell:
- *   [ left panel: maps & groups ] [ dominant map + floating controls ] [ right panel: collaboration ]
+ * Editor-style app shell:
+ *
+ *   ┌──────────────────────────── top nav ─────────────────────────────┐
+ *   │ rail │ side panel │        map canvas + toolbar        │ inspector│
+ *   └──────┴────────────┴────────────────────────────────────┴──────────┘
  *
  * The MapCanvas is mounted once here, so the viewport survives context
  * switches (Discover / Personal / Collaboration) and panel toggles. Routed
- * views render their layers/markers/cards into the map area via <Outlet/>.
+ * views render layers/markers into the map via <Outlet/> and their selection
+ * details into the inspector via <InspectorPortal>.
+ *
+ * Responsive: below xl the inspector overlays the map; below lg the side
+ * panel does too; below md the icon rail is replaced by a floating toggle.
  */
 import { Outlet } from 'react-router-dom';
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { uiStore, useUi } from './store';
 import { useAuth } from './AuthProvider';
-import { AccountMenu } from './AccountMenu';
-import { OfflineBanner } from './OfflineBanner';
-import { HelpMenu } from '@/features/tutorial/HelpMenu';
+import { InspectorBody, InspectorProvider } from './Inspector';
+import { TopNav } from './shell/TopNav';
+import { IconRail, toggleSidePanel } from './shell/IconRail';
+import { SidePanel } from './shell/SidePanel';
 import { resolveMapStyleUrl } from '@/lib/env';
 import { MapCanvas } from '@/features/map/MapCanvas';
 import { MapProvider } from '@/features/map/MapContext';
-import { FilterControl } from '@/features/map/FilterControl';
-import { SearchBar } from '@/features/search/SearchBar';
-import { MapsPanel } from '@/features/maps/MapsPanel';
-import { CollabPanel } from '@/features/collaboration/CollabPanel';
+import { MapToolbar } from '@/features/map/MapToolbar';
+import { AmbientLayer } from '@/features/places/AmbientLayer';
 import { useProfile } from '@/features/settings/profileApi';
-import { WorkspaceBadge } from '@/features/workspace/WorkspaceBadge';
 import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { useLocalSnapshot } from '@/features/workspace/useLocalSnapshot';
-import { IconButton } from '@/components/ui/Button';
 import { cn } from '@/components/ui/cn';
+
+const floatBtn = 'pointer-events-auto grid size-10 place-items-center rounded-xl bg-white text-neutral-700 shadow-panel ring-1 ring-black/5 hover:bg-neutral-50';
 
 export function AppShell() {
   const left = useUi((s) => s.leftPanelOpen);
@@ -39,64 +45,64 @@ export function AppShell() {
 
   return (
     <MapProvider>
-      <div className="flex h-full min-w-[960px] overflow-hidden">
-        <aside
-          aria-label="Maps and groups"
-          className={cn('relative z-20 flex shrink-0 flex-col border-r border-neutral-200 bg-white transition-[width] duration-200', left ? 'w-[272px]' : 'w-0')}
-        >
-          <div className={cn('flex h-full w-[272px] flex-col', !left && 'invisible')}>
-            <div className="flex h-14 items-center gap-2 border-b border-neutral-200 px-4">
-              <img src="/atlas.svg" alt="" className="size-6" />
-              <span className="text-[15px] font-semibold tracking-tight">Atlas</span>
-              <span className="ml-auto"><WorkspaceBadge /></span>
-            </div>
-            <div className="min-h-0 flex-1"><MapsPanel /></div>
+      <InspectorProvider>
+        <div className="flex h-full flex-col overflow-hidden">
+          <TopNav />
+          <div className="relative flex min-h-0 flex-1">
+            <IconRail />
+
+            <aside
+              aria-label="Side panel"
+              className={cn(
+                'z-30 shrink-0 overflow-hidden border-line bg-white transition-[width] duration-200',
+                'max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:shadow-float md:max-lg:left-16',
+                left ? 'w-[min(340px,100vw)] border-r' : 'w-0',
+              )}
+            >
+              <div className={cn('h-full w-[min(340px,100vw)]', !left && 'invisible')}><SidePanel /></div>
+            </aside>
+
+            <main className="relative min-w-0 flex-1" aria-label="Map" data-tour="map-area">
+              <MapCanvas styleUrl={styleUrl}>
+                <AmbientLayer />
+                <Outlet />
+              </MapCanvas>
+              <MapToolbar />
+              <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex justify-between">
+                <span>
+                  {!left && (
+                    <button type="button" className={cn(floatBtn, 'md:hidden')} aria-label="Expand side panel" onClick={toggleSidePanel}>
+                      <PanelLeftOpen className="size-4" aria-hidden />
+                    </button>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  data-tour="toggle-right"
+                  aria-expanded={right}
+                  aria-label={right ? 'Collapse details panel' : 'Expand details panel'}
+                  title={right ? 'Collapse details panel' : 'Expand details panel'}
+                  className={floatBtn}
+                  onClick={() => uiStore.set((s) => ({ rightPanelOpen: !right, panelToggles: s.panelToggles + 1 }))}
+                >
+                  {right ? <PanelRightClose className="size-4" aria-hidden /> : <PanelRightOpen className="size-4" aria-hidden />}
+                </button>
+              </div>
+            </main>
+
+            <aside
+              aria-label="Details"
+              className={cn(
+                'z-30 shrink-0 overflow-hidden border-line bg-white transition-[width] duration-200',
+                'max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:shadow-float',
+                right ? 'w-[min(360px,100vw)] border-l' : 'w-0',
+              )}
+            >
+              <div className={cn('h-full w-[min(360px,100vw)]', !right && 'invisible')}><InspectorBody /></div>
+            </aside>
           </div>
-        </aside>
-
-        <main className="relative min-w-0 flex-1" aria-label="Map" data-tour="map-area">
-          <MapCanvas styleUrl={styleUrl}>
-            <Outlet />
-          </MapCanvas>
-
-          {/* Floating top controls */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start gap-3 p-3">
-            <div className="pointer-events-auto">
-              <IconButton
-                label={left ? 'Collapse maps panel' : 'Expand maps panel'}
-                aria-expanded={left}
-                className="size-10 bg-white shadow-panel ring-1 ring-black/5"
-                onClick={() => uiStore.set((s) => ({ leftPanelOpen: !left, panelToggles: s.panelToggles + 1 }))}
-              data-tour="toggle-left"
-              >
-                {left ? <PanelLeftClose className="size-4" aria-hidden /> : <PanelLeftOpen className="size-4" aria-hidden />}
-              </IconButton>
-            </div>
-            <div className="pointer-events-auto flex flex-1 flex-col items-center gap-2"><SearchBar /><OfflineBanner /></div>
-            <div className="pointer-events-auto flex items-center gap-2">
-              <FilterControl />
-              <HelpMenu />
-              <AccountMenu />
-              <IconButton
-                label={right ? 'Collapse collaboration panel' : 'Expand collaboration panel'}
-                aria-expanded={right}
-                className="size-10 bg-white shadow-panel ring-1 ring-black/5"
-                onClick={() => uiStore.set((s) => ({ rightPanelOpen: !right, panelToggles: s.panelToggles + 1 }))}
-              data-tour="toggle-right"
-              >
-                {right ? <PanelRightClose className="size-4" aria-hidden /> : <PanelRightOpen className="size-4" aria-hidden />}
-              </IconButton>
-            </div>
-          </div>
-        </main>
-
-        <aside
-          aria-label="Collaboration"
-          className={cn('relative z-20 shrink-0 border-l border-neutral-200 bg-white transition-[width] duration-200', right ? 'w-[300px]' : 'w-0')}
-        >
-          <div className={cn('h-full w-[300px]', !right && 'invisible')}><CollabPanel /></div>
-        </aside>
-      </div>
+        </div>
+      </InspectorProvider>
     </MapProvider>
   );
 }

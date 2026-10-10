@@ -10,6 +10,28 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { EMPTY_FILTERS, type DiscoverFilters } from '@/features/discover/filters';
 import type { BBox } from '@/services/events/types';
 import { loadGroupFilter, saveGroupFilter, type GroupFilter } from '@/features/groups/groupFilter';
+import { CATEGORIES, sanitizeSubFilters, type CategoryId } from '@/features/places/categories';
+import type { Place } from '@/features/places/types';
+import type { DiscoverSort } from '@/features/discover/sort';
+
+/** Hovered/focused Discover item for the preview (events by id, places by value). */
+export type HoverItem = { kind: 'event'; id: string } | { kind: 'place'; place: Place };
+
+const CATEGORY_KEY = 'atlas.discover.categories.v1';
+const DEFAULT_CATEGORIES: CategoryId[] = ['events', 'attractions', 'scenic'];
+function loadCategories(): { visible: CategoryId[]; subs: Partial<Record<CategoryId, string[]>> } {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CATEGORY_KEY) ?? 'null');
+    if (raw && Array.isArray(raw.visible)) {
+      const known = new Set<string>(CATEGORIES.map((c) => c.id));
+      return { visible: raw.visible.filter((v: string) => known.has(v)), subs: sanitizeSubFilters(raw.subs ?? {}) };
+    }
+  } catch { /* defaults */ }
+  return { visible: DEFAULT_CATEGORIES, subs: {} };
+}
+export function saveCategories(visible: CategoryId[], subs: Partial<Record<CategoryId, string[]>>) {
+  try { localStorage.setItem(CATEGORY_KEY, JSON.stringify({ visible, subs })); } catch { /* not persisted */ }
+}
 
 export interface PlacementRequest {
   latitude: number;
@@ -27,7 +49,16 @@ export interface AtlasUiState {
   // Discover context
   discoverFilters: DiscoverFilters;
   discoverKeyword: string;
+  /** Order of the Discover lists (does not change what the map shows). */
+  discoverSort: DiscoverSort;
   selectedEventId: string | null;
+  /** Discover overlays: visible categories (empty = Hide All) and subcategory picks. */
+  discoverCategories: CategoryId[];
+  discoverSubcategories: Partial<Record<CategoryId, string[]>>;
+  /** Hover/keyboard-focus preview target (Discover only). */
+  hoverItem: HoverItem | null;
+  /** Selected OSM place (Discover only; events use selectedEventId). */
+  selectedPlace: Place | null;
   /** Events chosen from global search that may lie outside the loaded viewport. */
   pinnedSearchEventId: string | null;
 
@@ -52,12 +83,19 @@ export interface AtlasUiState {
   selectedSharedPinId: string | null;
 }
 
+// Panels start open on wide screens; on narrow screens they overlay the map, so start closed.
+const width = typeof window === 'undefined' ? 1440 : window.innerWidth;
 const initial: AtlasUiState = {
   bbox: null,
-  leftPanelOpen: true,
-  rightPanelOpen: true,
+  leftPanelOpen: width >= 1024,
+  rightPanelOpen: width >= 1280,
   discoverFilters: EMPTY_FILTERS,
   discoverKeyword: '',
+  discoverSort: 'soonest',
+  discoverCategories: typeof window === 'undefined' ? DEFAULT_CATEGORIES : loadCategories().visible,
+  discoverSubcategories: typeof window === 'undefined' ? {} : loadCategories().subs,
+  hoverItem: null,
+  selectedPlace: null,
   selectedEventId: null,
   pinnedSearchEventId: null,
   selectedPinId: null,

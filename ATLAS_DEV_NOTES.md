@@ -195,12 +195,16 @@ This is a critical acceptance requirement, not a cosmetic enhancement.
 
 ## 8. UX and accessibility
 
--   Desktop-first only; adapt to laptop/desktop browser widths.
--   Left panel: private maps and account-specific groups; collapsible.
--   Center: dominant interactive map.
--   Right panel: collaboration maps, members, invitations, shared pins
-    and permitted controls; collapsible.
--   Settings access is distinct from the top-right map-filter control.
+-   Desktop-first, responsive down to phone width (panels become
+    overlays; see ATLAS_CONTEXT.md → Map and interface redesign).
+-   Top navigation: map switcher and Discover / My Maps / Shared tabs.
+-   Left side panel (collapsible) follows the tab: discovery tools, your
+    maps and groups, or collaboration maps, members and invitations.
+-   Center: dominant interactive map with a bottom map toolbar.
+-   Right inspector (collapsible): details of the selected event, place
+    or pin, with its actions; the map legend when nothing is selected.
+-   Settings access (rail, account menu) is distinct from map filters
+    (side panel).
 -   Avoid redundant navigation.
 -   Provide loading, empty, and error states for asynchronous actions.
 -   Prevent duplicate submissions and show success only after the
@@ -215,6 +219,8 @@ This is a critical acceptance requirement, not a cosmetic enhancement.
 
 ## 9. Recommended implementation sequence
 
+> **Living-map addendum merged (Phase 11, 2026-10-10):** see Phase 11 below for per-item status; external blockers are Overpass availability from Supabase egress (contained POIs) and SMTP (email).
+>
 > **Status (2026-10-10, guest mode + tutorial session):** every item below was re-audited against
 > the code and re-verified by automated tests (see docs/IMPLEMENTATION_STATUS.md for exact commands
 > and counts).
@@ -308,8 +314,128 @@ This is a critical acceptance requirement, not a cosmetic enhancement.
 ### Phase 10 --- Interactive tutorial (added 2026-10-10)
 
 -   [x] Reusable tour engine: spotlight on real controls, step counter and progress, Back/Next/Skip/Exit/Restart, verified "Try it yourself" tasks, panel preparation, missing-target fallback, focus management, Escape, live announcements, reduced motion, persisted progress. _(E2E)_
--   [x] 7 chapters / 44 steps covering every major feature, all reachable; runs in a disposable sandbox for guests and signed-in users. _(E2E + live E2E)_
+-   [x] 7 chapters / 47 steps covering every major feature, all reachable; runs in a disposable sandbox for guests and signed-in users. _(E2E + live E2E)_
 -   [x] Entry points: first-visit offer and Help menu (start, restart, jump to chapter). _(E2E)_
+
+### Phase 11 --- Living map, interactive places and discovery (merged from `ATLAS_DEV_NOTES_ADDENDUM_LIVING_MAP.md`, 2026-10-10)
+
+Legend: [x] complete and verified · [~] implemented or partial (see note) · [ ] not implemented / blocked
+
+**Audit and data sources**
+-   [x] Inspected the map style and data:
+    -   The OpenFreeMap vector tiles carry real OSM `poi`, `building` (with `render_height`), `transportation` (road/rail/path) and `park`/`landcover` layers.
+    -   POI feature ids encode OSM ids (verified against the OSM API).
+-   [x] Places come from basemap tiles (no extra requests). Details come from the OSM API; images from Wikimedia Commons (via Wikidata P18 / `wikimedia_commons`); contained POIs from Overpass.
+
+**Interactive markers and details**
+-   [x] Event and place markers are interactive. Hover and keyboard focus (results list) show a preview with name, category icon/label/color, event date, and distance when available. _(fixture E2E)_
+-   [~] Preview thumbnails:
+    -   Ticketmaster event images are shown when the listing has one.
+    -   Place thumbnails are fetched once after a 350 ms dwell and then cached (react-query plus a server cache).
+    -   Verified by design; the hover-thumbnail path is not covered by a live UI test.
+-   [x] Rich details are built from verified fields only. "Not listed" and "Unavailable" are distinguished; hours are shown as listed and never conflated with event times; links are validated https. _(fixture + live E2E; ESB live data)_
+-   [x] Save flow:
+    -   Destination: personal maps plus owner/editor collaboration maps only (viewer maps are not offered).
+    -   A group is required for personal maps; attendance (going/interested) for events.
+    -   Duplicates are prevented, and success is reported only after the save persists.
+    -   _(PGlite RLS tests, live API, live and fixture E2E)_
+-   [x] Guests save locally only. Collaboration requires an account, and the explanation keeps the user's context. _(fixture E2E)_
+
+**Selected-place emphasis**
+-   [x] Halo on the selection (static under reduced motion). When the point lies in a real OSM building footprint, that footprint is highlighted. Nothing is drawn otherwise. _(fixture E2E with real tiles, ESB)_
+-   [ ] 3D extrusion "lift" not implemented: the map is top-down with pitch disabled, so an extrusion would be invisible. Documented as a limitation.
+
+**Ambient animation (optional)**
+-   [x] Up to 8 cars on real major roads, 2 trains on real rail lines, and 6 walkers on mapped paths, using tile geometry. The motion is labelled decorative.
+-   [x] A setting turns it off (Settings → Map appearance). It respects `prefers-reduced-motion`, pauses while the map moves, the tab is hidden, or below zoom 14, and switches itself off if frames are slow. _(fixture E2E)_
+-   [x] Measured impact: average frame 16.6 ms either way; p95 frame 16.8 ms with ambience vs 16.7 ms without.
+-   [~] Night-time warm glow at real nightlife and dining POIs. Darkness is approximated from longitude (UTC offset) and unit-tested; not E2E-verified at night.
+-   [ ] Trees and picnic scenes not implemented: there is no geographically defensible data for them (would be invented decoration).
+
+**Category Discover and Hide All**
+-   [x] Category bar with 8 categories, subcategory dropdowns, "Show only", multi-select, and color plus icon plus label. _(fixture E2E, axe)_
+-   [x] Structured results list synced with the map from the same features. Distinguishes "not supported by this style", "zoom in", and "no results".
+-   [x] Hide all / Show all affect Discover overlays only. Personal pins are unaffected, and switching map contexts doesn't leak filters. _(fixture E2E)_
+-   [x] Hiding Events disables the events request. Toggling place categories makes 0 provider requests (measured).
+-   [~] Filter interactions:
+    -   Defined: search keyword filters events and places; price and time filters apply to events only (places have no verified prices or event times).
+    -   Places-plus-keyword is not separately E2E-tested.
+
+**Images and POIs**
+-   [x] Commons images are shown with author, license and file-page link; only Wikimedia-hosted files are accepted. _(unit + live: ESB public domain, Central Park CC BY-SA 2.0)_
+-   [x] Attractions and viewpoints are individual POI markers with verified coordinates.
+-   [~] "Inside this place" (Overpass containment):
+    -   Worked live once (ESB, 6 POIs).
+    -   Public Overpass instances now reject (406) or time out (504) requests from Supabase's egress, so it currently returns "couldn't be loaded".
+    -   **External blocker**; fix by setting the `OVERPASS_URL` secret to a dedicated instance.
+
+**Distance**
+-   [x] Shown only after an explicit "Use my location", labelled straight-line, kept on the device. Denied, unavailable and stale states are handled. _(unit + fixture E2E)_
+
+**Security and preservation**
+-   [x] Migrations 0012 (attendance, `place_ref`, `save_place_pin`, `add_to_collab`) and 0013 (place-details cache):
+    -   RLS untouched.
+    -   The new RPCs are not executable by anon.
+    -   `add_to_collab` re-checks the role on the server and takes event coordinates from `public.events`.
+    -   _(PGlite + live API)_
+-   [x] All prior suites still pass. Category styling never overrides custom pins or image markers.
+
+### Phase 12 --- Map and interface redesign (added 2026-10-10)
+
+Visual reference: editor-style UI over an isometric city (see
+ATLAS_CONTEXT.md → Map and interface redesign). Rendering stays on
+MapLibre (fill-extrusion, light, pitch, symbol layers) — **no new
+rendering or animation dependency**.
+
+**12.1 Design system and shell** — ✅ done
+-   [x] Tokens: warm canvas, line, lime (CTA), brand green, selection blue; `Button variant="cta"`.
+-   [x] Top nav: logo, map switcher (personal + collaboration maps, "New map…"), Discover / My Maps / Shared tabs, search, real notifications, icon help, avatar, lime Share (context-aware, honest).
+-   [x] Icon rail (Explore, Your maps, Collaboration maps, Jump to filters, Friends, Settings, side-panel toggle).
+-   [x] Side panel by context: `DiscoverPanel` (categories, filters, events and places in view), `MapsPanel` (maps, add pin, group filter, groups), `CollabPanel`.
+-   [x] Inspector: views portal their selection card into it (`InspectorPortal`); empty state with a legend that separates real from decorative.
+-   [x] Map toolbar: locate, 2D/3D, zoom out/in, reset orientation, map animations (on/off, pause, 0.5×/1×/2×), Layers popover. MapLibre's navigation buttons were removed in favour of it.
+-   [x] Routes `/maps` (last-used map, remembered per workspace) and `/collab`.
+-   [x] Popovers are portalled and viewport-clamped (they can't be clipped by scrolling panels); Tab order is preserved.
+-   [x] Responsive overlays and wrapping (verified at 1440, 820 and 390 px wide).
+-   [x] Tutorial targets and copy updated; all fixture and live E2E suites updated and passing.
+
+**12.2 Markers and details** — ✅ done
+-   [x] Teardrop category pins (rasterized once per style, color + glyph), tip exactly on the real coordinate (`icon-anchor: bottom` + `MARKER_TIP_PAD` offset), events and places alike. User-customized personal pins keep their own shapes/images.
+-   [x] Selected state: selected event/place pin drawn larger and on top; blue ground ring + halo at the tip; real building footprint emphasis unchanged.
+-   [x] Hover/focus preview restyled as a callout (thumbnail, name, category, distance, source) that flips/shifts near map edges and never intercepts clicks (`MapMarker interactive={false}`; also fixed for the selection halo).
+-   [x] Inspector cards: inset photo, large title with bookmark, category, description, icon rows (address, distance, hours as listed, website), collapsible "More about this place", "Inside this place", OSM attribution. Close lives in the inspector header.
+-   [x] Bug fixed during verification: toolbar zoom produced NaN when `duration: undefined` was passed to MapLibre.
+-   [x] New `tests/e2e/redesign.spec.ts` (7 tests): shell/tabs/remembered map, inspector empty → selected → closed, pin tip/body hit-testing and selected size, place-card layout, toolbar, honest Share/Notifications, responsive overlays at 820/390 px.
+**12.3 Discovery and filtering** — ✅ done
+-   [x] Category pills (tinted icon, outline + tint + check badge when on; subcategory dropdown per pill; Hide all / Show all pill). Order follows the reference: Events, Food & Drink, Parks & Outdoors, Arts & Culture, Scenic Views, **Nightlife (new)**, Tourist Attractions, Things to Do, Sports.
+-   [x] Nightlife = OSM `bar`, `pub`, `biergarten`, `nightclub`, `music_venue` (moved out of Food & Drink / Things to Do). Every OSM subclass now maps to exactly one category (unit-tested; fixed a pre-existing `water_park` duplicate). Saved subcategory picks that no longer exist are dropped on load.
+-   [x] Filters: "Filters" (all event filters, active count) + Date / Price / Category / More filters dropdowns, each with an active badge and Clear. Filter semantics unchanged (`filters.ts`).
+-   [x] Sort: Soonest / Nearest (only with a shared location) / Lowest price (unknown last, never free) / Name — reorders the lists only (`discover/sort.ts`, unit-tested).
+-   [x] Lists: "Events near you" (with location) / "Events in view" with Ticketmaster thumbnails (category tile when there's no image), venue · type, date · price, lime distance chips; places with category tiles and distance chips. **Place thumbnails are not fetched per row** (that would mean one Commons lookup per result); the photo appears in the inspector.
+-   [x] Map ↔ list sync unchanged: the same data drives both; hover/focus previews and selected highlight in both directions.
+**12.4 Add to Map workflow** — ✅ done
+-   [x] Inline "Add to map" section in the inspector for events and places (`pins/AddToMap.tsx`), replacing the save dialog: Personal Map / Collaboration Map toggle, Select map (defaults to the map chosen in the map switcher), Select group(s) with "Create new group", attendance for events, collaboration review, lime "Add to map", inline success status + toast, inline errors.
+-   [x] The bookmark icon next to the title scrolls to the form and focuses the map selector; it shows a filled/"Saved" state once the item is on a map.
+-   [x] Rules unchanged and still enforced server-side: group required for personal maps; re-adding updates (button reads "Update on map") and never duplicates (live test asserts exactly one pin row); only owner/editor collaboration maps are offered (live test: a viewer-only map is absent) and `add_to_collab` re-checks the role; guests and the tutorial sandbox see why collaboration is unavailable (no fake success).
+-   [x] Pending new groups are only created when Add to map is pressed (unchanged `GroupPicker` behaviour).
+**12.5 Geographic visual upgrade** — ✅ done (`map/cityStyle.ts`, applied in the style transform)
+-   [x] 3D city by default: tilted (pitch 50°, bearing −20°) view with OSM building footprints extruded to `render_height` / `render_min_height` (OpenMapTiles estimates from levels or a default when no height is mapped). 2D toggle in the toolbar/Layers, persisted (`atlas.view.v1`). Right-drag/Ctrl-drag rotates and tilts.
+-   [x] Warm illustrated palette for the default Light (Positron) style: warm ground, green parks, blue water, white streets, warm casings. Bright/Liberty keep their own colours but get the same 3D buildings (Liberty's own extrusion is replaced, never doubled) and trees.
+-   [x] Real green areas: Positron doesn't draw OpenMapTiles `landcover` grass (city parks such as Central Park) — they're now drawn green.
+-   [x] Decorative facade colours (height band × feature id; glass blues for towers) and decorative tree canopies (fill pattern) **only inside mapped parks, gardens, nature reserves and woods**, under water and roads. Both are labelled "Decorative" in the legend and Layers panel; trees can be turned off (`atlas.trees.v1`).
+-   [x] Selected building: in 3D the real extrusion of the footprint under the selected place is tinted (feature-id match, no extra geometry); 2D keeps the outline glow.
+-   [x] Markers and labels stay above extrusions (extrusions are inserted below the first symbol layer; our marker layers come later).
+-   [x] Tests: 7 unit tests for the transform (layer order, real-height expressions, tree filters, 2D/trees-off, Liberty de-duplication, warm palette only on Positron, selected highlight) and an E2E test asserting every rendered extrusion is a `building` tile feature with a numeric height, every tree polygon is a park/garden/wood, and the 2D/trees toggles work.
+**12.6 Ambient animations** — ✅ done
+-   [x] Ambient life now runs in every map context (mounted in the shell), not just Discover.
+-   [x] Vehicles are low 3D boxes (fill-extrusion), oriented along their real road/rail/path segment (`poseAt`, `boxAround`, unit-tested), so buildings hide them correctly. They are exaggerated to about 14 px so they stay visible. Cars are on roads, trains on surface rail, walkers on footpaths (including park paths: the "park activity").
+-   [x] "Map animations" pill: on/off (the same preference as Settings), pause/resume, and 0.5×/1×/2× speed (a simulated clock, so pausing freezes positions).
+-   [x] Day/night lighting: Auto (approximate local solar time at the map centre, stated in the UI), Day, or Night (`atlas.lighting.v1`).
+    -   Night adds a dusk tint over ground and buildings, a cool building light, and a static warm glow at real night-time venues from the tiles.
+    -   Lighting is a colour change, so it also applies under reduced motion.
+-   [x] Reduced motion: no moving vehicles. The pill explains why and its controls are disabled; lighting still works.
+-   [x] Honesty: tooltip, legend and Settings say the motion is decorative and is not real-time traffic, transit or crowds. No live data source is implied.
+-   [x] Performance guard and pause-while-moving/hidden behaviour unchanged. At most 16 agents in one source at about 15 fps.
 
 ## 10. Environment and setup documentation
 
