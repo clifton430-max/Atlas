@@ -226,3 +226,4 @@ See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for the full 
 - If a file deletion fails after its metadata row is deleted, an orphaned Storage object can remain. It is never referenced or exposed, but it is not cleaned up automatically yet.
 - The JS bundle is about 1.9 MB before compression, mostly MapLibre. Route-level code-splitting is not done yet.
 - `Atlas.py` (an empty file that existed before this work) is unused.
+# Atlas
