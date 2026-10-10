@@ -248,11 +248,67 @@ export interface TicketmasterQuery {
   page?: number;
 }
 
+/** Standard geohash encoding (Ticketmaster's `geoPoint` replaces the deprecated `latlong`). */
+export function geohash(lat: number, lng: number, precision = 9): string {
+  const base32 = '0123456789bcdefghjkmnpqrstuvwxyz';
+  let [latMin, latMax, lngMin, lngMax] = [-90, 90, -180, 180];
+  let hash = '';
+  let bit = 0;
+  let ch = 0;
+  let even = true;
+  while (hash.length < precision) {
+    if (even) {
+      const mid = (lngMin + lngMax) / 2;
+      if (lng >= mid) { ch = (ch << 1) | 1; lngMin = mid; } else { ch <<= 1; lngMax = mid; }
+    } else {
+      const mid = (latMin + latMax) / 2;
+      if (lat >= mid) { ch = (ch << 1) | 1; latMin = mid; } else { ch <<= 1; latMax = mid; }
+    }
+    even = !even;
+    if (++bit === 5) {
+      hash += base32[ch];
+      bit = 0;
+      ch = 0;
+    }
+  }
+  return hash;
+}
+
+/** Ticketmaster segment names accepted as a category filter (anything else is dropped). */
+export const TM_SEGMENTS = ['Music', 'Sports', 'Arts & Theatre', 'Film', 'Miscellaneous'] as const;
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const isRealDate = (s: string) => DATE_RE.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`));
+
+/**
+ * Validate and constrain an untrusted request body. Returns null when the
+ * request is unusable (bad bbox). Unknown fields are ignored; out-of-range
+ * values are dropped rather than forwarded upstream.
+ */
+export function parseDiscoverRequest(body: unknown, now = new Date()): TicketmasterQuery | null {
+  if (!body || typeof body !== 'object') return null;
+  const b = body as Record<string, unknown>;
+  if (!isValidBBox(b.bbox)) return null;
+  const keyword = typeof b.keyword === 'string'
+    // Strip control characters; keep it short.
+    // eslint-disable-next-line no-control-regex
+    ? b.keyword.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 100) || null
+    : null;
+  const category = typeof b.category === 'string' && (TM_SEGMENTS as readonly string[]).includes(b.category) ? b.category : null;
+  const maxDate = new Date(now.getTime() + 400 * 86400_000).toISOString().slice(0, 10);
+  const minDate = new Date(now.getTime() - 2 * 86400_000).toISOString().slice(0, 10);
+  let startDate = typeof b.startDate === 'string' && isRealDate(b.startDate) && b.startDate >= minDate && b.startDate <= maxDate ? b.startDate : null;
+  let endDate = typeof b.endDate === 'string' && isRealDate(b.endDate) && b.endDate >= minDate && b.endDate <= maxDate ? b.endDate : null;
+  if (startDate && endDate && endDate < startDate) [startDate, endDate] = [null, null];
+  const page = typeof b.page === 'number' && Number.isInteger(b.page) ? Math.max(0, Math.min(4, b.page)) : 0;
+  return { bbox: b.bbox as BBox, keyword, category, startDate, endDate, page };
+}
+
 export function buildTicketmasterUrl(apiKey: string, q: TicketmasterQuery): string {
   const { lat, lng, radiusKm } = bboxToRadiusQuery(q.bbox);
   const params = new URLSearchParams({
     apikey: apiKey,
-    latlong: `${lat.toFixed(4)},${lng.toFixed(4)}`,
+    geoPoint: geohash(lat, lng, 9),
     radius: String(radiusKm),
     unit: 'km',
     size: '100',

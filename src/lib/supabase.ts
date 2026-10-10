@@ -8,15 +8,29 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { env, isSupabaseConfigured } from './env';
+import type { Database } from './database.types';
 
-export const supabase: SupabaseClient | null = isSupabaseConfigured
-  ? createClient(env.supabaseUrl!, env.supabaseAnonKey!, {
+/** Typed client: table/RPC names, columns and arguments are checked against the
+ *  real schema (regenerate with `npm run types:generate` after migrations). */
+export type AtlasClient = SupabaseClient<Database>;
+
+/**
+ * True when this page load is the landing of a password-recovery link.
+ * Captured BEFORE createClient(), which consumes and strips the URL fragment
+ * and may emit PASSWORD_RECOVERY before any React listener is attached.
+ */
+export const initialPasswordRecovery: boolean =
+  typeof window !== 'undefined' &&
+  (/(^|[#&])type=recovery(&|$)/.test(window.location.hash) || new URLSearchParams(window.location.search).get('type') === 'recovery');
+
+export const supabase: AtlasClient | null = isSupabaseConfigured
+  ? createClient<Database>(env.supabaseUrl!, env.supabaseAnonKey!, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     })
   : null;
 
 /** Returns the client or throws a clear configuration error. */
-export function requireSupabase(): SupabaseClient {
+export function requireSupabase(): AtlasClient {
   if (!supabase) {
     throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
   }

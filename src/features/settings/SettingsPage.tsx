@@ -6,7 +6,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Eye, Map as MapIcon, Palette, Shield, Tags, UserRound, Users, X, MapPinned } from 'lucide-react';
+import { Eye, HardDrive, Map as MapIcon, Palette, Shield, Tags, UserRound, Users, X, MapPinned } from 'lucide-react';
+import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
+import { GuestDataSection } from '@/features/workspace/GuestDataSection';
+import { useLocalSnapshot } from '@/features/workspace/useLocalSnapshot';
+import { AccountRequiredCard, type AccountReason } from '@/features/workspace/AccountRequired';
 import { useAuth } from '@/app/AuthProvider';
 import { uiStore } from '@/app/store';
 import { requireSupabase } from '@/lib/supabase';
@@ -20,6 +24,7 @@ import { Badge, EmptyState, ErrorMessage, Notice, Spinner } from '@/components/u
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/components/ui/cn';
 import { useProfile, useUpdateProfile } from './profileApi';
+import { friendlyAuthError } from '@/features/auth/authErrors';
 import { FriendsSection } from '@/features/friends/FriendsSection';
 import { useGroupMutations, useGroups } from '@/features/groups/api';
 import { GroupFormDialog } from '@/features/groups/GroupFormDialog';
@@ -28,6 +33,7 @@ import { useMaps } from '@/features/maps/api';
 import { useCollabMaps, useCollabMutations } from '@/features/collaboration/api';
 import { getMyFriendCode, friendLinkUrl, useFriendMutations } from '@/features/friends/api';
 import { ShareLink } from '@/features/collaboration/ShareLink';
+import { listMyOrphanedImages, removeOrphanedImages } from '@/features/pins/images';
 
 const SECTIONS = [
   { id: 'account', label: 'Account', Icon: UserRound },
@@ -37,10 +43,17 @@ const SECTIONS = [
   { id: 'groups', label: 'Groups', Icon: Tags },
   { id: 'pins', label: 'Pins', Icon: MapPinned },
   { id: 'collaboration', label: 'Collaboration', Icon: Eye },
+  { id: 'guest', label: 'Guest data', Icon: HardDrive },
 ] as const;
 
+/** Sections that belong to a signed-in account (guests see an explanation). */
+const ACCOUNT_ONLY: Record<string, AccountReason> = { account: 'profile', privacy: 'profile', friends: 'friends', collaboration: 'collaboration' };
+
 export function SettingsPage() {
-  const { section = 'account' } = useParams();
+  const { user } = useAuth();
+  const ws = useWorkspace();
+  const { section: param } = useParams();
+  const section = param ?? (user ? 'account' : 'guest');
   const navigate = useNavigate();
   // Go back if Settings was opened from within the app; otherwise (direct link) go home.
   const close = () => ((window.history.state as { idx?: number } | null)?.idx ? navigate(-1) : navigate('/'));
@@ -54,7 +67,7 @@ export function SettingsPage() {
   return (
     <div className="absolute inset-0 z-40 flex justify-center bg-neutral-900/25 p-6 backdrop-blur-[1px]">
       <section aria-labelledby="settings-title" className="flex h-full w-full max-w-[920px] overflow-hidden rounded-2xl bg-white shadow-float animate-rise-in">
-        <nav aria-label="Settings sections" className="w-56 shrink-0 border-r border-neutral-200 bg-neutral-50 p-3">
+        <nav aria-label="Settings sections" data-tour="settings-nav" className="w-56 shrink-0 border-r border-neutral-200 bg-neutral-50 p-3">
           <h1 id="settings-title" className="px-2 pb-3 pt-1 text-base font-semibold">Settings</h1>
           <ul className="space-y-0.5">
             {SECTIONS.map(({ id, label, Icon }) => (
@@ -68,13 +81,23 @@ export function SettingsPage() {
         </nav>
         <div className="relative min-w-0 flex-1 overflow-y-auto p-6">
           <IconButton label="Close settings" className="absolute right-4 top-4" onClick={close}><X className="size-4" aria-hidden /></IconButton>
-          {section === 'account' && <AccountSection />}
-          {section === 'privacy' && <PrivacySection />}
-          {section === 'friends' && <FriendsSection />}
+          {!user && ACCOUNT_ONLY[section] ? (
+            <div className="max-w-md pt-6"><AccountRequiredCard reason={ACCOUNT_ONLY[section]} /></div>
+          ) : (
+            <>
+              {section === 'account' && <AccountSection />}
+              {section === 'privacy' && <PrivacySection />}
+              {section === 'friends' && <FriendsSection />}
+              {section === 'collaboration' && <CollaborationSettings />}
+            </>
+          )}
+          {section === 'guest' && <GuestDataSection />}
+          {ws.mode === 'sandbox' && ['groups', 'pins', 'appearance'].includes(section) && (
+            <Notice className="mb-4">Tutorial sandbox: changes here affect practice data only.</Notice>
+          )}
           {section === 'appearance' && <AppearanceSection />}
           {section === 'groups' && <GroupsSettings />}
           {section === 'pins' && <PinsSettings />}
-          {section === 'collaboration' && <CollaborationSettings />}
           {!SECTIONS.some((s) => s.id === section) && <ErrorMessage error="Unknown settings section." />}
         </div>
       </section>
@@ -137,7 +160,7 @@ function AccountSection() {
           setPwError(null);
           const { error } = await requireSupabase().auth.updateUser({ password });
           setPwBusy(false);
-          if (error) setPwError(error.message);
+          if (error) setPwError(friendlyAuthError(error.message));
           else { setPassword(''); toast.success('Password updated.'); }
         }}>
           <TextField label="New password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} error={pwError} />
@@ -196,20 +219,29 @@ function PrivacySection() {
 
 function AppearanceSection() {
   const toast = useToast();
+  const ws = useWorkspace();
+  const local = useLocalSnapshot(ws.local);
   const profile = useProfile();
   const update = useUpdateProfile();
+  // Local workspaces keep their own preference; accounts store it in the profile.
+  const current = ws.local ? local?.prefs.mapStyle : profile.data?.mapStyle;
+  const choose = (id: 'positron' | 'bright' | 'liberty') => {
+    if (ws.local) {
+      try { ws.local.setMapStyle(id); toast.success('Map style saved on this device.'); } catch (e) { toast.error(e); }
+    } else update.mutate({ mapStyle: id }, { onSuccess: () => toast.success('Map style saved.'), onError: (e) => toast.error(e) });
+  };
   return (
     <div className="max-w-xl">
       <H2 sub="Choose the basemap style.">Map appearance</H2>
       {!isMapStyleCustomizable ? (
         <Notice>This deployment uses a custom map style (VITE_MAP_STYLE_URL), so the style can’t be changed here.</Notice>
-      ) : profile.data && (
+      ) : current && (
         <fieldset className="space-y-2">
           <legend className="sr-only">Map style</legend>
           {MAP_STYLES.map((s) => (
-            <label key={s.id} className={cn('flex cursor-pointer items-center gap-3 rounded-xl p-3 ring-1', profile.data!.mapStyle === s.id ? 'ring-2 ring-neutral-900' : 'ring-neutral-200 hover:bg-neutral-50')}>
-              <input type="radio" name="map-style" value={s.id} checked={profile.data!.mapStyle === s.id}
-                onChange={() => update.mutate({ mapStyle: s.id }, { onSuccess: () => toast.success('Map style saved.'), onError: (e) => toast.error(e) })}
+            <label key={s.id} className={cn('flex cursor-pointer items-center gap-3 rounded-xl p-3 ring-1', current === s.id ? 'ring-2 ring-neutral-900' : 'ring-neutral-200 hover:bg-neutral-50')}>
+              <input type="radio" name="map-style" value={s.id} checked={current === s.id}
+                onChange={() => choose(s.id)}
                 className="accent-neutral-900" />
               <MapIcon className="size-4 text-neutral-500" aria-hidden />
               <span className="text-sm">{s.label}</span>
@@ -263,6 +295,7 @@ function GroupsSettings() {
 
 function PinsSettings() {
   const toast = useToast();
+  const ws = useWorkspace();
   const navigate = useNavigate();
   const pins = useAllPins();
   const maps = useMaps();
@@ -304,6 +337,7 @@ function PinsSettings() {
           </tbody>
         </table>
       )}
+      {!ws.local && <UnusedUploads />}
       <ConfirmDialog open={!!target} danger busy={remove.isPending} title="Delete pin?" confirmLabel="Delete pin"
         message={target ? `“${pinTitle(target)}” will be deleted from ${mapName(target.mapId)}. Shared copies remain until unshared.` : ''}
         onClose={() => setConfirm(null)}
@@ -344,5 +378,44 @@ function CollaborationSettings() {
         </ul>
       )}
     </div>
+  );
+}
+
+/** Owner-triggered cleanup of unreferenced uploads (never automatic). */
+function UnusedUploads() {
+  const toast = useToast();
+  const orphans = useQuery({ queryKey: ['orphanedImages'], queryFn: listMyOrphanedImages });
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const total = (orphans.data ?? []).reduce((n, o) => n + o.sizeBytes, 0);
+  return (
+    <section aria-labelledby="unused-uploads" className="mt-8 border-t border-neutral-100 pt-5">
+      <h3 id="unused-uploads" className="text-sm font-semibold">Unused uploads</h3>
+      <p className="mb-2 text-xs text-neutral-500">Image files you uploaded that no pin or shared pin uses (for example after an interrupted upload). Files used anywhere are never listed.</p>
+      {orphans.isLoading ? <Spinner /> : orphans.error ? <ErrorMessage error={orphans.error} /> : orphans.data!.length === 0 ? (
+        <p className="text-sm text-neutral-500">No unused uploads.</p>
+      ) : (
+        <div className="flex items-center gap-3 text-sm">
+          <span>{orphans.data!.length} file{orphans.data!.length > 1 ? 's' : ''} · {(total / 1024).toFixed(1)} KB</span>
+          <Button size="sm" onClick={() => setConfirm(true)}>Remove unused uploads</Button>
+        </div>
+      )}
+      <ConfirmDialog open={confirm} busy={busy} title="Remove unused uploads?" confirmLabel="Remove files"
+        message="These files aren’t used by any pin. They will be permanently deleted."
+        onClose={() => setConfirm(false)}
+        onConfirm={async () => {
+          setBusy(true);
+          try {
+            const n = await removeOrphanedImages(orphans.data!.map((o) => o.name));
+            toast.success(`Removed ${n} unused file${n === 1 ? '' : 's'}.`);
+            setConfirm(false);
+            await orphans.refetch();
+          } catch (e) {
+            toast.error(e);
+          } finally {
+            setBusy(false);
+          }
+        }} />
+    </section>
   );
 }

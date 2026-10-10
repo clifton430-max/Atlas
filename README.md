@@ -6,7 +6,40 @@ Atlas is a desktop-first, map-first web app. You can discover public events on a
 - **Engineering notes:** [ATLAS_DEV_NOTES.md](ATLAS_DEV_NOTES.md)
 - **Status:** the implementation checklist and verification status are in [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)
 
-> **Current state:** the full stack is implemented. The database security model is verified with automated tests against real PostgreSQL (PGlite). The UI is verified in a real browser in "no backend" mode. Signed-in flows against a live Supabase project, and live Ticketmaster data, have **not** been exercised yet because no credentials were available during development. See the status document for exact details.
+> **Current state (2026-10-10):** Atlas works without an account (**Guest Mode**, data stored on this device) and includes an **interactive tutorial**. Signed in, it runs against the linked Supabase project. Ticketmaster live data is verified through the deployed Edge Function. The one remaining external blocker is public email delivery, which needs custom SMTP. See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md).
+
+## Guest Mode
+
+You can open Atlas and use it straight away, without an account:
+
+| Works for guests | Needs an account |
+|---|---|
+| Discover, live events, search, filters | Friends and friend requests |
+| Maps, groups (colors and icons), pins, saving events, edit, move, delete | Real collaboration maps, invitations, roles |
+| Pin customization and **image markers** | Account and privacy settings |
+| Group filtering, map style, export, reset | Maps that follow you across devices |
+| A local, labelled **demo** collaboration map | |
+
+**Where guest data lives:**
+- It is stored only in this browser (`localStorage['atlas.guest.v1']`). Records are versioned and validated, and every change is saved atomically.
+- If storage is full, Atlas tells you and saves nothing.
+- If stored data is corrupt, Atlas backs it up and starts fresh.
+
+**Signing in:**
+- Signing in never uploads guest data.
+- **Settings → Guest data → Import guest data** copies it into your account, but only when you choose to. Import only inserts data: maps are named "… (from guest)" and same-named groups are reused unchanged.
+- Signing out returns you to the guest workspace.
+
+**Security:**
+- Guest data never touches Supabase. A live test audits every network request.
+- RLS, Storage policies and anon privileges are unchanged.
+
+## Interactive tutorial
+
+- **Starting it:** first-time visitors are offered a tour (start or skip). It is always available from **Help** in the top bar, where you can take it, restart it, or jump to a chapter.
+- **Content:** 7 chapters and 44 steps covering every feature. They highlight the real controls and include "Try it yourself" tasks that are checked before you continue.
+- **Safety:** the tour runs in a **disposable sandbox** (`atlas.sandbox.v1`), for guests and signed-in users alike, so it never changes your maps and never sends anything. The sandbox is discarded when the tour ends, and progress survives a refresh.
+- **Accessibility:** keyboard operable, focus-managed, Escape to exit, live announcements, and reduced-motion support.
 
 ---
 
@@ -38,19 +71,27 @@ src/
     friends/           Friend requests, friend links and QR codes
     collaboration/     Collaboration maps, members/roles, invitations, sharing, invite page
     settings/          Account, privacy, friends, appearance, groups, pins, collaboration
-    auth/              Sign in / sign up / password reset
+    auth/              Sign in / sign up / password reset (friendly email-error messages)
+    workspace/         Account / guest / tutorial-sandbox workspaces, local store, import, account-required prompts
+    tutorial/          Interactive tour engine, steps (7 chapters), Help menu, first-visit offer
   lib/                 Env, Supabase client, domain types, validation, formatting, timezone helpers
   services/events/     EventProvider interface, Supabase/Edge provider, fixture provider, geocoder
   dev/                 Dev-only verification harness (excluded from production builds)
+  lib/database.types.ts  Generated from the live schema (`npm run types:generate`)
 supabase/
-  migrations/          Schema, RLS, RPCs, storage policies, provider cache table
+  migrations/          Schema, RLS, RPCs, storage policies, provider cache, rate limits, privilege/perf hardening
   functions/           discover-events Edge Function plus shared Ticketmaster normalizer
   seed.sql             Development sample events (generated; clearly flagged)
 tests/
   unit/                Pure-logic tests (filters, group filter, Ticketmaster, validation, crop math)
   components/          React component tests (jsdom)
   db/                  Migrations, RLS, RPC and storage-policy tests on PGlite (real Postgres)
-  e2e/                 Playwright browser tests and axe accessibility audit
+  e2e/                 Playwright browser tests and axe accessibility audit (fixture mode)
+  live/                LIVE API integration/security tests (real Supabase; opt-in)
+  e2e-live/            LIVE browser tests and signed-in axe audit (real Supabase; opt-in)
+scripts/
+  live/provision-test-users.mjs   Creates/refreshes the dedicated live test accounts
+  storage-orphans-report.sh       Read-only report of unreferenced uploads
 ```
 
 **Three isolated map contexts share one persistent map:**
@@ -104,7 +145,7 @@ The database enforces all authorization. The UI only mirrors it for clarity.
 
 ```bash
 npm install
-cp .env.example .env
+cp .env.example .env   # first-time setup only — re-running this erases your configured values
 ```
 
 ### 2. Environment variables
@@ -116,7 +157,9 @@ cp .env.example .env
 | `VITE_MAP_STYLE_URL` | `.env` (optional) | Yes | MapLibre style URL. Defaults to OpenFreeMap Positron. A non-OpenFreeMap URL (for example MapTiler with a domain-restricted key) disables the in-app style picker. |
 | `VITE_GEOCODER_URL` | `.env` (optional) | Yes | Photon-compatible geocoder. Defaults to `https://photon.komoot.io/api/` |
 | `TICKETMASTER_API_KEY` | **Supabase Edge Function secret** | **No, server only** | Ticketmaster consumer key |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Injected into Edge Functions by Supabase | **No** | Used by `discover-events` to upsert events |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Injected into Edge Functions by Supabase | **No** | Used by `discover-events` to upsert events and apply rate limits |
+| `ATLAS_ALLOWED_ORIGINS` | Edge Function secret (optional) | n/a | Comma-separated CORS origins for `discover-events`. Defaults to `*`. |
+| `ATLAS_LIVE_*` | `.env.live.local` (generated, gitignored) | Test accounts only | Live test accounts, written by `npm run test:live:provision` |
 
 Never prefix server secrets with `VITE_`, because every `VITE_` variable is compiled into the browser bundle.
 
@@ -151,9 +194,19 @@ supabase functions deploy discover-events
 
 `supabase/config.toml` sets `verify_jwt = false` for this function. It serves only public Discover data, so it works signed-out and with non-JWT publishable keys.
 
-The function caches each viewport and filter combination for 15 minutes in `event_fetch_log`, which keeps usage within Ticketmaster's rate limits (5 requests per second, 5,000 per day on the default tier).
+Abuse control and reliability in `discover-events`:
+- **Input validation:** bbox checks, a Ticketmaster segment whitelist, date sanity checks, a 4 KB body limit, and control-character stripping.
+- **Per-client rate limit:** 60 requests per minute. The key is a salted hash of the client IP, so raw IPs are never stored. Over the limit, the function returns 429 with `Retry-After`.
+- **Global Ticketmaster budget:** 4 requests per second and 4,500 per day.
+- **Cache:** each viewport and filter combination is cached for 15 minutes in `event_fetch_log`.
+- **Failure backoff:**
+  - 5 minutes after an authentication failure. This is tied to a fingerprint of the key, so replacing the secret takes effect immediately.
+  - 60 seconds after a 429.
+  - 60 seconds per viewport after a timeout or 5xx.
+- **Upstream timeout:** 8 seconds.
+- **Logs** never include the key or the upstream URL.
 
-If the function or key is missing, the app falls back to events already in the database and labels them as "previously fetched" or "development samples". It never presents them as live.
+Every response states where its data came from: `source` (`ticketmaster` or `cache`), `fetched`, `stale`, `cachedAt`, and an optional `warning`. The UI shows "Live from Ticketmaster", "fetched N min ago", or a clear "previously fetched" or "unavailable" notice. Development fixtures are always labelled and never counted as live.
 
 ### 5. Supabase Auth settings
 
@@ -162,6 +215,10 @@ In **Authentication → URL Configuration**:
 - Add your origins to **Redirect URLs**. Email confirmation and password-reset links return to `/auth` or the `next` path.
 
 Email confirmation can stay on. After sign-up, the app tells users to check their email.
+
+**Before a public launch, configure custom SMTP** (Authentication → Emails → SMTP Settings). Supabase's built-in mailer is heavily rate-limited and, by default, only delivers to project team members. In this project it already returned "email rate limit exceeded".
+
+Also consider enabling leaked-password protection and a minimum password length of 8.
 
 ### 6. Run
 
@@ -176,9 +233,24 @@ npm run typecheck      # tsc --noEmit
 npm run lint           # eslint
 npm test               # Vitest: unit + component + database (PGlite) suites
 npm run test:db        # database/RLS suite only
-npm run test:e2e       # Playwright (uses installed Google Chrome; starts its own dev server)
+npm run test:e2e       # Playwright, no backend: Discover, Guest Mode, tutorial, accessibility
 npm run build          # typecheck + production build
+npm run types:generate # regenerate src/lib/database.types.ts from the linked project
 ```
+
+**Live integration tests.** These run against the *linked Supabase project* and are never part of `npm test`.
+
+```bash
+npm run test:live:provision   # once: create/refresh 3 dedicated test users (no emails sent) + 1 labelled sample event
+npm run test:live             # API-level: Auth, RLS, RPCs, Storage, Edge Function as users A/B/C
+npm run test:e2e:live         # real UI flows, guest-mode security (no leaks, no silent upload, explicit import), live Ticketmaster, signed-in axe
+ATLAS_LIVE_RATE_LIMIT=1 npm run test:live   # opt-in: verifies 429 throttling (rate-limits this machine ~60 s)
+node scripts/live/provision-test-users.mjs --delete   # remove the test users and all their data
+```
+
+- Provisioning fetches the project's service key from the logged-in Supabase CLI and keeps it **in memory only**.
+- The generated test passwords go to `.env.live.local`, which is gitignored and created with mode 600.
+- Every test removes the data it creates.
 
 - **Database tests** (`tests/db`) apply the real migrations to PGlite, which is PostgreSQL compiled to WASM. A small stub stands in for Supabase's `auth.uid()`, roles, and `storage` schema. The tests then issue SQL directly as anon, owner, stranger, friend, viewer, and editor identities, with the same power a client holding a valid JWT would have.
 - **E2E tests** run with Supabase variables blanked. They cover Discover, filters, search, map clicks, the welcome animation, panel and viewport behavior, and accessibility (axe, WCAG 2.1 A/AA). A dev-only harness at `/__dev/marker-check` checks that an image marker is the real, anchored, clickable map marker.
@@ -191,6 +263,16 @@ The frontend is a static SPA. Run `npm run build` and serve `dist/` from any sta
 Set the `VITE_*` variables in the host's build environment.
 
 Backend: run `supabase db push` and `supabase functions deploy discover-events`, then set the secrets described above.
+
+Production checklist:
+- Set the production **Site URL** and **Redirect URLs** in Supabase Auth.
+- Configure custom SMTP.
+- Store a valid Ticketmaster consumer key.
+- Optionally run `supabase secrets set ATLAS_ALLOWED_ORIGINS=https://your.domain`.
+
+**Maintenance:**
+- `npm run storage:orphans:report` gives a read-only count of uploads that nothing references.
+- Users can remove their own unused uploads in Settings → Pins → Unused uploads. Nothing is deleted automatically.
 
 ## Behavior details
 
@@ -219,11 +301,11 @@ Backend: run `supabase db push` and `supabase functions deploy discover-events`,
 
 ## Known limitations
 
-See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for the full list. The main ones:
+See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for the full acceptance checklist. The main limitations:
 
-- Not yet exercised against a live Supabase project or the live Ticketmaster API, because no credentials were available. The Edge Function has not been executed, because Deno is not installed in the development environment.
-- Supabase client types are not generated (`supabase gen types`). API modules map untyped rows into explicit domain types.
-- If a file deletion fails after its metadata row is deleted, an orphaned Storage object can remain. It is never referenced or exposed, but it is not cleaned up automatically yet.
-- The JS bundle is about 1.9 MB before compression, mostly MapLibre. Route-level code-splitting is not done yet.
+- **Email sign-up and reset delivery** depend on configuring custom SMTP and have not been verified with a real mailbox. The in-app password-reset flow is verified with an admin-generated recovery link, and email failures are explained to users.
+- Each viewport loads up to 300 Ticketmaster events (3 pages); the UI says "showing N of M" and suggests zooming or choosing dates.
+- Guest data is visible to anyone using the same browser profile (stated in the app).
+- The Edge Function is covered by shared-module unit tests and live HTTP tests, but has no Deno-native tests.
+- `@supabase/ssr` is listed as a dependency but unused by this SPA. It's safe to remove; it was left because it was added in the initial backup.
 - `Atlas.py` (an empty file that existed before this work) is unused.
-# Atlas

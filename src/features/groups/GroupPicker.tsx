@@ -10,8 +10,9 @@ import type { Group } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
 import { Checkbox, TextField } from '@/components/ui/Field';
 import { ColorPicker, PALETTE } from '@/components/ui/ColorPicker';
+import { GroupIcon, GroupIconPicker } from './GroupIcon';
 
-export interface PendingGroup { tempId: string; name: string; color: string }
+export interface PendingGroup { tempId: string; name: string; color: string; icon?: string | null }
 
 export interface GroupSelection {
   selectedIds: string[];
@@ -30,6 +31,7 @@ export function GroupPicker({ groups, value, onChange, error }: {
   const [adding, setAdding] = useState(groups.length === 0);
   const [name, setName] = useState('');
   const [color, setColor] = useState(PALETTE[groups.length % PALETTE.length]);
+  const [icon, setIcon] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
 
   const toggle = (id: string, on: boolean) =>
@@ -43,7 +45,8 @@ export function GroupPicker({ groups, value, onChange, error }: {
     if (groups.some((g) => g.name.toLowerCase() === lower) || value.pending.some((p) => p.name.toLowerCase() === lower)) {
       return setNameError('You already have a group with that name.');
     }
-    onChange({ ...value, pending: [...value.pending, { tempId: crypto.randomUUID(), name: trimmed, color }] });
+    onChange({ ...value, pending: [...value.pending, { tempId: crypto.randomUUID(), name: trimmed, color, icon }] });
+    setIcon(null);
     setName('');
     setNameError(null);
     setColor(PALETTE[(groups.length + value.pending.length + 1) % PALETTE.length]);
@@ -61,7 +64,7 @@ export function GroupPicker({ groups, value, onChange, error }: {
           <Checkbox
             key={g.id}
             label={g.name}
-            swatch={g.color}
+            adornment={<GroupIcon group={g} />}
             checked={value.selectedIds.includes(g.id)}
             onChange={(on) => toggle(g.id, on)}
           />
@@ -71,7 +74,7 @@ export function GroupPicker({ groups, value, onChange, error }: {
             key={p.tempId}
             label={p.name}
             description="New group — created when you confirm"
-            swatch={p.color}
+            adornment={<GroupIcon group={{ color: p.color, icon: p.icon ?? null }} />}
             checked
             onChange={(on) => !on && onChange({ ...value, pending: value.pending.filter((x) => x.tempId !== p.tempId) })}
           />
@@ -95,6 +98,7 @@ export function GroupPicker({ groups, value, onChange, error }: {
             error={nameError}
           />
           <ColorPicker label="Group color" value={color} onChange={setColor} />
+          <GroupIconPicker value={icon} onChange={setIcon} color={color} />
           <div className="flex justify-end gap-2">
             {(groups.length > 0 || value.pending.length > 0) && (
               <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>

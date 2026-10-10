@@ -22,7 +22,8 @@ import { cn } from '@/components/ui/cn';
 import { PinMarkerVisual } from './PinMarkerVisual';
 import { PIN_ICONS } from './icons';
 import { ImageCropper, MaskChooser, type CroppedImage } from './ImageCropper';
-import { tryDeleteImage, uploadPinImage, useSignedImageUrl } from './images';
+import { discardImage, storeImage, useSignedImageUrl } from './images';
+import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { pinTitle, usePinMutations } from './api';
 
 const SHAPES: { id: PinShape; label: string }[] = [
@@ -35,6 +36,7 @@ const SHAPES: { id: PinShape; label: string }[] = [
 
 export function PinAppearanceDialog({ pin, groups, onClose }: { pin: Pin; groups: Group[]; onClose: () => void }) {
   const toast = useToast();
+  const ws = useWorkspace();
   const { updateAppearance } = usePinMutations();
   const [draft, setDraft] = useState<PinAppearance>(pin.appearance);
   const [newImage, setNewImage] = useState<CroppedImage | null>(null);
@@ -58,14 +60,14 @@ export function PinAppearanceDialog({ pin, groups, onClose }: { pin: Pin; groups
     try {
       let appearance = draft;
       if (newImage) {
-        uploaded = await uploadPinImage(newImage.blob, { width: newImage.width, height: newImage.height });
+        uploaded = await storeImage(ws, newImage.blob, { width: newImage.width, height: newImage.height });
         appearance = { ...draft, imageId: uploaded.id };
       }
       await updateAppearance.mutateAsync({ pin, appearance });
       toast.success('Pin appearance saved.');
       onClose();
     } catch (e) {
-      if (uploaded) await tryDeleteImage(uploaded).catch(() => undefined);
+      if (uploaded) await discardImage(ws, uploaded).catch(() => undefined);
       setError(e);
     } finally {
       setBusy(false);

@@ -7,39 +7,59 @@
  * and the standalone /auth page.
  */
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useAuth } from './AuthProvider';
 import { AppShell } from './AppShell';
 import { RequireAuth } from './RequireAuth';
 import { WelcomeOverlay } from './WelcomeOverlay';
-import { AuthPage } from '@/features/auth/AuthPage';
+import { TutorialRoot } from '@/features/tutorial/TutorialRoot';
 import { DiscoverView } from '@/features/discover/DiscoverView';
 import { PersonalMapView } from '@/features/maps/PersonalMapView';
 import { CollabMapView } from '@/features/collaboration/CollabMapView';
-import { InvitePage } from '@/features/collaboration/InvitePage';
-import { FriendLinkPage } from '@/features/friends/FriendLinkPage';
-import { SettingsPage } from '@/features/settings/SettingsPage';
+import { Spinner } from '@/components/ui/Feedback';
+
+// Infrequently used routes are code-split so the initial bundle stays small.
+const AuthPage = lazy(() => import('@/features/auth/AuthPage').then((m) => ({ default: m.AuthPage })));
+const InvitePage = lazy(() => import('@/features/collaboration/InvitePage').then((m) => ({ default: m.InvitePage })));
+const FriendLinkPage = lazy(() => import('@/features/friends/FriendLinkPage').then((m) => ({ default: m.FriendLinkPage })));
+const DemoCollabView = lazy(() => import('@/features/collaboration/DemoCollabView').then((m) => ({ default: m.DemoCollabView })));
+const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+
+const RouteFallback = () => (
+  <div className="absolute left-1/2 top-24 z-40 -translate-x-1/2 rounded-xl bg-white px-4 py-2 shadow-panel"><Spinner /></div>
+);
 
 // Dev-only verification harness; the DEV guard lets the bundler drop it from production.
 const MarkerCheck = import.meta.env.DEV ? lazy(() => import('@/dev/MarkerCheck').then((m) => ({ default: m.MarkerCheck }))) : null;
 
 export function App() {
+  const { recovering } = useAuth();
+  const { pathname } = useLocation();
   return (
     <>
       <WelcomeOverlay />
+      {/* Recovery links may land on the Site URL; always show the reset form. */}
+      {recovering && pathname !== '/auth' && <Navigate to="/auth" replace />}
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
-        {MarkerCheck && <Route path="/__dev/marker-check" element={<Suspense fallback={null}><MarkerCheck /></Suspense>} />}
+        {MarkerCheck && <Route path="/__dev/marker-check" element={<MarkerCheck />} />}
         <Route element={<AppShell />}>
           <Route index element={<DiscoverView />} />
-          <Route path="maps/:mapId" element={<RequireAuth><PersonalMapView /></RequireAuth>} />
+          {/* Personal maps work for guests too (local workspace) — no auth wall. */}
+          <Route path="maps/:mapId" element={<PersonalMapView />} />
+          {/* Local, clearly-labelled collaboration demo; real collaboration needs an account. */}
+          <Route path="collab/demo" element={<DemoCollabView />} />
           <Route path="collab/:mapId" element={<RequireAuth><CollabMapView /></RequireAuth>} />
-          <Route path="invite/:token" element={<RequireAuth><InvitePage /></RequireAuth>} />
-          <Route path="friend/:code" element={<RequireAuth><FriendLinkPage /></RequireAuth>} />
+          <Route path="invite/:token" element={<RequireAuth reason="invite"><InvitePage /></RequireAuth>} />
+          <Route path="friend/:code" element={<RequireAuth reason="friends"><FriendLinkPage /></RequireAuth>} />
           <Route path="settings" element={<Navigate to="/settings/account" replace />} />
-          <Route path="settings/:section" element={<RequireAuth><SettingsPage /></RequireAuth>} />
+          <Route path="settings/:section" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      </Suspense>
+      <TutorialRoot />
     </>
   );
 }

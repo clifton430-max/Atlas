@@ -87,3 +87,47 @@ describe('query helpers', () => {
     expect(cacheKeyFor({ bbox })).toBe(cacheKeyFor({ bbox: { ...bbox, west: -74.11 } }));
   });
 });
+
+import { geohash, parseDiscoverRequest } from '../../supabase/functions/_shared/ticketmaster';
+
+describe('geohash', () => {
+  it('matches known reference values', () => {
+    expect(geohash(57.64911, 10.40744, 11)).toBe('u4pruydqqvj'); // canonical example
+    expect(geohash(40.7484, -73.9857, 6)).toBe('dr5ru6');
+  });
+});
+
+describe('parseDiscoverRequest', () => {
+  const bbox = { west: -74.1, south: 40.6, east: -73.8, north: 40.9 };
+  const now = new Date('2026-10-10T12:00:00Z');
+  it('rejects missing or invalid bboxes', () => {
+    expect(parseDiscoverRequest(null, now)).toBeNull();
+    expect(parseDiscoverRequest({ bbox: { ...bbox, south: 99 } }, now)).toBeNull();
+  });
+  it('constrains free-form input', () => {
+    const q = parseDiscoverRequest({
+      bbox, keyword: 'jazz\u0000\n' + 'x'.repeat(200), category: 'Hacking', startDate: '2026-10-20', endDate: '2026-10-11', page: 99, extra: 'ignored',
+    }, now)!;
+    expect(q.keyword!.length).toBeLessThanOrEqual(100);
+    // eslint-disable-next-line no-control-regex
+    expect(q.keyword).not.toMatch(/[\u0000-\u001f]/);
+    expect(q.category).toBeNull(); // not a Ticketmaster segment
+    expect(q.startDate).toBeNull(); // end before start -> both dropped
+    expect(q.endDate).toBeNull();
+    expect(q.page).toBe(4);
+    expect(q).not.toHaveProperty('extra');
+  });
+  it('keeps valid filters and drops far-future/invalid dates', () => {
+    const q = parseDiscoverRequest({ bbox, category: 'Music', startDate: '2026-10-11', endDate: '2031-01-01' }, now)!;
+    expect(q.category).toBe('Music');
+    expect(q.startDate).toBe('2026-10-11');
+    expect(q.endDate).toBeNull();
+    expect(parseDiscoverRequest({ bbox, startDate: '2026-02-30' }, now)!.startDate).toBeNull();
+  });
+  it('uses geoPoint (not the deprecated latlong) in upstream URLs', async () => {
+    const { buildTicketmasterUrl } = await import('../../supabase/functions/_shared/ticketmaster');
+    const u = new URL(buildTicketmasterUrl('K', { bbox }));
+    expect(u.searchParams.get('geoPoint')).toMatch(/^[0-9b-hjkmnp-z]{9}$/);
+    expect(u.searchParams.has('latlong')).toBe(false);
+  });
+});

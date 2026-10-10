@@ -12,7 +12,8 @@ import { uiStore, useGroupFilter, useUi } from '@/app/store';
 import { useMapInstance } from '@/features/map/MapContext';
 import { useGroups } from '@/features/groups/api';
 import { applyGroupFilter, pruneGroupFilter } from '@/features/groups/groupFilter';
-import { pinTitle, usePins } from '@/features/pins/api';
+import { pinTitle, usePinMutations, usePins } from '@/features/pins/api';
+import { useToast } from '@/components/ui/Toast';
 import { PinMarker } from '@/features/pins/PinMarker';
 import { PinDetailsCard } from '@/features/pins/PinDetailsCard';
 import { CustomPinDialog } from '@/features/pins/CustomPinDialog';
@@ -30,6 +31,10 @@ export function PersonalMapView() {
   const selectedPinId = useUi((s) => s.selectedPinId);
   const placing = useUi((s) => s.placingPin);
   const newPinAt = useUi((s) => s.newPinAt);
+  const movingPinId = useUi((s) => s.movingPinId);
+  const moveTarget = useUi((s) => s.moveTarget);
+  const { updateDetails } = usePinMutations();
+  const toast = useToast();
   const current = maps.data?.find((m) => m.id === mapId);
 
   // Drop selections for groups that were deleted.
@@ -45,24 +50,37 @@ export function PersonalMapView() {
 
   // Placement mode: next map click chooses the custom pin location.
   const onMapClick = useCallback((e: MapMouseEvent) => {
-    if (!uiStore.get().placingPin) return;
+    const s = uiStore.get();
+    if (s.movingPinId) {
+      uiStore.set({ moveTarget: { latitude: e.lngLat.lat, longitude: e.lngLat.lng } });
+      return;
+    }
+    if (!s.placingPin) return;
     uiStore.set({ placingPin: false, newPinAt: { latitude: e.lngLat.lat, longitude: e.lngLat.lng } });
   }, []);
+  const cancelMove = () => uiStore.set({ movingPinId: null, moveTarget: null });
+  const saveMove = () => {
+    if (!movingPinId || !moveTarget) return;
+    updateDetails.mutate({ pinId: movingPinId, ...moveTarget }, {
+      onSuccess: () => { cancelMove(); toast.success('Pin moved.'); },
+      onError: (e) => toast.error(e),
+    });
+  };
   useEffect(() => {
     if (!map) return;
     map.on('click', onMapClick);
-    map.getCanvas().style.cursor = placing ? 'crosshair' : '';
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && uiStore.set({ placingPin: false });
-    if (placing) window.addEventListener('keydown', onKey);
+    map.getCanvas().style.cursor = placing || movingPinId ? 'crosshair' : '';
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && uiStore.set({ placingPin: false, movingPinId: null, moveTarget: null });
+    if (placing || movingPinId) window.addEventListener('keydown', onKey);
     return () => {
       map.off('click', onMapClick);
       map.getCanvas().style.cursor = '';
       window.removeEventListener('keydown', onKey);
     };
-  }, [map, onMapClick, placing]);
+  }, [map, onMapClick, placing, movingPinId]);
 
   // Leaving this map clears its transient state.
-  useEffect(() => () => uiStore.set({ selectedPinId: null, placingPin: false, newPinAt: null }), [mapId]);
+  useEffect(() => () => uiStore.set({ selectedPinId: null, placingPin: false, newPinAt: null, movingPinId: null, moveTarget: null }), [mapId]);
 
   if (maps.isSuccess && !current) {
     return <Overlay><ErrorMessage error="This map doesn’t exist or you don’t have access to it." /></Overlay>;
@@ -74,8 +92,8 @@ export function PersonalMapView() {
         p.latitude != null && p.longitude != null ? (
           <PinMarker
             key={p.id}
-            latitude={p.latitude}
-            longitude={p.longitude}
+            latitude={p.id === movingPinId && moveTarget ? moveTarget.latitude : p.latitude}
+            longitude={p.id === movingPinId && moveTarget ? moveTarget.longitude : p.longitude}
             label={`${pinTitle(p)}${p.groupIds.length ? '' : ' (no group)'}`}
             appearance={p.appearance}
             image={p.image}
@@ -95,6 +113,15 @@ export function PersonalMapView() {
           <MousePointerClick className="size-4" aria-hidden />
           Click the map to place your pin.
           <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => uiStore.set({ placingPin: false })}>Cancel (Esc)</Button>
+        </div>
+      )}
+
+      {movingPinId && (
+        <div className="absolute left-1/2 top-[68px] z-20 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white shadow-float" role="status">
+          <MousePointerClick className="size-4" aria-hidden />
+          {moveTarget ? 'New location chosen.' : 'Click the map to choose the new location.'}
+          <Button size="sm" variant="primary" className="bg-white text-neutral-900 hover:bg-neutral-100" disabled={!moveTarget} loading={updateDetails.isPending} onClick={saveMove}>Save location</Button>
+          <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={cancelMove}>Cancel</Button>
         </div>
       )}
 

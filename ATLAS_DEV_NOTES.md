@@ -215,10 +215,18 @@ This is a critical acceptance requirement, not a cosmetic enhancement.
 
 ## 9. Recommended implementation sequence
 
-> **Status (2026-10-10):** see [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)
-> for per-feature verification status, test results and next steps. Items
-> marked _pending_ are implemented but not yet exercised against a live
-> Supabase project.
+> **Status (2026-10-10, guest mode + tutorial session):** every item below was re-audited against
+> the code and re-verified by automated tests (see docs/IMPLEMENTATION_STATUS.md for exact commands
+> and counts).
+>
+> - **Ticketmaster:** live data is now verified through the deployed function. The earlier 401 was a
+>   credential issue, resolved when the secret was replaced.
+> - **Email:** delivery is still unverified, because no real mailbox was available and the project
+>   still uses the rate-limited built-in mailer.
+> - **New this session:** Guest Mode (Phase 9) and the interactive tutorial (Phase 10).
+> - **Corrected this session:**
+>   - Group icons were previously marked done without a UI; they are now implemented and verified live.
+>   - Provider pagination was previously missing; it is now implemented and verified live.
 
 ### Phase 1 --- Foundation
 
@@ -231,14 +239,14 @@ This is a critical acceptance requirement, not a cosmetic enhancement.
 ### Phase 2 --- Authentication and database
 
 -   [x] Supabase Auth, profiles, protected routes, session/error
-    handling. _(live-project verification pending)_
+    handling. _(verified live)_
 -   [x] SQL migrations, constraints, indexes, RLS, and storage policies.
 -   [x] Core event/map/pin/group types and services.
 -   [x] Security tests for private data boundaries.
 
 ### Phase 3 --- Discover and search
 
--   [x] Ticketmaster adapter and normalized event format. _(live API not yet called — no key)_
+-   [x] Ticketmaster adapter and normalized event format. _(verified live: real events via deployed function; up to 3 pages per viewport with honest "showing N of M")_
 -   [x] Map markers/clustering, preview, detail view, source
     attribution.
 -   [x] Context-aware search and suggestions.
@@ -246,8 +254,8 @@ This is a critical acceptance requirement, not a cosmetic enhancement.
 
 ### Phase 4 --- Personal maps and groups
 
--   [x] Multiple private maps and CRUD. _(live-project verification pending)_
--   [x] Group CRUD, colors/icons, pin memberships. _(live-project verification pending)_
+-   [x] Multiple private maps and CRUD. _(verified live)_
+-   [x] Group CRUD, colors/icons, pin memberships. _(icons added this session; verified live and in guest mode)_
 -   [x] Mandatory group assignment during save flow.
 -   [x] Exact checkbox/OR filter behavior and per-map state.
 -   [x] Persistence and safe group deletion.
@@ -255,7 +263,7 @@ This is a critical acceptance requirement, not a cosmetic enhancement.
 ### Phase 5 --- Pin customization
 
 -   [x] Color, shape, icon, size, border, reset, live preview.
--   [x] Secure upload and image management. _(Storage API path pending live verification)_
+-   [x] Secure upload and image management. _(verified live)_
 -   [x] Actual image markers with geographic anchoring and click
     behavior.
 -   [x] Preserve group identity, custom styles, and shared image
@@ -263,8 +271,8 @@ This is a critical acceptance requirement, not a cosmetic enhancement.
 
 ### Phase 6 --- Friends and collaboration
 
--   [x] Friend requests and permitted profiles. _(live-project verification pending)_
--   [x] Collaboration maps, roles, and membership controls. _(live-project verification pending)_
+-   [x] Friend requests and permitted profiles. _(verified live)_
+-   [x] Collaboration maps, roles, and membership controls. _(verified live)_
 -   [x] Explicit sharing and independent shared pin representations.
 -   [x] Secure, revocable invitation links and functional QR codes.
 -   [x] Native share where supported and Copy Link fallback.
@@ -278,15 +286,30 @@ This is a critical acceptance requirement, not a cosmetic enhancement.
 
 ### Phase 8 --- Verification and delivery
 
--   [ ] Check all acceptance criteria. _(blocked on a live Supabase project — see docs/IMPLEMENTATION_STATUS.md)_
+-   [ ] Check all acceptance criteria. _(all verified, including live Ticketmaster data, except public email delivery — needs custom SMTP and a real mailbox; see docs/IMPLEMENTATION_STATUS.md)_
 -   [x] Run tests and fix regressions caused by implementation.
 -   [x] Verify RLS and private Storage access using unauthorized
-    identities. _(PGlite with stubbed auth/storage)_
+    identities. _(PGlite and live project)_
 -   [x] Verify image markers are actual interactive map markers.
 -   [x] Verify group filter semantics exactly.
 -   [x] Update README with setup, env, migrations, services, tests, and
     deployment.
 -   [x] Report completed/partial/unimplemented features honestly.
+
+### Phase 9 --- Guest Mode (added 2026-10-10)
+
+-   [x] Atlas opens and is usable without signing in (no auth wall). _(fixture E2E)_
+-   [x] Versioned, validated local workspace with atomic commits, corrupt-data backup, full-storage and no-storage handling. _(unit + E2E)_
+-   [x] Guest maps, groups (colors and icons), pins, saving events, edit, move, customization, image markers, OR group filter, persistence, reset. _(E2E)_
+-   [x] Account-required features explain the need for an account; local, clearly labelled demo collaboration; no faked success. _(E2E)_
+-   [x] Guest data never reaches Supabase; signing in uploads nothing; sign-out returns to the guest workspace. _(live E2E with request auditing)_
+-   [x] Explicit, insert-only import of guest data into an account. _(live E2E)_
+
+### Phase 10 --- Interactive tutorial (added 2026-10-10)
+
+-   [x] Reusable tour engine: spotlight on real controls, step counter and progress, Back/Next/Skip/Exit/Restart, verified "Try it yourself" tasks, panel preparation, missing-target fallback, focus management, Escape, live announcements, reduced motion, persisted progress. _(E2E)_
+-   [x] 7 chapters / 44 steps covering every major feature, all reachable; runs in a disposable sandbox for guests and signed-in users. _(E2E + live E2E)_
+-   [x] Entry points: first-visit offer and Help menu (start, restart, jump to chapter). _(E2E)_
 
 ## 10. Environment and setup documentation
 

@@ -37,6 +37,13 @@ export interface AtlasUiState {
   placingPin: boolean;
   /** Pending custom-pin location awaiting the create dialog. */
   newPinAt: PlacementRequest | null;
+  /** Custom pin being relocated, and the location picked for it (not yet saved). */
+  movingPinId: string | null;
+  moveTarget: { latitude: number; longitude: number } | null;
+
+  /** Interaction counters used by the interactive tutorial to verify practice tasks. */
+  mapMoves: number;
+  panelToggles: number;
 
   /** Group filter per personal map id (persisted per map in localStorage). */
   groupFilters: Record<string, GroupFilter>;
@@ -56,6 +63,10 @@ const initial: AtlasUiState = {
   selectedPinId: null,
   placingPin: false,
   newPinAt: null,
+  movingPinId: null,
+  moveTarget: null,
+  mapMoves: 0,
+  panelToggles: 0,
   groupFilters: {},
   selectedSharedPinId: null,
 };

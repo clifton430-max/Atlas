@@ -15,6 +15,7 @@ import { useGroupFilter } from '@/app/store';
 import { isGroupSelected } from './groupFilter';
 import { useGroupMutations, useGroups } from './api';
 import { GroupFormDialog } from './GroupFormDialog';
+import { GroupIcon } from './GroupIcon';
 
 export function GroupsSection({ mapId }: { mapId: string }) {
   const toast = useToast();
@@ -32,7 +33,7 @@ export function GroupsSection({ mapId }: { mapId: string }) {
   }, [pins.data]);
 
   return (
-    <section aria-labelledby="groups-heading">
+    <section aria-labelledby="groups-heading" data-tour="groups-section">
       <div className="flex items-center justify-between px-2 pb-1">
         <h2 id="groups-heading" className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Groups</h2>
         <IconButton label="New group" size="sm" onClick={() => setEditing('new')}><Plus className="size-4" aria-hidden /></IconButton>
@@ -41,7 +42,7 @@ export function GroupsSection({ mapId }: { mapId: string }) {
         <ul className="space-y-0.5">
           {groups.data.map((g) => (
             <li key={g.id} className="group flex items-center gap-2 rounded-lg px-2 py-1 text-sm hover:bg-neutral-100">
-              <span className="size-2.5 shrink-0 rounded-full ring-1 ring-black/10" style={{ background: g.color }} aria-hidden />
+              <GroupIcon group={g} />
               <span className="min-w-0 flex-1 truncate">{g.name}</span>
               {isGroupSelected(filter, g.id) && <span className="text-[10px] font-medium uppercase text-accent-strong">filtered</span>}
               <span className="text-xs tabular-nums text-neutral-500" aria-label={`${counts.get(g.id) ?? 0} pins on this map`}>{counts.get(g.id) ?? 0}</span>

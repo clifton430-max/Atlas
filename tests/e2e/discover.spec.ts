@@ -17,7 +17,7 @@ const eventList = (page: Page) => page.getByRole('region', { name: 'Events in vi
 
 test.beforeEach(async ({ page }) => {
   // Start every test from the same viewport (Manhattan).
-  await page.addInitScript(() => localStorage.setItem('atlas.viewport', JSON.stringify({ center: [-73.985, 40.748], zoom: 11.5 })));
+  await page.addInitScript(() => { localStorage.setItem('atlas.viewport', JSON.stringify({ center: [-73.985, 40.748], zoom: 11.5 })); localStorage.setItem('atlas.tutorial.v1', JSON.stringify({ firstRunHandled: true })); });
 });
 
 test('welcome overlay fades out quickly without blocking the app', async ({ page }) => {

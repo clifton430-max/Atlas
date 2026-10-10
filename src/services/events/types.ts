@@ -25,6 +25,8 @@ export interface EventSearchResult {
   source: EventDataSource;
   /** Human-readable explanation when not live (e.g. provider not configured). */
   notice?: string;
+  /** Short provenance label, e.g. "Live from Ticketmaster · fetched 3 min ago". */
+  detail?: string;
 }
 
 export interface EventProvider {

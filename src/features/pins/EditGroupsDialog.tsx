@@ -9,10 +9,12 @@ import { useToast } from '@/components/ui/Toast';
 import { useGroups } from '@/features/groups/api';
 import { emptySelection, GroupPicker, type GroupSelection } from '@/features/groups/GroupPicker';
 import { commitGroupSelection } from '@/features/groups/commitSelection';
+import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { pinTitle, usePinMutations } from './api';
 
 export function EditGroupsDialog({ pin, onClose }: { pin: Pin; onClose: () => void }) {
   const qc = useQueryClient();
+  const ws = useWorkspace();
   const toast = useToast();
   const groups = useGroups();
   const { setGroups } = usePinMutations();
@@ -24,7 +26,7 @@ export function EditGroupsDialog({ pin, onClose }: { pin: Pin; onClose: () => vo
     setBusy(true);
     setError(null);
     try {
-      const ids = await commitGroupSelection(selection, qc);
+      const ids = await commitGroupSelection(selection, qc, ws);
       await setGroups.mutateAsync({ pinId: pin.id, groupIds: ids });
       toast.success('Groups updated.');
       onClose();

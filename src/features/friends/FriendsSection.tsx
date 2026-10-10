@@ -41,6 +41,8 @@ export function FriendsSection() {
   const friends = list.filter((f) => f.status === 'accepted');
   const relation = (id: string) => list.find((f) => f.other?.id === id);
   const done = (msg: string) => ({ onSuccess: () => toast.success(msg), onError: (e: unknown) => toast.error(e) });
+  // Any in-flight friendship change disables the row actions (prevents duplicate RPCs).
+  const busy = m.respond.isPending || m.remove.isPending || m.request.isPending;
 
   return (
     <div className="max-w-xl space-y-8">
@@ -69,7 +71,7 @@ export function FriendsSection() {
                     {rel?.status === 'accepted' ? <span className="text-xs text-neutral-500">Friends</span>
                       : rel?.status === 'pending' && rel.outgoing ? <span className="text-xs text-neutral-500">Requested</span>
                       : (
-                        <Button size="sm" icon={<UserPlus className="size-3.5" aria-hidden />} loading={m.request.isPending && m.request.variables === r.id}
+                        <Button size="sm" icon={<UserPlus className="size-3.5" aria-hidden />} disabled={busy} loading={m.request.isPending && m.request.variables === r.id}
                           onClick={() => m.request.mutate(r.id, done(rel?.status === 'pending' ? 'You are now friends.' : 'Friend request sent.'))}>
                           {rel?.status === 'pending' ? 'Accept' : 'Add friend'}
                         </Button>
@@ -87,19 +89,19 @@ export function FriendsSection() {
           {incoming.length > 0 && (
             <FriendList title="Requests for you" items={incoming} actions={(f) => (
               <>
-                <Button size="sm" variant="primary" onClick={() => m.respond.mutate({ id: f.id, accept: true }, done('Friend request accepted.'))}>Accept</Button>
-                <Button size="sm" variant="ghost" onClick={() => m.respond.mutate({ id: f.id, accept: false }, done('Request declined.'))}>Decline</Button>
+                <Button size="sm" variant="primary" disabled={busy} loading={m.respond.isPending && m.respond.variables?.id === f.id && m.respond.variables.accept} onClick={() => m.respond.mutate({ id: f.id, accept: true }, done('Friend request accepted.'))}>Accept</Button>
+                <Button size="sm" variant="ghost" disabled={busy} onClick={() => m.respond.mutate({ id: f.id, accept: false }, done('Request declined.'))}>Decline</Button>
               </>
             )} />
           )}
           {outgoing.length > 0 && (
             <FriendList title="Sent requests" items={outgoing} actions={(f) => (
-              <Button size="sm" variant="ghost" onClick={() => m.remove.mutate(f.id, done('Request cancelled.'))}>Cancel</Button>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => m.remove.mutate(f.id, done('Request cancelled.'))}>Cancel</Button>
             )} />
           )}
           {friends.length > 0 ? (
             <FriendList title={`Friends (${friends.length})`} items={friends} actions={(f) => (
-              <Button size="sm" variant="ghost" className="text-danger" onClick={() => m.remove.mutate(f.id, done('Friend removed.'))}>Remove</Button>
+              <Button size="sm" variant="ghost" className="text-danger" disabled={busy} loading={m.remove.isPending && m.remove.variables === f.id} onClick={() => m.remove.mutate(f.id, done('Friend removed.'))}>Remove</Button>
             )} />
           ) : <EmptyState title="No friends yet">Search above or share your friend link from Privacy settings.</EmptyState>}
         </>

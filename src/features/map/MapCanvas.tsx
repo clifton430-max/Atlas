@@ -79,7 +79,9 @@ export function MapCanvas({ styleUrl, children }: { styleUrl: string; children?:
       }
     };
     // Debounced: Discover queries by visible bounds, not on every frame.
-    const onMoveEnd = () => {
+    const onMoveEnd = (e: { originalEvent?: unknown }) => {
+      // Count user-initiated pans/zooms (used by the tutorial's "try it" check).
+      if (e.originalEvent) uiStore.set((s) => ({ mapMoves: s.mapMoves + 1 }));
       clearTimeout(moveTimer);
       moveTimer = setTimeout(publishBounds, 350);
     };

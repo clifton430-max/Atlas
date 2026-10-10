@@ -20,7 +20,7 @@ export function DiscoverEventList() {
   const n = activeFilterCount(filters);
 
   return (
-    <section aria-labelledby="in-view-heading">
+    <section aria-labelledby="in-view-heading" data-tour="events-in-view">
       <h2 id="in-view-heading" className="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">
         Events in view
       </h2>

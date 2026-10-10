@@ -13,6 +13,10 @@ import { requireSupabase, unwrap } from '@/lib/supabase';
 import { qk } from '@/lib/queryClient';
 import type { CollabInvitation, CollabMap, CollabMember, CollabRole, SharedPin } from '@/lib/types';
 import { useAuth } from '@/app/AuthProvider';
+import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
+
+/** Id used for the local demo collaboration map (guest/sandbox only). */
+export const DEMO_COLLAB_ID = 'demo';
 import { appearanceFromRow, IMAGE_COLUMNS, imageFromRow } from '@/features/pins/api';
 
 type Row = Record<string, unknown>;
@@ -88,10 +92,18 @@ export function useSharedPins(mapId: string | undefined) {
 /** Where a private pin of mine is currently shared. */
 export function usePinShares(pinId: string | undefined) {
   const { user } = useAuth();
+  const ws = useWorkspace();
   return useQuery({
-    queryKey: qk.pinShares(pinId ?? ''),
-    enabled: !!pinId && !!user,
+    queryKey: [...qk.pinShares(pinId ?? ''), ws.scope],
+    enabled: !!pinId && (!!user || !!ws.local),
     queryFn: async () => {
+      if (ws.local) {
+        const demo = ws.local.snapshot().demo;
+        return demo.shares.filter((s) => s.sourcePinId === pinId).map((s) => ({
+          id: s.id, collabMapId: DEMO_COLLAB_ID, mapName: `${demo.mapName} — demo`,
+          includesNote: s.note != null, includesImage: s.imageId != null,
+        }));
+      }
       const rows = unwrap(await requireSupabase().from('shared_pins')
         .select('id, collab_map_id, note, image_id, collab:collab_maps(name)')
         .eq('source_pin_id', pinId!).eq('shared_by', user!.id));
@@ -171,13 +183,14 @@ export function inviteUrl(token: string): string {
 
 export function useCollabMutations() {
   const qc = useQueryClient();
+  const ws = useWorkspace();
   const sb = () => requireSupabase();
   const invalidateMaps = () => qc.invalidateQueries({ queryKey: qk.collabMaps });
 
   return {
     create: useMutation({
       mutationFn: async (input: { name: string; description?: string }) =>
-        unwrap(await sb().rpc('create_collab_map', { p_name: input.name, p_description: input.description ?? null })) as string,
+        unwrap(await sb().rpc('create_collab_map', { p_name: input.name, p_description: input.description || undefined })) as string,
       onSuccess: invalidateMaps,
     }),
     rename: useMutation({
@@ -219,8 +232,8 @@ export function useCollabMutations() {
         mapId: string; role: 'editor' | 'viewer'; recipientId: string | null; expiresInHours: number; maxUses: number | null;
       }) => {
         const rows = unwrap(await sb().rpc('create_collab_invitation', {
-          p_map_id: input.mapId, p_role: input.role, p_recipient_id: input.recipientId,
-          p_expires_in_hours: input.expiresInHours, p_max_uses: input.maxUses,
+          p_map_id: input.mapId, p_role: input.role, p_recipient_id: input.recipientId ?? undefined,
+          p_expires_in_hours: input.expiresInHours, p_max_uses: input.maxUses ?? undefined,
         })) as Row[];
         const r = rows[0];
         return { invitationId: String(r.invitation_id), token: String(r.token), expiresAt: String(r.expires_at) };
@@ -259,6 +272,7 @@ export function useCollabMutations() {
     removeSharedPin: useMutation({
       /** Removes ONLY the representation; the private original and its image remain. */
       mutationFn: async (input: { id: string; collabMapId: string }) => {
+        if (ws.local && input.collabMapId === DEMO_COLLAB_ID) return ws.local.removeDemoShare(input.id);
         unwrap(await sb().from('shared_pins').delete().eq('id', input.id).select('id').single());
       },
       onSuccess: (_d, v) => {

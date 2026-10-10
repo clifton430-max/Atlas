@@ -6,7 +6,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { initialPasswordRecovery, supabase } from '@/lib/supabase';
 import { isSupabaseConfigured } from '@/lib/env';
 
 interface AuthState {
@@ -29,7 +29,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading: isSupabaseConfigured,
     session: null,
     user: null,
-    recovering: false,
+    // A recovery-link landing must show the "choose a new password" form even
+    // if the PASSWORD_RECOVERY event fired before this provider subscribed.
+    recovering: isSupabaseConfigured && initialPasswordRecovery,
   });
 
   useEffect(() => {

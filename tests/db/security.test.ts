@@ -497,3 +497,54 @@ describe('pin images and storage', () => {
     expect(await t.query(`select * from storage.objects where name = $1`, [img.path])).toEqual([]);
   });
 });
+
+describe('orphaned image cleanup', () => {
+  it('lists only the caller\'s own unreferenced, old-enough files', async () => {
+    const orphan = `${alice}/${crypto.randomUUID()}.webp`;
+    const fresh = `${alice}/${crypto.randomUUID()}.webp`;
+    const referenced = `${alice}/${crypto.randomUUID()}.webp`;
+    await t.as(alice);
+    for (const n of [orphan, fresh, referenced]) {
+      await t.query(`insert into storage.objects (bucket_id, name, metadata) values ('pin-images', $1, '{"size": 10}')`, [n]);
+    }
+    await t.query(`insert into public.pin_images (storage_path, mime_type, byte_size) values ($1, 'image/webp', 10)`, [referenced]);
+    await t.asAdmin();
+    await t.query(`update storage.objects set created_at = now() - interval '2 hours' where name in ($1, $2)`, [orphan, referenced]);
+
+    await t.as(alice);
+    const mine = await t.query<{ name: string }>(`select name from public.my_orphaned_pin_images()`);
+    expect(mine.map((r) => r.name)).toEqual([orphan]); // not the fresh upload, not the referenced file
+
+    await t.as(bob);
+    expect(await t.query(`select * from public.my_orphaned_pin_images(interval '0')`)).toEqual([]);
+    expect(await t.fails(`select * from public.orphaned_pin_image_report()`)).toMatch(/permission denied/);
+    // Bob still cannot delete Alice's orphan.
+    await t.query(`delete from storage.objects where name = $1`, [orphan]);
+    await t.as(alice);
+    // Alice can delete her orphan, but never the referenced file.
+    await t.query(`delete from storage.objects where name in ($1, $2)`, [orphan, referenced]);
+    await t.asAdmin();
+    const left = await t.query<{ name: string }>(`select name from storage.objects where name in ($1, $2) order by name`, [orphan, referenced]);
+    expect(left.map((r) => r.name)).toEqual([referenced]);
+  });
+});
+
+describe('function execute privileges', () => {
+  it('anon can execute no public function; leaky helpers are not directly callable', async () => {
+    await t.asAdmin();
+    const anonExec = await t.query<{ proname: string }>(
+      `select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute') order by 1`);
+    expect(anonExec.map((r) => r.proname)).toEqual([]);
+    const leaky = await t.query<{ f: string; ok: boolean }>(
+      `select f, has_function_privilege('authenticated', f, 'execute') ok
+         from unnest(array['public.collab_role_of(uuid,uuid)', 'public.are_friends(uuid,uuid)']) f`);
+    expect(leaky.filter((r) => r.ok)).toEqual([]);
+  });
+
+  it('pin_image_object_in_use reveals nothing about other users\' paths', async () => {
+    await t.as(bob);
+    const r = await t.one<{ v: boolean }>(`select public.pin_image_object_in_use($1) v`, [`${alice}/${crypto.randomUUID()}.webp`]);
+    expect(r.v).toBe(true); // always "in use" (deny) for paths outside the caller's folder
+  });
+});

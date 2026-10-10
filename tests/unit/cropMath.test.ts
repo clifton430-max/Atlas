@@ -26,3 +26,14 @@ describe('safeNext (post-login redirect)', () => {
     expect(safeNext(null)).toBe('/');
   });
 });
+
+import { friendlyAuthError } from '@/features/auth/authErrors';
+describe('friendlyAuthError', () => {
+  it('explains email delivery failures without claiming success', () => {
+    expect(friendlyAuthError('email rate limit exceeded')).toMatch(/wasn’t sent/);
+    expect(friendlyAuthError('Error sending recovery email')).toMatch(/couldn’t send/);
+    expect(friendlyAuthError('Email address "x@example.com" is invalid')).toMatch(/isn’t accepted/);
+    expect(friendlyAuthError('Invalid login credentials')).toMatch(/don’t match/);
+    expect(friendlyAuthError('Something else')).toBe('Something else');
+  });
+});

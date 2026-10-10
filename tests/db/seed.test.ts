@@ -33,3 +33,19 @@ describe('seed and service-only tables', () => {
     expect(await t.fails(`select * from public.event_fetch_log`)).toMatch(/permission denied/);
   });
 });
+
+describe('edge rate limits', () => {
+  it('counts within a window, resets after it, and is service-role only', async () => {
+    const t = await createTestDb();
+    await t.asAdmin();
+    const take = async () => (await t.one<{ ok: boolean }>(`select public.edge_consume_rate_limit('ip:test', 2, 60) as ok`)).ok;
+    expect([await take(), await take(), await take()]).toEqual([true, true, false]);
+    await t.query(`update public.edge_rate_limits set window_start = now() - interval '61 seconds'`);
+    expect(await take()).toBe(true);
+
+    const u = await t.createUser('rl');
+    await t.as(u);
+    expect(await t.fails(`select public.edge_consume_rate_limit('ip:x', 100, 60)`)).toMatch(/permission denied/);
+    expect(await t.fails(`select * from public.edge_rate_limits`)).toMatch(/permission denied/);
+  });
+});

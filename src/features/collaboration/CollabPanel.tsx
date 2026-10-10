@@ -6,10 +6,12 @@
  * action is re-authorized in the database (RLS / owner-only RPCs); hiding a
  * button is never the security boundary.
  */
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { NavLink, useMatch, useNavigate } from 'react-router-dom';
 import { Check, LogOut, Mail, MapPinned, Plus, Trash2, UserMinus, UserPlus, Users } from 'lucide-react';
 import { useAuth } from '@/app/AuthProvider';
+import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
+import { DemoCollabPanel } from './DemoCollabPanel';
 import { uiStore } from '@/app/store';
 import { useMapInstance } from '@/features/map/MapContext';
 import type { CollabMap, CollabRole } from '@/lib/types';
@@ -22,19 +24,20 @@ import { cn } from '@/components/ui/cn';
 import {
   invitationState, useCollabMaps, useCollabMembers, useCollabMutations, useInvitations, useMyPendingInvitations, useSharedPins,
 } from './api';
-import { InviteDialog } from './InviteDialog';
+// The invite dialog (and its QR library) loads on demand.
+const InviteDialog = lazy(() => import('./InviteDialog').then((m) => ({ default: m.InviteDialog })));
 
 export function CollabPanel() {
   const { user } = useAuth();
+  const ws = useWorkspace();
   const maps = useCollabMaps();
   const invites = useMyPendingInvitations();
   const match = useMatch('/collab/:mapId');
   const [creating, setCreating] = useState(false);
   const active = maps.data?.find((m) => m.id === match?.params.mapId) ?? null;
 
-  if (!user) {
-    return <EmptyState icon={<Users className="size-6" aria-hidden />} title="Collaborate on shared maps">Sign in to create collaboration maps and accept invitations.</EmptyState>;
-  }
+  // Guests and the tutorial sandbox get the local, clearly-labelled demo.
+  if (!user || ws.local) return <DemoCollabPanel />;
 
   return (
     <div className="flex h-full flex-col">
@@ -89,12 +92,12 @@ function PendingInvites() {
           <li key={i.invitationId} className="rounded-lg bg-white p-2 text-sm shadow-sm">
             <p><span className="font-medium">{i.inviterName}</span> invited you to <span className="font-medium">{i.mapName}</span> as {i.role}.</p>
             <div className="mt-1.5 flex gap-1.5">
-              <Button size="sm" variant="primary" loading={respondInvite.isPending && respondInvite.variables?.invitationId === i.invitationId && respondInvite.variables.accept}
+              <Button size="sm" variant="primary" disabled={respondInvite.isPending} loading={respondInvite.isPending && respondInvite.variables?.invitationId === i.invitationId && respondInvite.variables.accept}
                 onClick={() => respondInvite.mutate({ invitationId: i.invitationId, accept: true }, {
                   onSuccess: (mapId) => { toast.success(`Joined ${i.mapName}.`); if (mapId) navigate(`/collab/${mapId}`); },
                   onError: (e) => toast.error(e),
                 })}>Accept</Button>
-              <Button size="sm" variant="ghost"
+              <Button size="sm" variant="ghost" disabled={respondInvite.isPending}
                 onClick={() => respondInvite.mutate({ invitationId: i.invitationId, accept: false }, {
                   onSuccess: () => toast.info('Invitation declined.'), onError: (e) => toast.error(e),
                 })}>Decline</Button>
@@ -212,7 +215,7 @@ function ActiveCollab({ map }: { map: CollabMap }) {
         )}
       </div>
 
-      {dialog === 'invite' && <InviteDialog mapId={map.id} mapName={map.name} onClose={() => setDialog(null)} />}
+      {dialog === 'invite' && <Suspense fallback={null}><InviteDialog mapId={map.id} mapName={map.name} onClose={() => setDialog(null)} /></Suspense>}
       {dialog === 'rename' && <RenameCollabDialog map={map} onClose={() => setDialog(null)} />}
       <ConfirmDialog
         open={dialog === 'delete'} danger busy={m.remove.isPending}

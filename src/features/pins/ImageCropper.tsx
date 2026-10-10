@@ -81,6 +81,28 @@ export function ImageCropper({ mask, onMaskChange, onConfirm, onCancel }: {
     }
   };
 
+  /** A generated sample picture, so the feature can be tried without a file. */
+  const loadSampleImage = async () => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 320;
+    const ctx = c.getContext('2d');
+    if (!ctx) return setError('Image processing is not supported in this browser.');
+    const g = ctx.createLinearGradient(0, 0, 320, 320);
+    g.addColorStop(0, '#0e7490');
+    g.addColorStop(1, '#2f5bea');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 320, 320);
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.arc(200, 120, 56, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(0, 320); ctx.lineTo(120, 170); ctx.lineTo(220, 320); ctx.closePath(); ctx.fill();
+    const blob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/png'));
+    if (blob) await pick(new File([blob], 'sample.png', { type: 'image/png' }));
+  };
+
   const update = (next: CropState) => img && setCrop(clampOffset({ width: img.naturalWidth, height: img.naturalHeight }, next, PREVIEW));
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
@@ -134,6 +156,11 @@ export function ImageCropper({ mask, onMaskChange, onConfirm, onCancel }: {
           <ImagePlus className="size-6 text-neutral-400" aria-hidden />
           Choose an image
           <span className="text-xs text-neutral-500">PNG, JPEG or WebP · up to 10 MB</span>
+        </button>
+      ) : null}
+      {!img ? (
+        <button type="button" onClick={() => void loadSampleImage()} className="w-full text-center text-xs font-medium text-neutral-600 underline">
+          Use a sample image instead
         </button>
       ) : (
         <div className="flex gap-4">

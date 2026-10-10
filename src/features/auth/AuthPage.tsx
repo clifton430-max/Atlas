@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/Field';
 import { ErrorMessage, Notice } from '@/components/ui/Feedback';
 import { cn } from '@/components/ui/cn';
+import { friendlyAuthError } from './authErrors';
 
 type Mode = 'signin' | 'signup' | 'forgot';
 
@@ -82,7 +83,7 @@ export function AuthPage() {
         setInfo('If an account exists for that email, a reset link is on its way.');
       }
     } catch (e) {
-      setError((e as Error).message);
+      setError(friendlyAuthError((e as Error).message));
     } finally {
       setBusy(false);
     }
@@ -142,7 +143,7 @@ function ResetPassword() {
         setBusy(true);
         const { error: err } = await requireSupabase().auth.updateUser({ password });
         setBusy(false);
-        if (err) setError(err.message);
+        if (err) setError(friendlyAuthError(err.message));
         else { window.location.hash = ''; navigate('/', { replace: true }); window.location.reload(); }
       }}>
         <TextField label="New password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />

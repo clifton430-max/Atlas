@@ -1,104 +1,134 @@
-# Atlas — Implementation Status and Checklist
+# Atlas — Implementation Status & Acceptance Checklist
 
-_Last updated: 2026-10-10 (initial build session)._
+_Last updated: 2026-10-10 (Guest Mode + interactive tutorial session)._
 
-## Status legend
+**Legend:** ✅ verified by a passing automated test or a live check · 🟡 implemented, not fully verifiable here (reason given) · 🔴 blocked
 
-| Status | Meaning |
-|---|---|
-| ✅ **Verified** | Implemented and checked by automated tests, or observed in a real browser |
-| 🟡 **Implemented, unverified end-to-end** | Code is complete, and its database/server rules are tested. The browser↔Supabase path has not run, because no Supabase project or credentials were available. |
-| 🔴 **Not implemented** | Not built yet |
+## Test results (final run of this session)
 
-## Starting state
+| Command | Covers | Result |
+|---|---|---|
+| `npm run typecheck` / `npm run lint` / `npm run build` | TypeScript, ESLint, production build | ✅ pass |
+| `npm test` | Unit, component, and DB/RLS (PGlite) tests | ✅ **90 / 90** (11 files) |
+| `npm run test:e2e` | Browser, no backend: Discover, **Guest Mode (9)**, **tutorial (9)**, axe (3), image marker | ✅ **31 / 31** |
+| `npm run test:live` | Live API: Auth, RLS, RPCs, Storage, Edge Function, as users A, B, and C | ✅ **29 / 29** (+1 opt-in rate-limit test skipped) |
+| `npm run test:e2e:live` | Live UI flows, **live guest-mode security (3)**, live Ticketmaster UI, signed-in axe audit | ✅ **12 / 12** |
+| `npx deno check supabase/functions/discover-events/index.ts` | Edge Function types | ✅ pass |
+| `supabase migration list --linked` | Remote schema | ✅ migrations 0001–0011 applied; local matches remote |
 
-The repository contained only `ATLAS_CONTEXT.md`, `ATLAS_DEV_NOTES.md`, and an empty `Atlas.py`. There was no existing code to preserve.
+## Final acceptance checklist
 
-The environment had Node 20.20 and npm, plus Google Chrome for browser tests. It did **not** have the Supabase CLI, Docker, or Deno.
+| Item | Status | Evidence |
+|---|---|---|
+| Every `ATLAS_DEV_NOTES.md` requirement audited and addressed | ✅ | Audit table below; two items that had been marked done were found incomplete and are now fixed |
+| Existing functionality preserved | ✅ | All earlier suites still pass. Two live tests were updated on purpose: guests now get an explanation instead of an auth redirect. |
+| Atlas opens and is useful without signing in | ✅ | `guest.spec.ts`: no auth wall, a ready-made map, the full feature set |
+| Guest maps, groups, pins, customization, and filters work | ✅ | `guest.spec.ts`: CRUD, group icons, required groups, edit, move, OR filter, delete |
+| Guest data persists and stays local | ✅ | Reload persistence (E2E). `guest.live.spec.ts` audits every network request: zero requests to private tables or Storage. |
+| Guest image pins are real, anchored, interactive markers | ✅ | `guest.spec.ts`: data-URL image marker, position checked after panning, click opens details, persists across reload |
+| Account-required features explain the need for an account | ✅ | `guest.spec.ts` covers 5 account-only routes, the demo invite prompt, and demo-only sharing |
+| Private data and Storage stay protected | ✅ | Live API suite (29) and the advisor/privilege checks from the previous session. RLS was never weakened, and anon can still execute 0 functions. |
+| Guest data never migrates silently | ✅ | `guest.live.spec.ts`: account row counts are unchanged after sign-in; import happens only on explicit request and inserts only |
+| Tutorial works without signing in | ✅ | `tutorial.spec.ts` runs in no-backend mode |
+| Every major feature has an interactive chapter | ✅ | 7 chapters, 44 steps; the walkthrough test reaches every step of all 7 chapters and finishes |
+| Tutorial controls, progress, restart, accessibility, and safe demo behaviour | ✅ | `tutorial.spec.ts` (9) and axe. Sandbox isolation is checked both locally and live. |
+| Ticketmaster verified with real live data | ✅ | Deployed function: `source: ticketmaster, fetched: true`. 276 real NYC events across 3 days in one viewport. Live UI shows "Live from Ticketmaster". |
+| Email flows verified end to end | 🔴 **External blocker** | Supabase rejects reserved test domains before sending, no real mailbox was available, and the project uses the rate-limited built-in mailer. The code paths are implemented, and their failures are explained to users. |
+| Unit, integration, and browser tests run and recorded | ✅ | Table above |
+| Build, typecheck, and lint documented | ✅ | Table above |
+| Documentation reflects actual behaviour | ✅ | README, ATLAS_CONTEXT (new Guest Mode section), ATLAS_DEV_NOTES (Phases 9 and 10), this file |
+| No secrets exposed or committed | ✅ | `.env` and `.env.live.local` are gitignored. The bundle and committable files were scanned for service keys and test passwords: 0 matches. |
 
-## Test results from the last run
+## Developer-notes audit (this session)
 
-| Command | Result |
-|---|---|
-| `npm run typecheck` | ✅ Passes |
-| `npm run lint` | ✅ Passes, with no warnings |
-| `npm run build` | ✅ Passes (warns about chunk size: MapLibre is ~1 MB) |
-| `npm test` (Vitest) | ✅ **69 tests** across 10 files: unit, component, and database (PGlite) |
-| `npm run test:e2e` (Playwright + axe) | ✅ **12 tests** in Chrome, in fixture mode |
+| Area | Before this session | Now |
+|---|---|---|
+| Group CRUD with **icons** (Phase 4) | ❌ Marked done, but there was no icon UI | ✅ Icon picker in group forms and the save/new-pin pickers; icons shown in lists, filters, and pickers next to the name text. Verified live (an icon picked in the UI is stored) and in guest mode. |
+| Provider **pagination** (§5) | ❌ First page only: 100 events, mostly today's earliest | ✅ Up to 3 pages per viewport within the rate budget, plus the total Ticketmaster reports (migration 0011). The UI says "showing N of M — zoom in or choose dates". Verified live. |
+| Offline / unavailable states (§8) | Partial | ✅ Browser-offline banner; provider states as before |
+| Email failure explanations | Raw server messages | ✅ `friendlyAuthError`: rate limit, SMTP failure, and invalid address each explained without claiming success (unit-tested; live sign-up test) |
+| Everything else in §1–§11 | Implemented | ✅ Re-verified by the suites above |
 
-## Phase checklist
+## Guest Mode — how it works
 
-### Phase 1 — Foundation
-- ✅ Inspected the repo and recorded its state (above).
-- ✅ Set up React, TypeScript, Vite, Tailwind 4, React Router, Lucide, Framer Motion, MapLibre with OpenFreeMap, and TanStack Query.
-- ✅ Design primitives: Button, IconButton, Dialog (native `<dialog>`), Field, Checkbox, Switch, Popover, Toast, ColorPicker, Badge.
-- ✅ Welcome overlay: about 1.3 s, initial load only, non-blocking, reduced-motion aware. Verified by E2E test.
-- ✅ Environment setup (`.env.example`) and architecture docs (README).
+- **Workspaces** (`src/features/workspace/`):
+  - `account` (Supabase) when signed in.
+  - `guest` (`localStorage['atlas.guest.v1']`) when signed out.
+  - `sandbox` (`localStorage['atlas.sandbox.v1']`) while the tour runs.
+- **Data hooks:** every hook (maps, groups, pins, saved events, images, shares) branches on the workspace, and the workspace scope is part of every query key, so cached data from one workspace can never appear in another.
+- **Local workspace rules** mirror the database:
+  - at least one group when saving; no duplicate saved event per map
+  - unique group names, ignoring case
+  - deleting a group keeps its pins; deleting a map deletes its pins
+  - images are not deleted while referenced
+- **Local workspace safety:**
+  - Commits are atomic: a change becomes current only after it is persisted.
+  - Stored data is validated record by record on load. Unreadable data is backed up to `….corrupt-backup` and a fresh workspace is started.
+  - If storage is full, the change is rejected and nothing is half-saved.
+  - If storage is unavailable, data is kept in memory with a warning.
+  - Other tabs stay in sync.
+- **Stored locally:** maps, groups, pins (with a snapshot of each saved public event), images (data URLs, at most 2 MB each), the demo collaboration state, and the map-style preference. Settings → Guest data offers a JSON download and a reset.
+- **Account-only features** (friends, real collaboration, invitations, account and privacy settings) show `AccountRequiredCard` / `SignInPromptDialog`. The **demo collaboration map** (`/collab/demo`) is local and labelled "Demo" everywhere. Its invite button explains that a real invitation needs an account, and nothing is sent.
+- **Import** (Settings → Guest data, signed in only, explicit) only inserts data:
+  - Maps are created as "… (from guest)".
+  - Groups are reused by name without changes.
+  - Event pins are imported only when the event exists on the server.
+  - Images are re-uploaded to private Storage.
+  - Guest data is kept on the device until the user clears it.
 
-### Phase 2 — Authentication and database
-- 🟡 Supabase Auth: sign in, sign up with username, password reset, session provider, protected routes, and safe `next` redirects. `safeNext` is unit-tested; the "not configured" path is checked in E2E.
-- ✅ Migrations: schema, constraints, indexes, triggers, RLS, RPCs, and storage bucket and policies. All five apply cleanly to Postgres (PGlite).
-- ✅ Core types and services: events, maps, pins, groups, images, friends, and collaboration API modules.
-- ✅ Security tests on private-data boundaries, run as unauthorized identities. See `tests/db/security.test.ts`: 23 tests covering anon, stranger, friend, viewer, editor, removed member, and storage cases.
+## Tutorial — how it works
 
-### Phase 3 — Discover and search
-- ✅ Provider interface and normalized event type.
-- ✅ Ticketmaster adapter (normalizer and query builder), unit-tested against sample payloads.
-- 🟡 The `discover-events` Edge Function (server-side key, cache, and upsert) is written but **not executed**: no Deno or Supabase available, and no Ticketmaster key.
-- ✅ Clustered event markers, click to open details, details card with source attribution and last-checked time, and validated ticket links. E2E clicks a real map marker.
-- ✅ Context-aware search with debouncing and an ARIA combobox: events, places via Photon, pins, and shared pins. Event search is checked in E2E. Place search uses the live Photon API, which was reachable but has no automated test.
-- ✅ Category, price, and time filters with unknown-value handling, crossing midnight, evaluated in the event's local timezone. Covered by unit tests and E2E.
-- ✅ Events without coordinates are listed but never mapped. Covered by unit tests and the fixture data.
+- **Entry points:**
+  - A first-visit offer: *Start the tour* or *Skip for now*. The answer is remembered.
+  - **Help** in the top bar: take, restart, or jump to any of the 7 chapters.
+- **Engine** (`src/features/tutorial/`):
+  - **Spotlight and card.** A spotlight ring with dimming highlights the real control (via its `data-tour` target). Dimming never blocks interaction. The card shows the chapter, step counter, a progress bar, and Back / Next / Skip step / Exit.
+  - **Verified tasks.** "Try it yourself" tasks are checked against real app state before Next unlocks; *Skip step* always works.
+  - **Step preparation.** Steps navigate to their route and `prepare()` opens panels or popovers, or selects a pin.
+  - **Robustness.**
+    - Map-click tasks dock the card in a corner, away from the map centre.
+    - A missing target falls back to a centred card with an explanation after 2.5 s.
+  - **Accessibility.**
+    - Focus moves to each step's heading.
+    - Escape exits when focus is in the card.
+    - Changes are announced in a live region.
+    - Animations respect reduced motion.
+  - **Persistence.** Progress survives a refresh.
+- **Safety:**
+  - The tour always runs in the **sandbox** workspace, for guests and for signed-in users, and it is discarded when the tour ends.
+  - The live test proves a signed-in tour makes no account writes and leaves account row counts unchanged.
+  - The fixture test proves the guest workspace is byte-for-byte unchanged afterwards.
+  - Starting at a later chapter seeds the practice data that chapter needs.
+- **Chapters:**
+  1. Getting around
+  2. Discovering events
+  3. Personal maps
+  4. Groups and filtering
+  5. Pin customization and images (including a built-in *sample image*)
+  6. Friends and collaboration (demo)
+  7. Settings, privacy and data
 
-### Phase 4 — Personal maps and groups
-- 🟡 Multiple private maps with create, rename, and delete. The DB rules are tested; the UI is written.
-- 🟡 Group create, edit, delete, and colors; memberships through a join table. DB tested, including the rule that deleting a group keeps its pins; UI written.
-- ✅ / 🟡 Mandatory group assignment on save. The RPC rejects saves without a group (DB-tested), and the dialog persists nothing before confirmation, including drafts of new groups. The dialog itself is not E2E-tested.
-- ✅ Exact checkbox and OR filter behavior with per-map persistence. Covered by unit tests and a component test of the real widget.
-- ✅ No duplicate saved pins; saving again updates memberships (DB-tested).
+## Ticketmaster investigation
 
-### Phase 5 — Pin customization
-- 🟡 Color, shape (5 options), icon, size, border, reset to default, and live preview (UI written). The visual output is component-tested.
-- 🟡 Secure upload: validation, crop, reposition, fit, and mask. The 256 px WebP render, the upload, and cleanup on failure are written. The storage policies behind them are DB-tested (own folder only, private reads, no deleting files still in use). The real Storage API (bucket MIME and size enforcement, signed URLs) has not been exercised.
-- ✅ The image is the actual map marker: anchored, follows panning and zooming, clickable, with no default marker underneath. Verified in E2E using the dev harness, which reuses the production `PinMarkerButton`.
-- ✅ Group identity shows as badges and never overrides a custom color or image (component test).
-- ✅ Shared image references cannot be deleted while still in use (DB test).
+- **Previous session:** HTTP 401 from Ticketmaster. That was a credential problem, not a code problem.
+- **Secret replaced:** the secret was replaced at 09:50 UTC. The next real request returned 99 live events. The function code, key handling (never logged or returned), and request construction were unchanged.
+- **Improved this session:** multi-page fetching, an honest truncation notice, and a key-fingerprinted auth backoff, so a corrected key works on the next request.
+- **Confirmed again:** development fixtures are never labelled live (live UI test).
 
-### Phase 6 — Friends and collaboration
-- 🟡 Friend requests (send, accept, decline, cancel, remove), search for discoverable users, and friend links with QR codes. The state machine and privacy rules are DB-tested; the UI is written.
-- 🟡 Collaboration maps with owner, editor, and viewer roles, plus owner-only controls. Escalation attempts are DB-tested; the UI is written.
-- 🟡 Explicit sharing in steps (destination → review → confirm) producing independent shared representations. Sharing is DB-tested: the note is opt-in, viewers and non-owners are blocked, and the original survives removal of the shared copy. The UI is written.
-- 🟡 Revocable, expiring, use-limited, and recipient-restricted invitation tokens, stored hashed. The DB tests cover all of these properties. The `/invite/:token` page, which previews and requires explicit acceptance, is written. QR codes are generated from the exact invite URL.
-- 🟡 Native share where supported, with a Copy Link fallback (written, not E2E-tested).
+## Remaining blockers and limitations
 
-### Phase 7 — Settings and polish
-- 🟡 Settings sections: account, password, privacy (discoverability, friend-link reset), friends, map style, groups, pins, and collaboration roles.
-- ✅ Accessibility: axe audit with no WCAG 2.1 A/AA violations on Discover (with card and filters open) and Auth. Also covered: keyboard-operable controls, labels on icon-only buttons, dialog focus and Escape, live regions, reduced motion, and an accessible event list mirroring the WebGL markers.
-- ✅ Desktop layout with collapsible panels; the viewport is preserved (E2E). The minimum width is 960 px, and no mobile UI was built, as specified.
-- ✅ Loading, empty, and error states, and success toasts only after an operation succeeds (by design in every mutation path).
-
-### Phase 8 — Verification and delivery
-- ✅ RLS and private Storage access verified with unauthorized identities, on PGlite with stubbed `auth` and `storage`.
-- ✅ Image markers verified as actual interactive map markers.
-- ✅ Group filter semantics verified exactly (unit and component tests).
-- ✅ README covers setup, environment, migrations, services, tests, and deployment.
-- 🔴 **Live-backend acceptance pass not done.** It needs a Supabase project, plus optionally a Ticketmaster key.
-
-## Next steps
-
-1. **Provision Supabase:** create a project, run `supabase link` and `supabase db push`, and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env`.
-2. **Manual acceptance pass** with two browser profiles, users A and B:
-   - Sign up both users and confirm each gets a profile and a "My Map".
-   - **A:** save a seeded sample event. The save dialog must require a group. Save it again and check that groups update and no duplicate appears. Create a custom pin by clicking the map.
-   - **A:** apply group filters, covering all the semantics.
-   - **A:** customize a pin with an uploaded image and confirm the marker is the image. Replace the image, then remove it.
-   - **A ↔ B:** send a friend request by username and by friend link, and accept it. Confirm B still cannot see A's maps.
-   - **A:** create a collaboration map and invite B as viewer, both by link and as a direct invite. **B:** accept.
-   - Confirm that B, as a viewer, cannot share.
-   - **A:** promote B to editor. **B:** share a pin with an image. **A:** view the image marker.
-   - **A:** remove B and confirm B loses access immediately.
-3. **Live events:** run `supabase secrets set TICKETMASTER_API_KEY=…` and `supabase functions deploy discover-events`, then verify Discover shows live data without a dev banner.
-4. Add Playwright E2E tests against a local Supabase (`supabase start` needs Docker) for the flows in step 2.
-5. Generate DB types (`supabase gen types typescript`) and adopt them in the API modules.
-6. Code-split heavy routes (Settings, dialogs) and put MapLibre in its own chunk.
-7. Add a periodic cleanup for orphaned Storage objects (files without a `pin_images` row).
+1. 🔴 **Public email delivery is not verified.**
+   - **What to configure:**
+     - Custom SMTP in Supabase Dashboard → Authentication → Emails → SMTP Settings, using any SMTP provider.
+     - Raise the email rate limit under Authentication → Rate Limits.
+   - **How to check delivery:**
+     - Sign up with a real mailbox you control and confirm the email arrives.
+     - Use "Forgot password" from `/auth` and confirm the recovery email arrives and its link opens "Choose a new password". The in-app flow is already verified live with an admin-generated link.
+2. 🟡 **Ticketmaster limits:** its search caps out at around 10,000 matches, and each viewport loads up to 300 events. The UI says so and suggests zooming or choosing dates.
+3. 🟡 **Shared-browser exposure:** guest data is visible to anyone using the same browser profile. This is stated in the badge and in Settings → Guest data.
+4. 🟡 **Production setup:**
+   - Set the production Site URL and Redirect URLs.
+   - Optionally set `ATLAS_ALLOWED_ORIGINS`.
+   - Consider leaked-password protection.
+5. 🟡 **`.env` resets:** it was found reset to `.env.example` at the start of this session (most likely by `cp .env.example .env`). The README now warns against re-running that step.
+6. 🟡 **Unused dependency:** `@supabase/ssr` is unused. It's safe to remove, but was left in place because it was user-added.

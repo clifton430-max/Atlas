@@ -16,12 +16,14 @@ import { useMaps } from '@/features/maps/api';
 import { useGroups } from '@/features/groups/api';
 import { emptySelection, GroupPicker, selectionCount, type GroupSelection } from '@/features/groups/GroupPicker';
 import { commitGroupSelection } from '@/features/groups/commitSelection';
+import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { usePinMutations, useSavedEvents } from './api';
 
 export function SaveEventDialog({ event, open, onClose, defaultMapId }: {
   event: AtlasEvent; open: boolean; onClose: () => void; defaultMapId?: string;
 }) {
   const qc = useQueryClient();
+  const ws = useWorkspace();
   const toast = useToast();
   const maps = useMaps();
   const groups = useGroups();
@@ -57,8 +59,8 @@ export function SaveEventDialog({ event, open, onClose, defaultMapId }: {
     setBusy(true);
     setError(null);
     try {
-      const groupIds = await commitGroupSelection(selection, qc);
-      await saveEvent.mutateAsync({ mapId, eventId: event.id, groupIds });
+      const groupIds = await commitGroupSelection(selection, qc, ws);
+      await saveEvent.mutateAsync({ mapId, eventId: event.id, groupIds, event });
       toast.success(existing ? 'Groups updated.' : `Saved to ${maps.data?.find((m) => m.id === mapId)?.name ?? 'your map'}.`);
       onClose();
     } catch (e) {
@@ -101,7 +103,7 @@ export function SaveEventDialog({ event, open, onClose, defaultMapId }: {
             </p>
           )}
           <GroupPicker groups={groups.data ?? []} value={selection} onChange={setSelection} error={groupError} />
-          <p className="text-xs text-neutral-500">Saved pins are private to you.</p>
+          <p className="text-xs text-neutral-500">{ws.isLocal ? 'Saved only in this browser on this device.' : 'Saved pins are private to you.'}</p>
           <ErrorMessage error={error} />
         </div>
       )}

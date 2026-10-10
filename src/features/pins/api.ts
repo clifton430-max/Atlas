@@ -11,9 +11,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { requireSupabase, unwrap } from '@/lib/supabase';
 import { qk } from '@/lib/queryClient';
-import type { Pin, PinAppearance, PinImage } from '@/lib/types';
+import type { AtlasEvent, Pin, PinAppearance, PinImage } from '@/lib/types';
 import { EVENT_COLUMNS, eventFromRow, type EventRow } from '@/services/events/mapRow';
-import { useAuth } from '@/app/AuthProvider';
+import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
+import type { Database } from '@/lib/database.types';
 import { tryDeleteImage } from './images';
 
 type Row = Record<string, unknown>;
@@ -65,11 +66,12 @@ export function pinFromRow(r: Row): Pin {
 export const pinTitle = (p: Pin) => p.title ?? p.event?.name ?? 'Untitled pin';
 
 export function usePins(mapId: string | undefined) {
-  const { user } = useAuth();
+  const ws = useWorkspace();
   return useQuery({
-    queryKey: qk.pins(mapId ?? ''),
-    enabled: !!user && !!mapId,
+    queryKey: [...qk.pins(mapId ?? ''), ws.scope],
+    enabled: !!mapId && ws.scope !== 'pending',
     queryFn: async () => {
+      if (ws.local) return ws.local.listPins(mapId);
       const rows = unwrap(await requireSupabase().from('pins').select(PIN_SELECT).eq('map_id', mapId!).order('created_at'));
       return (rows as Row[]).map(pinFromRow);
     },
@@ -77,11 +79,12 @@ export function usePins(mapId: string | undefined) {
 }
 
 export function useAllPins() {
-  const { user } = useAuth();
+  const ws = useWorkspace();
   return useQuery({
-    queryKey: qk.allPins,
-    enabled: !!user,
+    queryKey: [...qk.allPins, ws.scope],
+    enabled: ws.scope !== 'pending',
     queryFn: async () => {
+      if (ws.local) return ws.local.listPins().reverse();
       const rows = unwrap(await requireSupabase().from('pins').select(PIN_SELECT).order('created_at', { ascending: false }));
       return (rows as Row[]).map(pinFromRow);
     },
@@ -90,11 +93,19 @@ export function useAllPins() {
 
 /** eventId -> saved pins, used to show "Saved" state on Discover events. */
 export function useSavedEvents() {
-  const { user } = useAuth();
+  const ws = useWorkspace();
   return useQuery({
-    queryKey: qk.savedEvents,
-    enabled: !!user,
+    queryKey: [...qk.savedEvents, ws.scope],
+    enabled: ws.scope !== 'pending',
     queryFn: async () => {
+      if (ws.local) {
+        const byEvent = new Map<string, { pinId: string; mapId: string; groupIds: string[] }[]>();
+        for (const p of ws.local.listPins()) {
+          if (p.kind !== 'event' || !p.eventId) continue;
+          byEvent.set(p.eventId, [...(byEvent.get(p.eventId) ?? []), { pinId: p.id, mapId: p.mapId, groupIds: p.groupIds }]);
+        }
+        return byEvent;
+      }
       const rows = unwrap(await requireSupabase().from('pins')
         .select('id, map_id, event_id, pin_groups(group_id)').eq('kind', 'event'));
       const byEvent = new Map<string, { pinId: string; mapId: string; groupIds: string[] }[]>();
@@ -113,6 +124,7 @@ export function useSavedEvents() {
 
 export function usePinMutations() {
   const qc = useQueryClient();
+  const ws = useWorkspace();
   const invalidatePins = () => {
     qc.invalidateQueries({ queryKey: ['pins'] });
     qc.invalidateQueries({ queryKey: qk.savedEvents });
@@ -120,8 +132,12 @@ export function usePinMutations() {
 
   return {
     saveEvent: useMutation({
-      mutationFn: async (input: { mapId: string; eventId: string; groupIds: string[] }) => {
+      mutationFn: async (input: { mapId: string; eventId: string; groupIds: string[]; event?: AtlasEvent }) => {
         if (!input.groupIds.length) throw new Error('Choose at least one group.');
+        if (ws.local) {
+          if (!input.event) throw new Error('Event details are required to save locally.');
+          return ws.local.saveEvent(input.mapId, input.event, input.groupIds);
+        }
         return unwrap(await requireSupabase().rpc('save_event_pin', {
           p_map_id: input.mapId, p_event_id: input.eventId, p_group_ids: input.groupIds,
         })) as string;
@@ -134,6 +150,7 @@ export function usePinMutations() {
         address: string | null; groupIds: string[];
       }) => {
         if (!input.groupIds.length) throw new Error('Choose at least one group.');
+        if (ws.local) return ws.local.createCustomPin(input);
         return unwrap(await requireSupabase().rpc('create_custom_pin', {
           p_map_id: input.mapId, p_title: input.title, p_note: input.note,
           p_latitude: input.latitude, p_longitude: input.longitude,
@@ -144,17 +161,32 @@ export function usePinMutations() {
     }),
     setGroups: useMutation({
       mutationFn: async (input: { pinId: string; groupIds: string[] }) => {
+        if (ws.local) return ws.local.setPinGroups(input.pinId, input.groupIds);
         unwrap(await requireSupabase().rpc('set_pin_groups', { p_pin_id: input.pinId, p_group_ids: input.groupIds }));
       },
       onSuccess: invalidatePins,
     }),
     updateDetails: useMutation({
-      mutationFn: async (input: { pinId: string; title?: string | null; note?: string | null; address?: string | null }) => {
-        const patch: Row = {};
+      mutationFn: async (input: {
+        pinId: string; title?: string | null; note?: string | null; address?: string | null;
+        /** Custom pins only: new verified location chosen by the owner. */
+        latitude?: number; longitude?: number;
+        /** Move to another of the owner's maps (RLS checks ownership of the target map). */
+        mapId?: string;
+      }) => {
+        if (ws.local) return ws.local.updatePin(input.pinId, input);
+        const patch: Database['public']['Tables']['pins']['Update'] = {};
+        if (input.latitude !== undefined && input.longitude !== undefined) {
+          patch.latitude = input.latitude;
+          patch.longitude = input.longitude;
+        }
+        if (input.mapId !== undefined) patch.map_id = input.mapId;
         if (input.title !== undefined) patch.title = input.title?.trim() || null;
         if (input.note !== undefined) patch.note = input.note?.trim() || null;
         if (input.address !== undefined) patch.address = input.address?.trim() || null;
-        unwrap(await requireSupabase().from('pins').update(patch).eq('id', input.pinId).select('id').single());
+        const res = await requireSupabase().from('pins').update(patch).eq('id', input.pinId).select('id').single();
+        if (res.error?.code === '23505') throw new Error('That event is already saved on the destination map.');
+        unwrap(res);
       },
       onSuccess: invalidatePins,
     }),
@@ -165,6 +197,10 @@ export function usePinMutations() {
        */
       mutationFn: async (input: { pin: Pin; appearance: PinAppearance }) => {
         const a = input.appearance;
+        if (ws.local) {
+          // Local workspace garbage-collects images nothing references.
+          return ws.local.updateAppearance(input.pin.id, a);
+        }
         unwrap(await requireSupabase().from('pins').update({
           color: a.color, shape: a.shape, icon: a.icon, size: a.size,
           border_color: a.borderColor, border_width: a.borderWidth,
@@ -177,6 +213,7 @@ export function usePinMutations() {
     }),
     remove: useMutation({
       mutationFn: async (pin: Pin) => {
+        if (ws.local) return ws.local.deletePin(pin.id);
         unwrap(await requireSupabase().from('pins').delete().eq('id', pin.id).select('id').single());
         if (pin.image) await tryDeleteImage(pin.image);
       },

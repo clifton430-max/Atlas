@@ -3,6 +3,7 @@ import { requireSupabase, unwrap } from '@/lib/supabase';
 import { qk } from '@/lib/queryClient';
 import type { Profile } from '@/lib/types';
 import { useAuth } from '@/app/AuthProvider';
+import type { Database } from '@/lib/database.types';
 
 // friend_code is deliberately not selectable (column privilege); see get_my_friend_code().
 const PROFILE_COLUMNS = 'id, username, display_name, discoverable, map_style';
@@ -32,7 +33,7 @@ export function useUpdateProfile() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async (patch: Partial<Pick<Profile, 'username' | 'displayName' | 'discoverable' | 'mapStyle'>>) => {
-      const row: Record<string, unknown> = {};
+      const row: Database['public']['Tables']['profiles']['Update'] = {};
       if (patch.username !== undefined) row.username = patch.username;
       if (patch.displayName !== undefined) row.display_name = patch.displayName;
       if (patch.discoverable !== undefined) row.discoverable = patch.discoverable;

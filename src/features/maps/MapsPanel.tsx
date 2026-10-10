@@ -5,8 +5,8 @@
  */
 import { useState } from 'react';
 import { NavLink, useMatch, useNavigate } from 'react-router-dom';
-import { Compass, Lock, Map as MapIcon, MapPinPlus, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useAuth } from '@/app/AuthProvider';
+import { Compass, HardDrive, Lock, Map as MapIcon, MapPinPlus, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { uiStore, useUi } from '@/app/store';
 import type { PersonalMap } from '@/lib/types';
 import { Button, IconButton } from '@/components/ui/Button';
@@ -23,7 +23,7 @@ const navCls = ({ isActive }: { isActive: boolean }) =>
   cn('flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm', isActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100');
 
 export function MapsPanel() {
-  const { user, configured } = useAuth();
+  const ws = useWorkspace();
   const maps = useMaps();
   const personal = useMatch('/maps/:mapId');
   const discover = useMatch('/');
@@ -33,22 +33,23 @@ export function MapsPanel() {
   return (
     <div className="flex h-full flex-col">
       <nav aria-label="Maps" className="space-y-4 px-2 pt-3">
-        <NavLink to="/" end className={navCls}>
+        <NavLink to="/" end className={navCls} data-tour="nav-discover">
           <Compass className="size-4" aria-hidden />Discover
         </NavLink>
 
-        <section aria-labelledby="my-maps-heading">
+        <section aria-labelledby="my-maps-heading" data-tour="my-maps">
           <div className="flex items-center justify-between px-2 pb-1">
             <h2 id="my-maps-heading" className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-              My maps <Lock className="size-3" aria-label="private" />
+              {ws.mode === 'sandbox' ? 'Practice maps' : 'My maps'}
+              {ws.isLocal
+                ? <HardDrive className="size-3" aria-label="stored on this device" />
+                : <Lock className="size-3" aria-label="private to your account" />}
             </h2>
-            {user && <IconButton label="New map" size="sm" onClick={() => setDialog({ kind: 'edit' })}><Plus className="size-4" aria-hidden /></IconButton>}
+            <IconButton label="New map" size="sm" data-tour="new-map" onClick={() => setDialog({ kind: 'edit' })}><Plus className="size-4" aria-hidden /></IconButton>
           </div>
-          {!user ? (
-            <p className="px-2 text-xs text-neutral-500">
-              {configured ? <><NavLink to="/auth" className="font-medium text-neutral-800 underline">Sign in</NavLink> to keep private maps.</> : 'Configure Supabase to enable private maps.'}
-            </p>
-          ) : maps.isLoading ? <Spinner className="px-2" /> : maps.error ? <ErrorMessage error={maps.error} /> : (
+          {maps.isLoading ? <Spinner className="px-2" /> : maps.error ? <ErrorMessage error={maps.error} /> : maps.data?.length === 0 ? (
+            <p className="px-2 text-xs text-neutral-500">No maps yet. Use + to create one.</p>
+          ) : (
             <ul className="space-y-0.5">
               {maps.data?.map((m) => (
                 <li key={m.id} className="group relative">
@@ -68,9 +69,10 @@ export function MapsPanel() {
       </nav>
 
       <div className="mt-4 min-h-0 flex-1 overflow-y-auto border-t border-neutral-200 px-2 pb-4 pt-3">
-        {personal && user && (
+        {personal && (
           <div className="space-y-4">
             <Button
+              data-tour="add-custom-pin"
               variant={placing ? 'primary' : 'secondary'}
               size="sm"
               className="w-full"
@@ -94,6 +96,7 @@ export function MapsPanel() {
 
 function MapFormDialog({ map, onClose }: { map?: PersonalMap; onClose: () => void }) {
   const toast = useToast();
+  const ws = useWorkspace();
   const navigate = useNavigate();
   const { create, update } = useMapMutations();
   const [name, setName] = useState(map?.name ?? '');
@@ -112,7 +115,7 @@ function MapFormDialog({ map, onClose }: { map?: PersonalMap; onClose: () => voi
       <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <TextField label="Name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} error={touched && !name.trim() ? 'Enter a name.' : null} />
         <TextArea label="Description (optional)" value={description} maxLength={500} onChange={(e) => setDescription(e.target.value)} />
-        <p className="text-xs text-neutral-500">Personal maps are always private to you.</p>
+        <p className="text-xs text-neutral-500">{ws.isLocal ? 'Saved only in this browser on this device.' : 'Personal maps are always private to you.'}</p>
         <ErrorMessage error={mutation.error} />
       </form>
     </Dialog>

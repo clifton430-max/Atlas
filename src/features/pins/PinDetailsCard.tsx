@@ -3,23 +3,30 @@
  * Shows the private note (owner-only data), group memberships, linked event,
  * where it is shared, and actions: edit, groups, customize, share, delete.
  */
-import { useState } from 'react';
-import { Brush, Pencil, Share2, Tags, Trash2, Users, X } from 'lucide-react';
+import { lazy, Suspense, useState } from 'react';
+import { Brush, Move, Pencil, Share2, Tags, Trash2, Users, X } from 'lucide-react';
+import { uiStore } from '@/app/store';
+import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
+import { useMaps } from '@/features/maps/api';
 import type { Group, Pin } from '@/lib/types';
 import { Button, IconButton } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/Dialog';
-import { TextArea, TextField } from '@/components/ui/Field';
+import { SelectField, TextArea, TextField } from '@/components/ui/Field';
 import { Badge, ErrorMessage } from '@/components/ui/Feedback';
 import { useToast } from '@/components/ui/Toast';
 import { EventCard } from '@/features/discover/EventCard';
-import { SharePinDialog } from '@/features/collaboration/SharePinDialog';
 import { useCollabMutations, usePinShares } from '@/features/collaboration/api';
 import { pinTitle, usePinMutations } from './api';
 import { EditGroupsDialog } from './EditGroupsDialog';
-import { PinAppearanceDialog } from './PinAppearanceDialog';
+
+// Heavy, infrequently opened dialogs are loaded on demand.
+const PinAppearanceDialog = lazy(() => import('./PinAppearanceDialog').then((m) => ({ default: m.PinAppearanceDialog })));
+const LocalShareDialog = lazy(() => import('@/features/collaboration/LocalShareDialog').then((m) => ({ default: m.LocalShareDialog })));
+const SharePinDialog = lazy(() => import('@/features/collaboration/SharePinDialog').then((m) => ({ default: m.SharePinDialog })));
 
 export function PinDetailsCard({ pin, groups, onClose }: { pin: Pin; groups: Group[]; onClose: () => void }) {
   const toast = useToast();
+  const ws = useWorkspace();
   const { updateDetails, remove } = usePinMutations();
   const shares = usePinShares(pin.id);
   const { removeSharedPin } = useCollabMutations();
@@ -28,6 +35,8 @@ export function PinDetailsCard({ pin, groups, onClose }: { pin: Pin; groups: Gro
   const [title, setTitle] = useState(pin.title ?? '');
   const [note, setNote] = useState(pin.note ?? '');
   const [address, setAddress] = useState(pin.address ?? '');
+  const [mapId, setMapId] = useState(pin.mapId);
+  const maps = useMaps();
 
   const pinGroups = groups.filter((g) => pin.groupIds.includes(g.id));
 
@@ -39,16 +48,20 @@ export function PinDetailsCard({ pin, groups, onClose }: { pin: Pin; groups: Gro
         title: pin.kind === 'custom' ? title.trim() || pin.title : title.trim() || null,
         note,
         address: pin.kind === 'custom' ? address : undefined,
+        mapId: mapId !== pin.mapId ? mapId : undefined,
       });
       setEditing(false);
-      toast.success('Pin updated.');
+      if (mapId !== pin.mapId) {
+        toast.success(`Moved to ${maps.data?.find((m) => m.id === mapId)?.name ?? 'another map'}.`);
+        onClose();
+      } else toast.success('Pin updated.');
     } catch {
       /* shown inline */
     }
   };
 
   return (
-    <article aria-label={`Pin: ${pinTitle(pin)}`} className="w-[360px] rounded-2xl bg-white shadow-float animate-rise-in">
+    <article data-tour="pin-card" aria-label={`Pin: ${pinTitle(pin)}`} className="w-[360px] rounded-2xl bg-white shadow-float animate-rise-in">
       <header className="flex items-start gap-2 border-b border-neutral-100 p-4 pb-3">
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex gap-1.5">
@@ -79,6 +92,11 @@ export function PinDetailsCard({ pin, groups, onClose }: { pin: Pin; groups: Gro
             />
             {pin.kind === 'custom' && <TextField label="Address" value={address} maxLength={300} onChange={(e) => setAddress(e.target.value)} />}
             <TextArea label="Private note" value={note} maxLength={5000} onChange={(e) => setNote(e.target.value)} />
+            {(maps.data?.length ?? 0) > 1 && (
+              <SelectField label="Map" value={mapId} onChange={(e) => setMapId(e.target.value)} hint="Moving keeps the pin’s groups, appearance and shares.">
+                {maps.data!.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </SelectField>
+            )}
             <ErrorMessage error={updateDetails.error} />
             <div className="flex justify-end gap-2">
               <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
@@ -129,19 +147,30 @@ export function PinDetailsCard({ pin, groups, onClose }: { pin: Pin; groups: Gro
       </div>
 
       <footer className="flex flex-wrap gap-1.5 border-t border-neutral-100 p-3">
-        {!editing && <Button size="sm" icon={<Pencil className="size-3.5" aria-hidden />} onClick={() => setEditing(true)}>Edit</Button>}
-        <Button size="sm" icon={<Tags className="size-3.5" aria-hidden />} onClick={() => setDialog('groups')}>Groups</Button>
-        <Button size="sm" icon={<Brush className="size-3.5" aria-hidden />} onClick={() => setDialog('appearance')}>Customize</Button>
-        <Button size="sm" icon={<Share2 className="size-3.5" aria-hidden />} onClick={() => setDialog('share')}>Share</Button>
+        {!editing && <Button size="sm" icon={<Pencil className="size-3.5" aria-hidden />} onClick={() => setEditing(true)} data-tour="pin-edit">Edit</Button>}
+        {pin.kind === 'custom' && (
+          <Button size="sm" icon={<Move className="size-3.5" aria-hidden />}
+            data-tour="pin-move"
+            onClick={() => uiStore.set({ movingPinId: pin.id, moveTarget: null, placingPin: false })}>
+            Move
+          </Button>
+        )}
+        <Button size="sm" icon={<Tags className="size-3.5" aria-hidden />} onClick={() => setDialog('groups')} data-tour="pin-groups">Groups</Button>
+        <Button size="sm" icon={<Brush className="size-3.5" aria-hidden />} onClick={() => setDialog('appearance')} data-tour="pin-customize">Customize</Button>
+        <Button size="sm" icon={<Share2 className="size-3.5" aria-hidden />} onClick={() => setDialog('share')} data-tour="pin-share">Share</Button>
         {pin.event && <Button size="sm" variant="ghost" onClick={() => setDialog('event')}>Event details</Button>}
-        <IconButton label="Delete pin" size="md" className="ml-auto text-danger hover:bg-danger-soft hover:text-danger" onClick={() => setDialog('delete')}>
+        <IconButton label="Delete pin" data-tour="pin-delete" size="md" className="ml-auto text-danger hover:bg-danger-soft hover:text-danger" onClick={() => setDialog('delete')}>
           <Trash2 className="size-4" aria-hidden />
         </IconButton>
       </footer>
 
       {dialog === 'groups' && <EditGroupsDialog pin={pin} onClose={() => setDialog(null)} />}
-      {dialog === 'appearance' && <PinAppearanceDialog pin={pin} groups={groups} onClose={() => setDialog(null)} />}
-      {dialog === 'share' && <SharePinDialog pin={pin} onClose={() => setDialog(null)} />}
+      <Suspense fallback={null}>
+        {dialog === 'appearance' && <PinAppearanceDialog pin={pin} groups={groups} onClose={() => setDialog(null)} />}
+        {dialog === 'share' && (ws.local
+          ? <LocalShareDialog pin={pin} onClose={() => setDialog(null)} />
+          : <SharePinDialog pin={pin} onClose={() => setDialog(null)} />)}
+      </Suspense>
       {dialog === 'event' && pin.event && (
         <div className="absolute left-[372px] top-0">
           <EventCard event={pin.event} canSave={false} onClose={() => setDialog(null)} />

@@ -16,6 +16,7 @@ import { DiscoverFilterPanel } from '@/features/discover/DiscoverFilterPanel';
 import { activeFilterCount, categoriesOf } from '@/features/discover/filters';
 import { useDiscoverEvents } from '@/features/discover/useDiscoverEvents';
 import { useGroups } from '@/features/groups/api';
+import { GroupIcon } from '@/features/groups/GroupIcon';
 import { ALL_GROUPS, groupFilterLabel, isGroupSelected, toggleGroup } from '@/features/groups/groupFilter';
 
 const triggerCls = (active: boolean) => cn(
@@ -37,7 +38,7 @@ function DiscoverFilterControl() {
   const n = activeFilterCount(filters);
   return (
     <Popover label="Event filters" trigger={({ open, toggle, id }) => (
-      <button type="button" aria-expanded={open} aria-controls={id} onClick={toggle} className={triggerCls(n > 0)}>
+      <button type="button" aria-expanded={open} aria-controls={id} onClick={toggle} className={triggerCls(n > 0)} data-tour="filters-button">
         <SlidersHorizontal className="size-4" aria-hidden />
         Filters{n > 0 && <span className="rounded-md bg-white/20 px-1.5 text-xs">{n} active</span>}
         <ChevronDown className="size-3.5 opacity-60" aria-hidden />
@@ -59,7 +60,7 @@ export function GroupFilterControl({ mapId }: { mapId: string }) {
   const label = groupFilterLabel(filter, groups.data ?? []);
   return (
     <Popover label="Group filter" trigger={({ open, toggle, id }) => (
-      <button type="button" aria-expanded={open} aria-controls={id} onClick={toggle} className={cn(triggerCls(filter.mode === 'groups'), 'max-w-[320px]')}
+      <button type="button" aria-expanded={open} aria-controls={id} onClick={toggle} data-tour="group-filter" className={cn(triggerCls(filter.mode === 'groups'), 'max-w-[320px]')}
         aria-label={`Group filter: ${label}`}>
         <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
         <span className="truncate">{label}</span>
@@ -71,7 +72,7 @@ export function GroupFilterControl({ mapId }: { mapId: string }) {
         <Checkbox label="All Groups" checked={filter.mode === 'all'} onChange={() => setFilter(ALL_GROUPS)} />
         <div className="my-1 border-t border-neutral-100" />
         {groups.isLoading ? <Spinner /> : groups.data?.length ? groups.data.map((g) => (
-          <Checkbox key={g.id} label={g.name} swatch={g.color} checked={isGroupSelected(filter, g.id)} onChange={() => setFilter(toggleGroup(filter, g.id))} />
+          <Checkbox key={g.id} label={g.name} adornment={<GroupIcon group={g} />} checked={isGroupSelected(filter, g.id)} onChange={() => setFilter(toggleGroup(filter, g.id))} />
         )) : <p className="px-2 py-1 text-xs text-neutral-500">No groups yet.</p>}
         <p className="mt-2 px-2 text-[11px] text-neutral-500" aria-live="polite">
           {filter.mode === 'all' ? 'Showing every pin on this map.' : 'Showing pins in any selected group.'} Filters only change what’s visible.

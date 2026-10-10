@@ -19,7 +19,7 @@ export function DiscoverFilterPanel({ availableCategories }: { availableCategori
 
   return (
     <div className="w-[340px] space-y-4 p-4">
-      <Section title="Category">
+      <Section title="Category" tour="filter-category">
         <div className="grid grid-cols-2 gap-x-1">
           {categories.map((c) => (
             <Checkbox key={c} label={c} checked={f.categories.includes(c)} onChange={(on) => set({ categories: toggleIn(f.categories, c, on) })} />
@@ -27,7 +27,7 @@ export function DiscoverFilterPanel({ availableCategories }: { availableCategori
         </div>
       </Section>
 
-      <Section title="Price (lowest ticket price)">
+      <Section title="Price (lowest ticket price)" tour="filter-price">
         <div className="grid grid-cols-2 gap-x-1">
           {PRICE_BANDS.map((b) => (
             <Checkbox key={b.id} label={b.label} checked={f.priceBands.includes(b.id)} onChange={(on) => set({ priceBands: toggleIn(f.priceBands, b.id, on) })} />
@@ -51,11 +51,11 @@ export function DiscoverFilterPanel({ availableCategories }: { availableCategori
         </div>
       </Section>
 
-      <Section title="Event start time">
+      <Section title="Event start time" tour="filter-event-time">
         <WindowInput value={f.eventTime} onChange={(w) => set({ eventTime: w })} idPrefix="event" />
       </Section>
 
-      <Section title="Venue open during">
+      <Section title="Venue open during" tour="filter-venue-hours">
         <WindowInput value={f.venueHours} onChange={(w) => set({ venueHours: w })} idPrefix="venue" />
       </Section>
 
@@ -74,9 +74,9 @@ export function DiscoverFilterPanel({ availableCategories }: { availableCategori
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, children, tour }: { title: string; children: ReactNode; tour?: string }) {
   return (
-    <fieldset>
+    <fieldset data-tour={tour}>
       <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">{title}</legend>
       {children}
     </fieldset>

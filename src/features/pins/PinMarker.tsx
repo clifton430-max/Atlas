@@ -54,6 +54,7 @@ export function PinMarkerButton({ label, onSelect, ...visual }: Omit<PinMarkerVi
       title={label}
       data-testid="pin-marker"
       data-image-marker={visual.appearance.imageId && visual.imageUrl ? 'true' : undefined}
+      data-tour={visual.appearance.imageId && visual.imageUrl ? 'image-marker' : undefined}
       onClick={(e) => {
         e.stopPropagation();
         onSelect();

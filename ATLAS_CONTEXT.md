@@ -167,6 +167,35 @@ seconds on initial load/refresh only. It must not block auth, data
 fetching, or map initialization, and should respect reduced-motion
 preferences.
 
+## Guest Mode and the interactive tutorial
+
+Atlas is usable without an account. Personal data lives in one of three
+workspaces, selected automatically and shown by a badge in the left panel:
+
+| Workspace | When | Where data lives |
+|---|---|---|
+| Account | Signed in | Supabase (RLS-protected), private to the account |
+| Guest | Not signed in | This browser only (`localStorage`, versioned and validated) |
+| Tutorial sandbox | While the interactive tour runs | This browser, discarded when the tour ends |
+
+-   **Fully functional for guests (local):** maps, groups (colors and
+    icons), pins, saving events, editing, moving, customization, image
+    markers, group filtering, map style, export and reset.
+-   **Public features (no account, when the service is available):**
+    Discover, live events, search, filters and place search.
+-   **Account-required:** friends, real collaboration maps and
+    invitations, and account/privacy settings. Guests get a clear
+    explanation and a local, clearly labelled **demo** collaboration map.
+    Nothing is sent, and no success is faked.
+-   Guest data never reaches Supabase. After signing in, it can be copied
+    into the account only through the explicit **Import guest data**
+    action. Import only inserts data and never overwrites account data.
+-   **The interactive tour** has 7 chapters that run in the real UI. Its
+    "Try it yourself" tasks are verified against real app state. It is
+    offered on the first visit and can be started, resumed or restarted
+    from **Help**. It runs in the disposable sandbox, so it never changes
+    account or guest data.
+
 ## Development process
 
 Inspect the repository and available tools before editing. Preserve

@@ -26,7 +26,7 @@ export function EventCard({ event, onClose, onSave, saved, canSave, signInHint }
   const hasVenueHours = event.venueOpenTime || event.venueCloseTime;
 
   return (
-    <article aria-label={`Event: ${event.name}`} className="w-[380px] overflow-hidden rounded-2xl bg-white shadow-float animate-rise-in">
+    <article data-tour="event-card" aria-label={`Event: ${event.name}`} className="w-[380px] overflow-hidden rounded-2xl bg-white shadow-float animate-rise-in">
       {image && (
         <img src={image} alt="" onError={() => setImgFailed(true)} className="h-36 w-full object-cover" />
       )}
@@ -74,6 +74,7 @@ export function EventCard({ event, onClose, onSave, saved, canSave, signInHint }
         <div className="flex flex-wrap gap-2 pt-1">
           {canSave && onSave && (
             <Button
+              data-tour="save-to-map"
               variant={saved ? 'secondary' : 'primary'}
               size="sm"
               onClick={onSave}

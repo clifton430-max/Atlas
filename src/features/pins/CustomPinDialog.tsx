@@ -14,11 +14,13 @@ import { useToast } from '@/components/ui/Toast';
 import { useGroups } from '@/features/groups/api';
 import { emptySelection, GroupPicker, selectionCount, type GroupSelection } from '@/features/groups/GroupPicker';
 import { commitGroupSelection } from '@/features/groups/commitSelection';
+import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { reverseGeocode } from '@/services/events/geocoder';
 import { usePinMutations } from './api';
 
 export function CustomPinDialog({ mapId, at, onClose }: { mapId: string; at: PlacementRequest; onClose: () => void }) {
   const qc = useQueryClient();
+  const ws = useWorkspace();
   const toast = useToast();
   const groups = useGroups();
   const { createCustom } = usePinMutations();
@@ -53,7 +55,7 @@ export function CustomPinDialog({ mapId, at, onClose }: { mapId: string; at: Pla
     setBusy(true);
     setError(null);
     try {
-      const groupIds = await commitGroupSelection(selection, qc);
+      const groupIds = await commitGroupSelection(selection, qc, ws);
       const pinId = await createCustom.mutateAsync({
         mapId, title: title.trim(), note, latitude: at.latitude, longitude: at.longitude,
         address: address.trim() || null, groupIds,

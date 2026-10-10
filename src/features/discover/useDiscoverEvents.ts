@@ -42,5 +42,6 @@ export function useDiscoverEvents() {
     filtered,
     source: query.data?.source,
     notice: query.data?.notice,
+    detail: query.data?.detail,
   };
 }

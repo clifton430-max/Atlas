@@ -99,13 +99,15 @@ export function SelectField({
 
 /** Checkbox with label; used for group selection (never radios). */
 export function Checkbox({
-  checked, onChange, label, description, swatch, disabled,
+  checked, onChange, label, description, swatch, adornment, disabled,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: ReactNode;
   description?: ReactNode;
   swatch?: string;
+  /** Custom visual (e.g. a group icon) shown instead of the color swatch. */
+  adornment?: ReactNode;
   disabled?: boolean;
 }) {
   const id = useId();
@@ -119,7 +121,8 @@ export function Checkbox({
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
       />
-      {swatch && <span className="size-3 shrink-0 rounded-full ring-1 ring-black/10" style={{ background: swatch }} aria-hidden />}
+      {adornment}
+      {!adornment && swatch && <span className="size-3 shrink-0 rounded-full ring-1 ring-black/10" style={{ background: swatch }} aria-hidden />}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm text-neutral-800">{label}</span>
         {description && <span className="block text-xs text-neutral-500">{description}</span>}

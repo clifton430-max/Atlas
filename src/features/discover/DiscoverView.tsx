@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { uiStore, useUi } from '@/app/store';
-import { useAuth } from '@/app/AuthProvider';
+
 import { qk } from '@/lib/queryClient';
 import { eventProvider } from '@/services/events';
 import { Notice, Spinner, ErrorMessage } from '@/components/ui/Feedback';
@@ -17,7 +17,7 @@ import { EventCard } from './EventCard';
 import { useDiscoverEvents } from './useDiscoverEvents';
 
 export function DiscoverView() {
-  const { user, configured } = useAuth();
+
   const discover = useDiscoverEvents();
   const saved = useSavedEvents();
   const selectedId = useUi((s) => s.selectedEventId);
@@ -43,9 +43,14 @@ export function DiscoverView() {
       <DiscoverLayer events={discover.filtered} savedIds={savedIds} selectedId={selectedId} onSelect={onSelect} />
 
       {/* Status stack sits at the bottom so it never collides with cards. */}
-      <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 flex w-[min(560px,calc(100%-32px))] -translate-x-1/2 flex-col-reverse items-center gap-2">
+      <div data-tour="discover-status" className="pointer-events-none absolute bottom-10 left-1/2 z-10 flex w-[min(560px,calc(100%-32px))] -translate-x-1/2 flex-col-reverse items-center gap-2">
         {discover.notice && (
           <Notice tone="warning" className="pointer-events-auto shadow-panel">{discover.notice}</Notice>
+        )}
+        {discover.detail && !discover.notice && !discover.isFetching && (
+          <div className="pointer-events-auto rounded-full bg-white/90 px-3 py-1 text-xs text-neutral-600 shadow-panel" role="status">
+            {discover.detail}
+          </div>
         )}
         {discover.isFetching && <div className="pointer-events-auto rounded-full bg-white px-3 py-1 shadow-panel"><Spinner label="Loading events" /></div>}
         {discover.error && <div className="pointer-events-auto"><ErrorMessage error={discover.error} className="shadow-panel" /></div>}
@@ -56,15 +61,15 @@ export function DiscoverView() {
           <EventCard
             event={selected}
             onClose={() => uiStore.set({ selectedEventId: null })}
-            canSave={!!user}
-            signInHint={configured && !user}
+            canSave
+            signInHint={false}
             saved={savedIds.has(selected.id)}
             onSave={() => setSaving(true)}
           />
         </div>
       )}
 
-      {saving && selected && user && (
+      {saving && selected && (
         <SaveEventDialog event={selected} open onClose={() => setSaving(false)} />
       )}
     </>
