@@ -1,0 +1,10 @@
+# Minimal Supabase CLI configuration for Atlas.
+# Used by `supabase link`, `supabase db push` and `supabase functions deploy`.
+project_id = "atlas"
+
+[functions.discover-events]
+# The function serves PUBLIC Discover data (events), works for signed-out
+# visitors, and never uses the caller's identity. JWT verification is off so
+# it also works with Supabase's newer non-JWT publishable keys. Provider calls
+# are rate-limited by the event_fetch_log cache.
+verify_jwt = false

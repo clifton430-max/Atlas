@@ -1,0 +1,61 @@
+@import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+/*
+ * Atlas design tokens. Grayscale foundation (Tailwind neutral) with a single
+ * restrained accent. Components use these via Tailwind utilities.
+ */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-accent: #2f5bea;
+  --color-accent-strong: #2348c2;
+  --color-accent-soft: #e8eefe;
+  --color-danger: #c42b2b;
+  --color-danger-soft: #fdecec;
+  --color-success: #1d7a46;
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.08);
+  --shadow-float: 0 2px 6px rgb(0 0 0 / 0.08), 0 16px 40px rgb(0 0 0 / 0.14);
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-rise-in: rise-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  @keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes rise-in { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-neutral-100 text-neutral-900 antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  /* Visible, consistent keyboard focus everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  dialog::backdrop {
+    background: rgb(10 10 10 / 0.35);
+    backdrop-filter: blur(2px);
+  }
+}
+
+/* Reduced motion: disable non-essential animation and transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* MapLibre controls blend with the grayscale UI. */
+.maplibregl-ctrl-group {
+  border-radius: 10px !important;
+  box-shadow: var(--shadow-panel) !important;
+}
+.maplibregl-ctrl-attrib { font-size: 11px; }
+.maplibregl-canvas:focus-visible { outline-offset: -2px; }
+
+/* HTML markers (pins) should not show the default marker chrome. */
+.atlas-marker { cursor: pointer; }
