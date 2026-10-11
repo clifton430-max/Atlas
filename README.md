@@ -1,5 +1,5 @@
 # Atlas
-
+# Access Atlas Here: https://cliftonjadenbrysonmickey.website/
 Atlas is a map-first web app built around **one map**: places and events near you appear as small category icons, and the places you keep appear as droplet pins on your **private** personal maps. You organize pins into color-coded groups and share selected pins on purpose through permission-based collaboration maps.
 
 - **Product spec:** [ATLAS_CONTEXT.md](ATLAS_CONTEXT.md)
