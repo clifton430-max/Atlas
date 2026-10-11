@@ -97,8 +97,8 @@ export const STEPS: TourStep[] = [
     route: () => '/', prepare: panels,
   },
   {
-    id: 'contexts', chapter: 0, title: 'Three kinds of map', target: 'nav-contexts',
-    body: 'Atlas has three views of the same map, switched with these tabs. Discover shows public events and places. My Maps holds your own pins and is private. Shared holds collaboration maps, which contain only pins people deliberately share.',
+    id: 'contexts', chapter: 0, title: 'One map, two views', target: 'nav-contexts',
+    body: 'Atlas is one map with two views. My Map shows places and events around you (small round icons) together with your own saved pins (droplets) — it is private. Shared holds collaboration maps, which contain only pins people deliberately share.',
     route: () => '/', prepare: panels,
   },
   {
@@ -153,7 +153,7 @@ export const STEPS: TourStep[] = [
     body: 'Atlas tells you where events come from: “Live from Ticketmaster”, how long ago results were fetched, or a clear notice when live data is unavailable. Development sample events are always labelled “Sample” and are never presented as real listings.',
   },
   {
-    id: 'categories', chapter: 1, title: 'Discover by category', target: 'category-bar',
+    id: 'categories', chapter: 1, title: 'Explore by category', target: 'category-bar',
     body: 'Show events and real places from OpenStreetMap: Food & Drink, Parks, Scenic Views, Attractions and more. Each category has its own icon and color, and the arrow next to it picks subcategories. Hover a marker (or focus a result) for a preview; click for details and “Add to map”.',
     task: 'Turn on another category (for example Food & Drink).',
     route: () => '/',
@@ -161,11 +161,11 @@ export const STEPS: TourStep[] = [
   },
   {
     id: 'hide-all', chapter: 1, title: 'Hide all, show all', target: 'hide-all',
-    body: '“Hide all” clears every Discover overlay so you can read the map; “Show all” brings everything back. It only affects Discover — your own pins are never hidden or deleted.',
+    body: '“Hide all” clears every category icon so you can read the map (parking stays); “Show all” brings everything back. Your own droplet pins are never hidden or deleted by category filters.',
   },
   {
     id: 'distance', chapter: 1, title: 'How far is it?', target: 'use-location',
-    body: 'Click Distance to share your location with Atlas on this device only. Previews, lists and details then show straight-line distance (never walking or driving time).',
+    body: 'Click Distance to share your location with Atlas on this device only. Lists and previews then show how far away places are (e.g. “0.4 mi away”), and update as you move.',
   },
   {
     id: 'filters-open', chapter: 1, title: 'Filters', target: 'filters-button',
@@ -204,7 +204,7 @@ export const STEPS: TourStep[] = [
   },
   {
     id: 'open-map', chapter: 2, title: 'Your maps', target: 'my-maps',
-    body: 'The highlighted map is the one you’re viewing. Hover a map to rename or delete it. The My Maps tab always brings you back to the map you used last.',
+    body: 'The highlighted map is the one you’re viewing. Hover a map to rename or delete it. The My Map tab always brings you back to the map you used last.',
     task: 'Open your map from the list.',
     done: (c) => c.path.startsWith('/maps/'),
   },
@@ -281,7 +281,7 @@ export const STEPS: TourStep[] = [
   },
   {
     id: 'filter-meaning', chapter: 3, title: 'Filters only change visibility', target: 'group-filter',
-    body: 'Group filters hide and show pins; they never change which groups a pin belongs to. Each map remembers its own filter, and filters never affect Discover or collaboration maps.',
+    body: 'Group filters hide and show pins; they never change which groups a pin belongs to. Each map remembers its own filter, and filters never affect nearby places or collaboration maps.',
   },
 
   // ---------------------------------------------------------------- Chapter 5

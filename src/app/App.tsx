@@ -1,8 +1,9 @@
 /**
- * Route map. Three isolated map contexts share one persistent map canvas:
- *   /                Discover (public events; works signed-out)
- *   /maps            "My Maps" tab -> last-used personal map
- *   /maps/:mapId     Personal map (account or guest workspace)
+ * Route map. One persistent map canvas, two contexts:
+ *   / , /maps        "My Map" -> the last-used personal map (share-link query kept);
+ *                    discovery-only when there is no map yet
+ *   /maps/:mapId     The unified map: discovery (nearby places, events) + your pins
+ *   /chess[/:id]     Chess room over the map (discovery stays live underneath)
  *   /collab          "Shared" tab (choose a collaboration map)
  *   /collab/:mapId   Collaboration map (auth)
  * Plus overlay routes: /settings/:section, /invite/:token, /friend/:code,
@@ -37,6 +38,7 @@ const RouteFallback = () => (
 
 // Dev-only verification harness; the DEV guard lets the bundler drop it from production.
 const MarkerCheck = import.meta.env.DEV ? lazy(() => import('@/dev/MarkerCheck').then((m) => ({ default: m.MarkerCheck }))) : null;
+const RevealCheck = import.meta.env.DEV ? lazy(() => import('@/dev/RevealCheck').then((m) => ({ default: m.RevealCheck }))) : null;
 const MonumentGallery = import.meta.env.DEV ? lazy(() => import('@/dev/MonumentGallery').then((m) => ({ default: m.MonumentGallery }))) : null;
 
 export function App() {
@@ -52,10 +54,11 @@ export function App() {
         <Route path="/auth" element={<AuthPage />} />
         {MarkerCheck && <Route path="/__dev/marker-check" element={<MarkerCheck />} />}
         {MonumentGallery && <Route path="/__dev/monuments" element={<MonumentGallery />} />}
+        {RevealCheck && <Route path="/__dev/reveal" element={<RevealCheck />} />}
         <Route element={<AppShell />}>
           {/* The chess room overlays Discover (its venue is a Discover place), so the map, markers and inspector stay live underneath. */}
+          <Route index element={<MapsHome />} />
           <Route element={<><DiscoverView /><Outlet /></>}>
-            <Route index element={null} />
             <Route path="chess" element={<ChessRoom />} />
             <Route path="chess/:gameId" element={<ChessRoom />} />
           </Route>

@@ -29,6 +29,8 @@ test('signed-in screens have no WCAG A/AA violations', async ({ page }) => {
     await page.getByRole('button', { name: `A11y pin ${RUN}`, exact: true }).click();
     await expect(page.getByRole('article', { name: `Pin: A11y pin ${RUN}` })).toBeVisible();
     await audit(page, 'personal map');
+    await page.getByRole('tab', { name: 'My pins' }).click();
+    await audit(page, 'my pins and groups');
     await page.getByRole('button', { name: /Group filter/ }).click();
     await audit(page, 'group filter');
     await page.keyboard.press('Escape');
@@ -37,7 +39,7 @@ test('signed-in screens have no WCAG A/AA violations', async ({ page }) => {
     await expect(page.getByRole('region', { name: /A11y collab/ })).toBeVisible();
     await audit(page, 'collaboration');
 
-    for (const s of ['account', 'privacy', 'friends', 'appearance', 'groups', 'pins', 'collaboration']) {
+    for (const s of ['account', 'privacy', 'friends', 'appearance', 'animations', 'groups', 'pins', 'collaboration']) {
       await page.goto(`/settings/${s}`);
       await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
       await page.waitForLoadState('networkidle');

@@ -16,6 +16,8 @@ export interface Agent {
   length: number;
   speed: number; // m/s
   offset: number; // m at t = 0
+  /** Stable per-agent number for variety (vehicle type, colours, height). */
+  seed: number;
 }
 
 export const SPEEDS: Record<AgentKind, number> = { car: 14, train: 22, walker: 1.6 };
@@ -33,7 +35,9 @@ export function makeAgent(kind: AgentKind, coords: [number, number][], seed: num
   }
   const length = cum[cum.length - 1];
   if (!(length >= MIN_LENGTH[kind])) return null;
-  return { kind, coords, cum, length, speed: SPEEDS[kind], offset: (seed * 9301 + 49297) % 233280 / 233280 * length };
+  // ±20 % speed variety per agent (deterministic).
+  const vary = 0.8 + ((seed * 7919) % 41) / 100;
+  return { kind, coords, cum, length, speed: SPEEDS[kind] * vary, offset: (seed * 9301 + 49297) % 233280 / 233280 * length, seed };
 }
 
 /** Position after `seconds`, moving back and forth along the line (never leaves the geometry). */
@@ -61,6 +65,20 @@ export function poseAt(a: Agent, seconds: number): { position: [number, number];
   const dy = y1 - y0;
   const forward = (Math.atan2(dx, dy) * 180) / Math.PI;
   return { position: [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t], heading: ((back ? forward + 180 : forward) + 360) % 360 };
+}
+
+/** Position and heading (forward along the line) at distance `d` metres from its start. */
+export function poseAtDistance(a: Agent, d: number): { position: [number, number]; heading: number } {
+  d = Math.min(a.length, Math.max(0, d));
+  let i = 1;
+  while (i < a.cum.length - 1 && a.cum[i] < d) i++;
+  const seg = a.cum[i] - a.cum[i - 1] || 1;
+  const t = Math.min(1, Math.max(0, (d - a.cum[i - 1]) / seg));
+  const [x0, y0] = a.coords[i - 1];
+  const [x1, y1] = a.coords[i];
+  const dx = (x1 - x0) * Math.cos((y0 * Math.PI) / 180);
+  const dy = y1 - y0;
+  return { position: [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t], heading: (((Math.atan2(dx, dy) * 180) / Math.PI) + 360) % 360 };
 }
 
 /**
@@ -123,16 +141,47 @@ export function useReducedMotion(): boolean {
   );
 }
 
-// ---- Playback (session-only): pause and speed for the decorative motion -------
+// ---- Playback and kinds (device-local, persisted) ----------------------------
 export const SPEED_OPTIONS = [0.5, 1, 2] as const;
 export interface AmbientPlayback { paused: boolean; speed: number }
-let playback: AmbientPlayback = { paused: false, speed: 1 };
+/** Which kinds of decorative map life are shown (all on by default). */
+export interface AmbientKinds { cars: boolean; people: boolean; trains: boolean; planes: boolean }
+const PLAYBACK_KEY = 'atlas.ambient.playback.v1';
+const KINDS_KEY = 'atlas.ambient.kinds.v1';
+const DEFAULT_KINDS: AmbientKinds = { cars: true, people: true, trains: true, planes: true };
+
+function readJson<T extends object>(key: string, fallback: T, valid: (v: Record<string, unknown>) => boolean): T {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const v = JSON.parse(localStorage.getItem(key) ?? 'null');
+    return v && typeof v === 'object' && valid(v) ? { ...fallback, ...v } : fallback;
+  } catch {
+    return fallback;
+  }
+}
+const writeJson = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* not persisted */ } };
+
+let playback: AmbientPlayback = readJson(PLAYBACK_KEY, { paused: false, speed: 1 },
+  (v) => typeof v.paused === 'boolean' && (SPEED_OPTIONS as readonly number[]).includes(v.speed as number));
 const playbackListeners = new Set<() => void>();
 export const getAmbientPlayback = () => playback;
 export function setAmbientPlayback(patch: Partial<AmbientPlayback>) {
   playback = { ...playback, ...patch };
+  writeJson(PLAYBACK_KEY, playback);
   playbackListeners.forEach((l) => l());
 }
 export function useAmbientPlayback(): AmbientPlayback {
   return useSyncExternalStore((l) => { playbackListeners.add(l); return () => playbackListeners.delete(l); }, () => playback, () => playback);
+}
+
+let kinds: AmbientKinds = readJson(KINDS_KEY, DEFAULT_KINDS, (v) => Object.values(v).every((x) => typeof x === 'boolean'));
+const kindListeners = new Set<() => void>();
+export const getAmbientKinds = () => kinds;
+export function setAmbientKinds(patch: Partial<AmbientKinds>) {
+  kinds = { ...kinds, ...patch };
+  writeJson(KINDS_KEY, kinds);
+  kindListeners.forEach((l) => l());
+}
+export function useAmbientKinds(): AmbientKinds {
+  return useSyncExternalStore((l) => { kindListeners.add(l); return () => kindListeners.delete(l); }, () => kinds, () => DEFAULT_KINDS);
 }

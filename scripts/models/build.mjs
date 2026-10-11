@@ -11,8 +11,11 @@ import crypto from 'node:crypto';
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { MODELS } from './monuments.mjs';
+import { MODELS as MODELS_V1 } from './monuments.mjs';
+import { MODELS_V2 } from './monuments2.mjs';
 import { normalize } from './kit.mjs';
+
+const MODELS = { ...MODELS_V1, ...MODELS_V2 };
 
 // GLTFExporter (binary) uses FileReader, which Node lacks.
 globalThis.FileReader ??= class {

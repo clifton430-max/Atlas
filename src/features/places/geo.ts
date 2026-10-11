@@ -1,7 +1,9 @@
 /**
- * Distance helpers. Atlas only shows STRAIGHT-LINE (great-circle) distance,
- * labelled as such — never as walking or driving distance — and only when
- * the user has shared their location in this session.
+ * Distance helpers. List distances are great-circle ("as the crow flies")
+ * distances from the user's shared location, worded simply ("0.4 mi away").
+ * They are only shown when the user has shared their location; real route
+ * distance and travel time come from the routing service (routing/), which
+ * labels them as walking or driving routes.
  */
 const R = 6_371_008.8; // mean Earth radius (m)
 
@@ -30,12 +32,13 @@ export function formatDistance(meters: number, locale?: string): string {
   return `${km < 10 ? km.toFixed(1) : Math.round(km)} km`;
 }
 
-/** e.g. "1.2 km away (straight line)"; null if no location is known. */
+/** e.g. "0.4 mi away"; null if no location is known. */
 export function distanceLabel(
   from: { latitude: number; longitude: number } | null,
   to: { latitude: number | null; longitude: number | null },
   locale?: string,
 ): string | null {
   if (!from || to.latitude == null || to.longitude == null) return null;
-  return `${formatDistance(haversineMeters(from, { latitude: to.latitude, longitude: to.longitude }), locale)} away (straight line)`;
+  const d = formatDistance(haversineMeters(from, { latitude: to.latitude, longitude: to.longitude }), locale);
+  return d ? `${d} away` : null;
 }

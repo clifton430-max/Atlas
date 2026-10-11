@@ -4,7 +4,7 @@
  * maps the current workspace can read (RLS-filtered queries / local data).
  */
 import { Link, useMatch } from 'react-router-dom';
-import { Check, ChevronDown, Compass, FlaskConical, Map as MapIcon, Plus, Users } from 'lucide-react';
+import { Check, ChevronDown, FlaskConical, Map as MapIcon, Plus, Users } from 'lucide-react';
 import { useAuth } from '../AuthProvider';
 import { Popover } from '@/components/ui/Popover';
 import { cn } from '@/components/ui/cn';
@@ -44,7 +44,6 @@ export function MapSwitcher() {
     )}>
       {(close) => (
         <div className="w-72 p-1.5">
-          <Link to="/" onClick={close} className={item(false)}><Compass className="size-4" aria-hidden />Discover</Link>
           <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{ws.mode === 'sandbox' ? 'Practice maps' : 'My maps'}</p>
           <ul>
             {maps.data?.map((m) => (

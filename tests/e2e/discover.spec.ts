@@ -29,7 +29,7 @@ test('welcome overlay fades out quickly without blocking the app', async ({ page
   await expect(page.getByTestId('welcome-overlay')).toBeHidden({ timeout: 3000 });
   expect(Date.now() - start).toBeLessThan(2000);
   // Client-side navigation does not replay it.
-  await page.getByRole('link', { name: 'Discover' }).click();
+  await page.getByRole('link', { name: 'Shared' }).click();
   await expect(page.getByTestId('welcome-overlay')).toHaveCount(0);
 });
 
@@ -159,7 +159,6 @@ test('image marker is the actual interactive map marker, anchored to its coordin
   // The image IS the marker: an <img>, no default SVG shape rendered underneath.
   await expect(marker.locator('img')).toHaveCount(1);
   await expect(marker.locator('svg')).toHaveCount(0);
-  await expect(page.locator('.maplibregl-marker svg')).toHaveCount(0);
 
   const centerOf = async () => {
     const b = (await marker.locator('img').boundingBox())!;
@@ -187,5 +186,28 @@ test('image marker is the actual interactive map marker, anchored to its coordin
 
   // Clickable.
   await marker.click();
+  await expect(page.getByTestId('clicks')).toHaveText('clicks: 1');
+});
+
+test('droplet pin: its tip sits on the coordinate; hover shows a short card; click selects', async ({ page }) => {
+  await page.goto('/__dev/marker-check');
+  await page.waitForFunction(() => (window as AtlasWindow).__atlasMap?.loaded());
+  const pin = page.getByRole('button', { name: 'Droplet marker' });
+  await expect(pin).toBeVisible();
+  await expect(pin.locator('[data-droplet="true"]')).toHaveCount(1);
+  const tip = async () => { const b = (await pin.boundingBox())!; return { x: b.x + b.width / 2, y: b.y + b.height }; };
+  const expected = () => page.evaluate(() => {
+    const m = (window as AtlasWindow).__atlasMap!;
+    const p = m.project([-73.9772, 40.7527]);
+    const r = m.getCanvas().getBoundingClientRect();
+    return { x: r.left + p.x, y: r.top + p.y };
+  });
+  // The visual extends 3/48 below the element (its soft shadow); the tip is the element's bottom edge.
+  const t = await tip(); const e = await expected();
+  expect(Math.abs(t.x - e.x)).toBeLessThan(2);
+  expect(Math.abs(t.y - e.y)).toBeLessThan(3);
+  await pin.hover();
+  await expect(page.getByTestId('pin-hover-card')).toContainText('A short description shown on hover.');
+  await pin.click();
   await expect(page.getByTestId('clicks')).toHaveText('clicks: 1');
 });

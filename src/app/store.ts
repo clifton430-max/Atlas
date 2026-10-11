@@ -18,14 +18,22 @@ import type { PinSource } from '@/features/pins/pinSource';
 /** Hovered/focused Discover item for the preview (events by id, places by value). */
 export type HoverItem = { kind: 'event'; id: string } | { kind: 'place'; place: Place };
 
-const CATEGORY_KEY = 'atlas.discover.categories.v1';
-const DEFAULT_CATEGORIES: CategoryId[] = ['events', 'attractions', 'scenic'];
+const CATEGORY_KEY = 'atlas.discover.categories.v2';
+const LEGACY_CATEGORY_KEY = 'atlas.discover.categories.v1';
+/** Categories added with v2: shown by default for people upgrading from v1 (they were basemap icons before). */
+const ADDED_IN_V2: CategoryId[] = ['shopping', 'services', 'stays'];
+/** Discovery markers are small icons, so every category can be on by default. */
+const DEFAULT_CATEGORIES: CategoryId[] = CATEGORIES.map((c) => c.id);
 function loadCategories(): { visible: CategoryId[]; subs: Partial<Record<CategoryId, string[]>> } {
   try {
-    const raw = JSON.parse(localStorage.getItem(CATEGORY_KEY) ?? 'null');
+    const v2 = localStorage.getItem(CATEGORY_KEY);
+    const raw = JSON.parse(v2 ?? localStorage.getItem(LEGACY_CATEGORY_KEY) ?? 'null');
     if (raw && Array.isArray(raw.visible)) {
       const known = new Set<string>(CATEGORIES.map((c) => c.id));
-      return { visible: raw.visible.filter((v: string) => known.has(v)), subs: sanitizeSubFilters(raw.subs ?? {}) };
+      const visible: CategoryId[] = raw.visible.filter((v: string) => known.has(v));
+      // Upgrading from v1: keep the person's choices and add the new categories.
+      if (!v2 && visible.length) for (const c of ADDED_IN_V2) if (!visible.includes(c)) visible.push(c);
+      return { visible, subs: sanitizeSubFilters(raw.subs ?? {}) };
     }
   } catch { /* defaults */ }
   return { visible: DEFAULT_CATEGORIES, subs: {} };
@@ -49,6 +57,8 @@ export interface AtlasUiState {
   bbox: BBox | null;
   leftPanelOpen: boolean;
   rightPanelOpen: boolean;
+  /** Unified map side panel: things near me, or my maps/pins/groups. */
+  panelTab: 'nearby' | 'pins';
 
   // Discover context
   discoverFilters: DiscoverFilters;
@@ -105,12 +115,15 @@ export interface MonumentDraft {
   scale: number;
 }
 
+const PANEL_TAB_KEY = 'atlas.panelTab.v1';
+
 // Panels start open on wide screens; on narrow screens they overlay the map, so start closed.
 const width = typeof window === 'undefined' ? 1440 : window.innerWidth;
 const initial: AtlasUiState = {
   bbox: null,
   leftPanelOpen: width >= 1024,
   rightPanelOpen: width >= 1280,
+  panelTab: (() => { try { return localStorage.getItem(PANEL_TAB_KEY) === 'pins' ? 'pins' : 'nearby'; } catch { return 'nearby'; } })(),
   discoverFilters: EMPTY_FILTERS,
   discoverKeyword: '',
   discoverSort: 'nearest',
@@ -154,6 +167,14 @@ export const uiStore = {
     listeners.forEach((l) => l());
   },
 };
+
+// The side panel tab survives a refresh (device-local preference).
+let lastPanelTab = state.panelTab;
+uiStore.subscribe(() => {
+  if (state.panelTab === lastPanelTab) return;
+  lastPanelTab = state.panelTab;
+  try { localStorage.setItem(PANEL_TAB_KEY, state.panelTab); } catch { /* not persisted */ }
+});
 
 export function useUi<T>(selector: (s: AtlasUiState) => T): T {
   return useSyncExternalStore(uiStore.subscribe, () => selector(uiStore.get()), () => selector(initial));

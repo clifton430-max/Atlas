@@ -43,6 +43,9 @@ function makeCtx(path: string): TourCtx {
   return { ws, snap: ws.snapshot(), ui: uiStore.get(), path, q: (s) => document.querySelector<HTMLElement>(s) };
 }
 
+const PIN_TARGETS = new Set(['new-map', 'my-maps', 'add-custom-pin', 'groups-section', 'group-filter']);
+const NEARBY_TARGETS = new Set(['category-bar', 'hide-all', 'use-location', 'filters-button', 'filter-price', 'filter-event-time', 'events-in-view', 'places-in-view', 'discover-status']);
+
 export function TutorialOverlay() {
   const index = useTutorial((s) => s.stepIndex);
   const step = STEPS[Math.min(index, STEPS.length - 1)];
@@ -66,7 +69,11 @@ export function TutorialOverlay() {
     setMissing(false);
     setRect(null);
     const route = step.route?.(ctx);
-    if (route && route !== pathRef.current) navigate(route);
+    // "/" resolves to the unified map; don't bounce back to it when already on a map.
+    if (route && route !== pathRef.current && !(route === '/' && pathRef.current.startsWith('/maps/'))) navigate(route);
+    // The unified side panel has two tabs: show the one holding this step's target.
+    if (step.target && PIN_TARGETS.has(step.target)) uiStore.set({ panelTab: 'pins' });
+    else if (step.target && NEARBY_TARGETS.has(step.target)) uiStore.set({ panelTab: 'nearby' });
     // Let the route render before preparing (opening panels, selecting pins, popovers).
     const t1 = setTimeout(() => step.prepare?.(makeCtx(pathRef.current)), 120);
     const t2 = setTimeout(() => headingRef.current?.focus(), 60);

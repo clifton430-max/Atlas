@@ -9,6 +9,7 @@ import { useMapInstance } from '@/features/map/MapContext';
 import { PLACES_LAYER, PLACES_MIN_ZOOM, PLACES_SOURCE, placesFilter } from '@/features/map/atlasStyle';
 import { placeFromFeature } from './placeFromFeature';
 import type { Place } from './types';
+import { haversineMeters } from './geo';
 
 export interface PlacesInView {
   places: Place[];
@@ -21,7 +22,11 @@ export interface PlacesInView {
 
 const LIMIT = 250;
 
-export function usePlacesInView(subclasses: string[]): PlacesInView {
+/**
+ * With `nearTo`, the list is cut to the LIMIT places closest to that point
+ * (so "Nearest" never drops a close place for a more prominent far one).
+ */
+export function usePlacesInView(subclasses: string[], nearTo?: { latitude: number; longitude: number } | null): PlacesInView {
   const { map, styleVersion } = useMapInstance();
   const bbox = useUi((s) => s.bbox);
   const keyword = useUi((s) => s.discoverKeyword).trim().toLowerCase();
@@ -49,8 +54,10 @@ export function usePlacesInView(subclasses: string[]): PlacesInView {
       if (keyword && !`${p.name} ${p.subcategoryLabel}`.toLowerCase().includes(keyword)) continue;
       byRef.set(p.ref, { ...p, rank: Number(f.properties?.rank ?? 99) });
     }
-    const sorted = [...byRef.values()].sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
+    const sorted = [...byRef.values()].sort(nearTo
+      ? (a, b) => haversineMeters(nearTo, a) - haversineMeters(nearTo, b)
+      : (a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
     return { places: sorted.slice(0, LIMIT).map(({ rank: _r, ...p }) => p), supported, tooFarOut, truncated: sorted.length > LIMIT };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, styleVersion, bbox, key, keyword, tick]);
+  }, [map, styleVersion, bbox, key, keyword, tick, nearTo?.latitude, nearTo?.longitude]);
 }

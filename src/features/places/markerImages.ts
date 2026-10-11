@@ -1,42 +1,46 @@
 /**
- * Category marker images for MapLibre symbol layers: a colored teardrop pin
- * with a white glyph (Lucide icon geometry) — color AND glyph identify the
- * category. The tip sits MARKER_TIP_PAD px above the image's bottom edge;
- * layers use icon-anchor "bottom" with icon-offset [0, MARKER_TIP_PAD] so the
- * tip is exactly on the real coordinate. Rendered once per style at 2x.
+ * Marker images for MapLibre symbol layers.
+ *
+ * Discovery markers (places and events nobody has saved yet) are SMALL round
+ * category badges: a coloured disc with a white rim and a white glyph (Lucide
+ * icon geometry) — colour AND glyph identify the category, and they stay
+ * small so the map remains readable. Saved and custom pins are the larger
+ * droplet markers (pins/DropletMarker.tsx), drawn as HTML so they can carry
+ * images, hover cards and selection states.
+ *
+ * Badges are centred on the coordinate (icon-anchor "center"). Rendered once
+ * per style at 2x.
  */
 import type { IconNode } from 'lucide';
 import type * as maplibregl from 'maplibre-gl';
 import { allMarkerKeys } from './categories';
 import { TREE_PATTERN, treePatternImage } from '@/features/map/cityStyle';
 
-const W = 36; // CSS px
-const H = 48;
+/** Badge box in CSS px (the disc is a little smaller, leaving room for the shadow). */
+export const BADGE = 26;
 const RATIO = 2;
-/** Transparent space below the pin tip (keeps the tip inside the hit box). */
-export const MARKER_TIP_PAD = 3;
 
-const PIN = 'M18 45C18 45 4.5 30.5 4.5 18.5a13.5 13.5 0 1 1 27 0C31.5 30.5 18 45 18 45Z';
-
-function svgFor(color: string, icon: IconNode): string {
-  const body = icon.map(([tag, attrs]) =>
+function glyph(icon: IconNode): string {
+  return icon.map(([tag, attrs]) =>
     `<${tag} ${Object.entries(attrs).map(([k, v]) => `${k}="${String(v).replace(/"/g, '&quot;')}"`).join(' ')}/>`).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W * RATIO}" height="${H * RATIO}" viewBox="0 0 ${W} ${H}">`
-    // soft contact shadow, then the pin with a white rim
-    + `<ellipse cx="18" cy="45" rx="5" ry="1.8" fill="rgba(0,0,0,0.22)"/>`
-    + `<path d="${PIN}" transform="translate(0 1)" fill="rgba(0,0,0,0.16)"/>`
-    + `<path d="${PIN}" fill="${color}" stroke="#ffffff" stroke-width="2.4" stroke-linejoin="round"/>`
-    + `<g transform="translate(10 10.5) scale(0.6667)" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${body}</g>`
+}
+
+/** Small round discovery badge. */
+export function badgeSvg(color: string, icon: IconNode): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${BADGE * RATIO}" height="${BADGE * RATIO}" viewBox="0 0 ${BADGE} ${BADGE}">`
+    + `<circle cx="13" cy="14" r="10.5" fill="rgba(0,0,0,0.22)"/>`
+    + `<circle cx="13" cy="13" r="10.5" fill="${color}" stroke="#ffffff" stroke-width="2"/>`
+    + `<g transform="translate(7.6 7.6) scale(0.45)" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${glyph(icon)}</g>`
     + '</svg>';
 }
 
-function rasterize(svg: string): Promise<ImageData> {
+function rasterize(svg: string, size: number): Promise<ImageData> {
   return new Promise((resolve, reject) => {
-    const img = new Image(W * RATIO, H * RATIO);
+    const img = new Image(size * RATIO, size * RATIO);
     img.onload = () => {
       const c = document.createElement('canvas');
-      c.width = W * RATIO;
-      c.height = H * RATIO;
+      c.width = size * RATIO;
+      c.height = size * RATIO;
       const ctx = c.getContext('2d');
       if (!ctx) return reject(new Error('no 2d context'));
       ctx.drawImage(img, 0, 0);
@@ -59,10 +63,10 @@ export async function ensureMarkerImages(map: maplibregl.Map): Promise<void> {
   await Promise.all(entries.map(async ({ key, color, icon }) => {
     if (map.hasImage(key)) return;
     try {
-      const data = await rasterize(svgFor(color, icon));
+      const data = await rasterize(badgeSvg(color, icon), BADGE);
       if (!map.hasImage(key)) map.addImage(key, data, { pixelRatio: RATIO });
     } catch {
-      /* a missing icon falls back to the circle underneath */
+      /* a missing icon simply isn't drawn */
     }
   }));
 }

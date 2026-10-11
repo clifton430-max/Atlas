@@ -40,7 +40,7 @@ export function DiscoverEventList() {
       </div>
       <p className="pb-2 text-xs text-neutral-500" aria-live="polite">
         {isLoading ? 'Loading…' : `${filtered.length} of ${all.length} shown${n ? ` · ${n} filter${n > 1 ? 's' : ''} active` : ''}`}
-        {sort === 'nearest' && from && <span className="block">{from === 'you' ? 'Closest to you first (straight line).' : 'Closest to the map centre first — use “Distance” to sort from where you are.'}</span>}
+        {sort === 'nearest' && from && <span className="block">{from === 'you' ? 'Closest to you first.' : 'Closest to the map centre first — use “Distance” to sort from where you are.'}</span>}
       </p>
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
         <EmptyState icon={<CalendarClock className="size-6" aria-hidden />} title="No events here">

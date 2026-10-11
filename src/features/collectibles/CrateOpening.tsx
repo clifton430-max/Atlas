@@ -23,6 +23,7 @@ export type Phase = 'idle' | 'requesting' | 'opening' | 'cycling' | 'reveal';
 const NOTES: Record<Rarity, number[]> = {
   common: [523], uncommon: [523, 659], rare: [523, 659, 784], epic: [523, 659, 784, 988],
   legendary: [523, 659, 784, 1047, 1319], mythic: [523, 659, 784, 1047, 1319, 1568, 2093],
+  celestial: [392, 523, 659, 784, 1047, 1319, 1568, 2093, 2637, 3136],
 };
 function chime(r: Rarity) {
   try {
@@ -115,16 +116,35 @@ export function CyclingPreview({ crate, result, phase }: { crate: CrateKind; res
   );
 }
 
+/** Starfield, slowly turning golden halo and shooting stars behind a Celestial reveal (static under reduced motion). */
+function CelestialBackdrop() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0">
+      <div className="atlas-celestial-halo" />
+      {Array.from({ length: 28 }, (_, i) => (
+        <span key={i} className="atlas-fx-star" style={{ left: `${(i * 37) % 100}%`, top: `${(i * 53) % 100}%`, animationDuration: `${3 + (i % 5)}s`, animationDelay: `${-i * 0.4}s` }} />
+      ))}
+      <span className="atlas-fx-shooting" style={{ top: '12%', left: '8%', animationDuration: '5s' }} />
+    </div>
+  );
+}
+
 /** The reveal card: the actual awarded reward (3D model for monuments). */
 export function Reveal({ crate, result, children }: { crate: CrateKind; result: RollResult; children?: React.ReactNode }) {
   const r = RARITY[result.rarity];
+  const celestial = result.rarity === 'celestial';
   const def = crate === 'monument' ? MONUMENTS.find((m) => m.defId === result.defId) : SKINS.find((s) => s.defId === result.defId);
   return (
-    <div className={cn('relative w-full max-w-md overflow-hidden rounded-3xl p-5 text-center shadow-float animate-rise-in', result.rarity === 'mythic' && 'atlas-mythic')}
-      style={{ background: `linear-gradient(180deg, ${r.soft}, #ffffff 65%)`, boxShadow: `0 0 0 3px ${r.color}, 0 24px 60px ${r.color}55` }} data-testid="crate-reveal" data-rarity={result.rarity}>
+    <div className={cn('relative w-full max-w-md overflow-hidden rounded-3xl p-5 text-center shadow-float animate-rise-in', result.rarity === 'mythic' && 'atlas-mythic', celestial && 'atlas-celestial text-white')}
+      style={celestial
+        ? { background: 'radial-gradient(120% 90% at 50% 0%, #2a2470 0%, #0b0d2e 55%, #05061a 100%)', boxShadow: '0 0 0 3px #f2c94c, 0 0 0 7px #2a247088, 0 30px 90px #f2c94c66' }
+        : { background: `linear-gradient(180deg, ${r.soft}, #ffffff 65%)`, boxShadow: `0 0 0 3px ${r.color}, 0 24px 60px ${r.color}55` }}
+      data-testid="crate-reveal" data-rarity={result.rarity}>
       {(result.rarity === 'legendary' || result.rarity === 'mythic') && <div aria-hidden className="atlas-rays pointer-events-none absolute inset-0" style={{ ['--ray' as string]: `${r.color}33` }} />}
-      <p className="relative text-xs font-bold uppercase tracking-[0.2em]" style={{ color: r.ink }}>{r.label}</p>
-      <h3 className="relative mt-1 text-2xl font-semibold tracking-tight">{def?.name}</h3>
+      {celestial && <CelestialBackdrop />}
+      <p className="relative text-xs font-bold uppercase tracking-[0.2em]" style={{ color: celestial ? '#f2c94c' : r.ink }}>{celestial ? '✦ Celestial ✦' : r.label}</p>
+      {celestial && <p className="relative mt-0.5 text-[11px] text-[#e9e2ff]">The rarest find in Atlas — one of a kind in this crate (0.1% per roll).</p>}
+      <h3 className={cn('relative mt-1 text-2xl font-semibold tracking-tight', celestial && 'atlas-celestial-title')}>{def?.name}</h3>
       <div className="relative mt-3">
         {crate === 'monument' ? (
           <Suspense fallback={<div className="h-56 animate-pulse rounded-2xl bg-white/60" />}>
@@ -132,8 +152,10 @@ export function Reveal({ crate, result, children }: { crate: CrateKind; result: 
           </Suspense>
         ) : <SkinSwatch defId={result.defId} className="mx-auto h-40 w-full max-w-xs" />}
       </div>
-      <p className="relative mt-2 text-sm" role="status">
-        {result.duplicate ? <>Duplicate — you now have <span className="font-semibold">{result.copies}</span> copies.</> : <>New to your collection!</>}
+      <p className="relative mt-2 text-sm" role="status" data-testid="reward-saved">
+        {result.duplicate
+          ? <>Duplicate — added to your collection; you now have <span className="font-semibold">{result.copies}</span> copies.</>
+          : <>New! Added to your collection{crate === 'monument' ? ' — place it now or later' : ' — equip it now or later'}.</>}
       </p>
       {children && <div className="relative mt-3 flex flex-wrap justify-center gap-2">{children}</div>}
     </div>

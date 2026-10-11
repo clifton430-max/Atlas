@@ -14,7 +14,7 @@ async function at(page: Page, center: [number, number], zoom: number, categories
     if (sessionStorage.getItem('__lm')) return;
     sessionStorage.setItem('__lm', '1');
     localStorage.setItem('atlas.viewport', JSON.stringify({ center: c, zoom: z }));
-    localStorage.setItem('atlas.discover.categories.v1', JSON.stringify({ visible: cats, subs: {} }));
+    localStorage.setItem('atlas.discover.categories.v2', JSON.stringify({ visible: cats, subs: {} }));
   }, [center, zoom, categories] as const);
 }
 
@@ -25,8 +25,9 @@ const renderedCount = (page: Page, layer: string) =>
   }, layer);
 
 async function waitForPlaces(page: Page) {
-  await waitForMap(page);
-  await expect.poll(() => renderedCount(page, 'atlas-places'), { timeout: 20_000 }).toBeGreaterThan(0);
+  // Poll for rendered places rather than map.loaded(): ambient animation keeps updating a source.
+  await page.waitForFunction(() => !!(window as AtlasWindow).__atlasMap?.getLayer('atlas-places'), null, { timeout: 30_000 });
+  await expect.poll(() => renderedCount(page, 'atlas-places'), { timeout: 30_000 }).toBeGreaterThan(0);
 }
 
 test.beforeEach(async ({ page }) => freshGuest(page));
@@ -89,54 +90,58 @@ test('category Discover: real OSM places, subcategories, list/map sync, details 
   await expect(card.getByText('Unavailable').first()).toBeVisible();
 });
 
-test('Hide All hides Discover overlays only; Show all restores; no leakage into personal maps', async ({ page }) => {
+test('Hide All hides every category icon on the unified map; saved droplet pins always stay; Show all restores', async ({ page }) => {
   await at(page, CENTRAL_PARK, 15.5, ['events', 'food', 'parks']);
   await page.goto('/');
-  // A personal (guest) pin must stay visible regardless of Discover categories.
   await openMap(page);
-  await waitForMap(page);
+  await waitForPlaces(page);
+  // A saved (custom) pin: never hidden by category filters.
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await page.getByRole('button', { name: 'Add custom pin' }).click();
   await clickMapAt(page);
   const dlg = page.getByRole('dialog', { name: 'New custom pin' });
   await dlg.getByLabel('Title').fill('My secret spot');
   await createGroupInPicker(dlg, 'Mine');
   await dlg.getByRole('button', { name: 'Create pin' }).click();
-  await expect(page.getByRole('toolbar', { name: 'Discover categories' })).toHaveCount(0); // not in personal context
-  expect(await renderedCount(page, 'atlas-places')).toBe(0);
+  await expect(page.getByRole('button', { name: 'My secret spot', exact: true })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Discover' }).click();
-  await waitForPlaces(page);
+  await page.getByRole('tab', { name: 'Nearby' }).click();
   await page.getByRole('button', { name: 'Hide all' }).click();
   await expect(page.getByText('All Discover categories are hidden.')).toBeVisible();
   await expect.poll(() => renderedCount(page, 'atlas-places')).toBe(0);
   await expect.poll(() => renderedCount(page, 'discover-points')).toBe(0);
   await expect(page.getByRole('toolbar', { name: 'Discover categories' }).getByRole('button', { pressed: true })).toHaveCount(0);
-  await openMap(page);
   await expect(page.getByRole('button', { name: 'My secret spot', exact: true })).toBeVisible();
+  // Only designated basemap symbols (parking, entrances) remain, and they're not clickable.
+  const leftover = await page.evaluate(() => {
+    const m = (window as AtlasWindow).__atlasMap!;
+    const ids = m.getStyle().layers.filter((l) => 'source-layer' in l && l['source-layer'] === 'poi' && !l.id.startsWith('atlas-') && l.id !== 'poi_transit').map((l) => l.id);
+    return [...new Set(m.queryRenderedFeatures({ layers: ids }).map((f) => String(f.properties.class)))];
+  });
+  for (const c of leftover) expect(['parking', 'bicycle_parking', 'motorcycle_parking', 'entrance']).toContain(c);
 
-  await page.getByRole('link', { name: 'Discover' }).click();
   await page.getByRole('button', { name: 'Show all' }).click();
   await waitForPlaces(page);
   await expect(page.getByRole('button', { name: /Events/, pressed: true })).toBeVisible();
 });
 
-test('distance is shown only after sharing location, labelled straight-line', async ({ page, context }) => {
+test('distance is shown only after sharing location, worded simply ("… away")', async ({ page, context }) => {
   await at(page, CENTRAL_PARK, 15.5, ['parks']);
   await page.goto('/');
   await waitForPlaces(page);
   const list = page.locator('[data-tour="places-in-view"]');
   // No permission yet: nothing is requested and no distances are shown.
   await page.waitForTimeout(500);
-  await expect(list).not.toContainText('straight line');
+  await expect(list.getByTestId('result-distance')).toHaveCount(0);
   await context.grantPermissions(['geolocation']);
   await context.setGeolocation({ latitude: 40.7681, longitude: -73.9819 }); // Columbus Circle
   await page.getByRole('button', { name: 'Use my location to show distances' }).click();
-  await expect(list.locator('li').first()).toContainText(/away \(straight line\)/);
-  // Every distance is labelled straight-line; none claims walking/driving time or distance.
+  await expect(list.locator('li').first()).toContainText(/ away$/);
+  // Every distance is worded "… away"; none claims walking/driving time or route distance.
   const lines = await list.getByTestId('result-distance').allInnerTexts();
   expect(lines.length).toBe(await list.locator('li').count()); // every place shows one
   for (const l of lines) {
-    expect(l).toMatch(/away \(straight line\)$/);
+    expect(l).toMatch(/^[\d.]+ (mi|ft|m|km) away$/);
     expect(l).not.toMatch(/(walking|driving|drive|by car|min walk)/i);
   }
 });
@@ -235,8 +240,8 @@ test('ambient life runs on real geometry, stops when disabled, and never blocks 
   await page.keyboard.press('Escape');
 
   // Turning it off in Settings removes it.
-  await page.goto('/settings/appearance');
-  await page.getByRole('switch', { name: 'Ambient map life' }).click();
+  await page.goto('/settings/animations');
+  await page.getByRole('switch', { name: 'Show moving map life' }).click();
   await page.goto('/');
   await waitForMap(page);
   await page.waitForTimeout(1500);
@@ -250,6 +255,7 @@ test('ambient life is off under reduced motion', async ({ page }) => {
   await waitForMap(page);
   await page.waitForTimeout(2500);
   expect(await page.evaluate(() => !!(window as AtlasWindow).__atlasMap!.getSource('atlas-ambient'))).toBe(false);
-  await page.goto('/settings/appearance');
-  await expect(page.getByText('Off because your system asks for reduced motion.')).toBeVisible();
+  await page.goto('/settings/animations');
+  await expect(page.getByText(/Your system asks for reduced motion/)).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Show moving map life' })).toBeDisabled();
 });

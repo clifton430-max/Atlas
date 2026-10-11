@@ -196,5 +196,203 @@
       "z": 2.077
     },
     "sha256": "ba80c5ed45097689"
+  },
+  "great-torii": {
+    "file": "/models/monuments/great-torii.glb",
+    "bytes": 39416,
+    "triangles": 504,
+    "size": {
+      "x": 1.752,
+      "y": 1,
+      "z": 1.402
+    },
+    "sha256": "e2139606a965d703"
+  },
+  "kinderdijk-windmills": {
+    "file": "/models/monuments/kinderdijk-windmills.glb",
+    "bytes": 37772,
+    "triangles": 456,
+    "size": {
+      "x": 2.253,
+      "y": 1,
+      "z": 1.213
+    },
+    "sha256": "c5d3a481d5ad0077"
+  },
+  "wayfinders-cairn": {
+    "file": "/models/monuments/wayfinders-cairn.glb",
+    "bytes": 160988,
+    "triangles": 2120,
+    "size": {
+      "x": 1.063,
+      "y": 1,
+      "z": 1.063
+    },
+    "sha256": "492b7b6e3a120bf6"
+  },
+  "brandenburg-gate": {
+    "file": "/models/monuments/brandenburg-gate.glb",
+    "bytes": 105668,
+    "triangles": 1412,
+    "size": {
+      "x": 2.043,
+      "y": 1,
+      "z": 2.043
+    },
+    "sha256": "2e471068dfbe007b"
+  },
+  "tower-of-hercules": {
+    "file": "/models/monuments/tower-of-hercules.glb",
+    "bytes": 38700,
+    "triangles": 468,
+    "size": {
+      "x": 1.529,
+      "y": 1,
+      "z": 1.529
+    },
+    "sha256": "58b3ae92bf417a58"
+  },
+  "lantern-lighthouse": {
+    "file": "/models/monuments/lantern-lighthouse.glb",
+    "bytes": 58964,
+    "triangles": 710,
+    "size": {
+      "x": 1.333,
+      "y": 1,
+      "z": 1.333
+    },
+    "sha256": "241acbfb015b7681"
+  },
+  "golden-gate-bridge": {
+    "file": "/models/monuments/golden-gate-bridge.glb",
+    "bytes": 69812,
+    "triangles": 936,
+    "size": {
+      "x": 3.2,
+      "y": 1,
+      "z": 1.4
+    },
+    "sha256": "7929f4dcfdb3790e"
+  },
+  "himeji-castle": {
+    "file": "/models/monuments/himeji-castle.glb",
+    "bytes": 41612,
+    "triangles": 516,
+    "size": {
+      "x": 1.77,
+      "y": 1,
+      "z": 1.77
+    },
+    "sha256": "bbbf48c0f417cea0"
+  },
+  "floating-observatory": {
+    "file": "/models/monuments/floating-observatory.glb",
+    "bytes": 202392,
+    "triangles": 2716,
+    "size": {
+      "x": 1.334,
+      "y": 1,
+      "z": 1.334
+    },
+    "sha256": "f8c399379ff89289"
+  },
+  "temple-of-heaven": {
+    "file": "/models/monuments/temple-of-heaven.glb",
+    "bytes": 100668,
+    "triangles": 1328,
+    "size": {
+      "x": 2.026,
+      "y": 1,
+      "z": 2.026
+    },
+    "sha256": "3bd81ed793130ad6"
+  },
+  "notre-dame": {
+    "file": "/models/monuments/notre-dame.glb",
+    "bytes": 50424,
+    "triangles": 624,
+    "size": {
+      "x": 2.37,
+      "y": 1,
+      "z": 2.37
+    },
+    "sha256": "c40a5242fbd3091e"
+  },
+  "clockwork-compass": {
+    "file": "/models/monuments/clockwork-compass.glb",
+    "bytes": 107032,
+    "triangles": 1384,
+    "size": {
+      "x": 1.152,
+      "y": 1,
+      "z": 1.152
+    },
+    "sha256": "1390f927939ee613"
+  },
+  "great-sphinx": {
+    "file": "/models/monuments/great-sphinx.glb",
+    "bytes": 32772,
+    "triangles": 400,
+    "size": {
+      "x": 3.962,
+      "y": 1,
+      "z": 3.962
+    },
+    "sha256": "8c8cae53bfcc3c9c"
+  },
+  "potala-palace": {
+    "file": "/models/monuments/potala-palace.glb",
+    "bytes": 31468,
+    "triangles": 372,
+    "size": {
+      "x": 2.521,
+      "y": 1,
+      "z": 1.513
+    },
+    "sha256": "52c31914120b9c22"
+  },
+  "skyward-harbour": {
+    "file": "/models/monuments/skyward-harbour.glb",
+    "bytes": 112724,
+    "triangles": 1436,
+    "size": {
+      "x": 1.552,
+      "y": 1,
+      "z": 1.552
+    },
+    "sha256": "37ba9e3f274ea9ed"
+  },
+  "borobudur": {
+    "file": "/models/monuments/borobudur.glb",
+    "bytes": 185280,
+    "triangles": 2528,
+    "size": {
+      "x": 2.289,
+      "y": 1,
+      "z": 2.289
+    },
+    "sha256": "38a74408b3659636"
+  },
+  "crystal-spire": {
+    "file": "/models/monuments/crystal-spire.glb",
+    "bytes": 103900,
+    "triangles": 1340,
+    "size": {
+      "x": 1.241,
+      "y": 1,
+      "z": 1.241
+    },
+    "sha256": "00f92a2dc18f70e7"
+  },
+  "farnese-atlas": {
+    "file": "/models/monuments/farnese-atlas.glb",
+    "bytes": 215072,
+    "triangles": 2916,
+    "size": {
+      "x": 0.78,
+      "y": 1,
+      "z": 0.78
+    },
+    "sha256": "c81926dbbe0fa31b"
   }
 }

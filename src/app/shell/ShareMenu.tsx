@@ -7,7 +7,7 @@
  *   Collaboration -> owners invite people (the database re-checks ownership)
  */
 import { lazy, Suspense, useState } from 'react';
-import { Link, useMatch } from 'react-router-dom';
+import { Link, useMatch, useSearchParams } from 'react-router-dom';
 import { Copy, Lock, Share2, UserPlus } from 'lucide-react';
 import { useAuth } from '../AuthProvider';
 import { useUi } from '../store';
@@ -19,7 +19,8 @@ import { useCollabMaps } from '@/features/collaboration/api';
 import { useDiscoverEvents } from '@/features/discover/useDiscoverEvents';
 import { osmUrl } from '@/features/places/types';
 import { usePlaceDetails } from '@/features/places/placeDetails';
-import { eventLink, pinLink, placeLink, sharedPinLink } from '@/lib/shareLinks';
+import { chessGameLink, chessPositionLink, chessRoomLink, eventLink, pinLink, placeLink, sharedPinLink } from '@/lib/shareLinks';
+import { readLocalMoves } from '@/features/chess/localMoves';
 import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 
 const InviteDialog = lazy(() => import('@/features/collaboration/InviteDialog').then((m) => ({ default: m.InviteDialog })));
@@ -49,13 +50,16 @@ function ShareContent({ close, onInvite }: { close: () => void; onInvite: (m: { 
   const discover = !!useMatch('/');
   const personal = !!useMatch('/maps/*');
   const collabId = useMatch('/collab/:mapId')?.params.mapId;
+  const chess = !!useMatch('/chess/*');
+  const placeOrEvent = useUi((s) => !!s.selectedPlace || !!s.selectedEventId);
   return (
     <div className="w-80 space-y-3 p-4 text-sm">
       <h2 className="font-semibold">Share</h2>
-      {discover ? <DiscoverShare close={close} />
+      {chess ? <ChessShare />
+        : discover || (personal && placeOrEvent) ? <DiscoverShare close={close} />
         : personal ? <PersonalShare close={close} />
           : collabId ? <CollabShare mapId={collabId} onInvite={onInvite} />
-            : <p className="text-xs text-neutral-600">Open a map or select something on Discover to see sharing options.</p>}
+            : <p className="text-xs text-neutral-600">Open a map or select a place to see sharing options.</p>}
     </div>
   );
 }
@@ -110,6 +114,20 @@ function DiscoverShare({ close }: { close: () => void }) {
     <p className="text-xs text-neutral-600">
       Select an event or place to copy its links, or share pins with people through a <Link to="/collab" onClick={close} className="underline">collaboration map</Link>.
     </p>
+  );
+}
+
+function ChessShare() {
+  const gameId = useMatch('/chess/:gameId')?.params.gameId;
+  const [params] = useSearchParams();
+  const venue = params.get('venue');
+  const local = { moves: readLocalMoves() };
+  return (
+    <div className="space-y-3">
+      {gameId && <CopyRow url={chessGameLink(gameId)} label="Game link" hint="Opens this game for its two players only — signed in on any device. Opening it never creates a new game." />}
+      {!gameId && local.moves.length > 0 && <CopyRow url={chessPositionLink(local.moves, venue)} label="Position link" hint="Opens a copy of this board. The recipient chooses whether to load it; your game stays yours." />}
+      <CopyRow url={chessRoomLink(venue)} label="Chess room link" hint="Opens the chess room (local play works without an account)." />
+    </div>
   );
 }
 

@@ -329,6 +329,16 @@ image overlaid as a fake map.
     world, using the equipped skin or the personal default. Switching worlds
     never reloads the map.
 
+## Unified map (2026-10-11)
+
+- **One map, two views.** "My Map" combines discovery (places and events near you) and your saved pins; "Shared" holds collaboration maps. The former Discover route `/` opens the last personal map; its share links keep working.
+- **Marker language.** Unsaved places/events: small round category badges (colour + glyph). Saved places and custom pins: the droplet pin, tip on the coordinate, in the place's category colour (or the pin's custom colour/image). A place saved on the open map is drawn once, as a droplet.
+- **Filters.** Every point of interest belongs to an Atlas category (incl. Shops, Services & Health, Hotels & Stays). Hiding all categories leaves only parking and entrance symbols. Category filters never hide or modify saved pins (groups filter those).
+- **Distances** are worded "0.4 mi away" (from the shared location; nothing is shown without it). Route distance and time come only from the routing service and are labelled walking/driving.
+- **Atmosphere.** Weather (Automatic = real Open-Meteo conditions, Manual, Off) and decorative map life (cars, people, trains, aircraft) are configured in Settings → Map animations & weather; nothing about them is presented as live traffic, transit or flights.
+- **Collectibles.** Rarities: Common, Uncommon, Rare, Epic, Legendary, Mythic, **Celestial** (one reward per crate, 0.1 %). "Atlas Originals" are fictional monuments and are always labelled as such.
+- **Sharing.** Every shareable URL must work on refresh, direct open and in a fresh session (SPA fallback + sign-in returns to the link); access is still decided by RLS.
+
 ## Development process
 
 Inspect the repository and available tools before editing. Preserve

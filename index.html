@@ -3,12 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/atlas.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#1b2a6b" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Atlas — discover events on the map, keep private maps, and collaborate intentionally." />
+    <meta name="description" content="Atlas — explore places nearby, keep your own maps, and share a world with friends." />
     <title>Atlas</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Loading screen: shown until the app mounts (React replaces #root's content). -->
+    <div id="root"><div style="position:fixed;inset:0;display:grid;place-items:center;background:#f7f3ea;font-family:Inter,system-ui,sans-serif" role="status" aria-label="Loading Atlas"><div style="display:flex;flex-direction:column;align-items:center;gap:14px"><img src="/atlas.svg" alt="" width="72" height="72" style="border-radius:17px;box-shadow:0 10px 30px rgba(27,42,107,.25)" /><span style="font-size:22px;font-weight:600;letter-spacing:-.02em;color:#14235c">Atlas</span></div></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

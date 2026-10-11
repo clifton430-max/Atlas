@@ -2,14 +2,21 @@ import { expect, type Page } from '@playwright/test';
 
 export type AtlasWindow = Window & { __atlasMap?: import('maplibre-gl').Map };
 
-/** Fresh guest: fixed viewport, first-run tour offer already answered. */
-export async function freshGuest(page: Page, opts: { firstRun?: boolean } = {}) {
-  await page.addInitScript((firstRun) => {
+/**
+ * Fresh guest: fixed viewport, first-run tour offer already answered, weather
+ * off (tests that need it turn it on). `allCategories` keeps the new default
+ * (every category visible); otherwise the original three are visible so older
+ * tests see the same markers they were written for.
+ */
+export async function freshGuest(page: Page, opts: { firstRun?: boolean; allCategories?: boolean } = {}) {
+  await page.addInitScript(([firstRun, all]) => {
     if (sessionStorage.getItem('__seeded')) return; // only on the first load of the test
     sessionStorage.setItem('__seeded', '1');
     localStorage.setItem('atlas.viewport', JSON.stringify({ center: [-73.985, 40.748], zoom: 12 }));
     if (!firstRun) localStorage.setItem('atlas.tutorial.v1', JSON.stringify({ firstRunHandled: true }));
-  }, opts.firstRun ?? false);
+    if (!all) localStorage.setItem('atlas.discover.categories.v2', JSON.stringify({ visible: ['events', 'attractions', 'scenic'], subs: {} }));
+    localStorage.setItem('atlas.weather.v1', JSON.stringify({ mode: 'off', manual: 'rain', intensity: 0.6 }));
+  }, [opts.firstRun ?? false, opts.allCategories ?? false] as const);
 }
 
 export async function waitForMap(page: Page) {
@@ -52,14 +59,17 @@ export const inspector = (page: Page) => page.getByRole('complementary', { name:
 export const mapLink = (page: Page, name: string | RegExp) =>
   sidePanel(page).getByRole('link', typeof name === 'string' ? { name, exact: true } : { name });
 
+/** Discovery now lives on the unified map: "My Map" tab + the side panel's Nearby tab. */
 export async function openDiscover(page: Page) {
-  await tabs(page).getByRole('link', { name: 'Discover' }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await tabs(page).getByRole('link', { name: 'My Map', exact: true }).click();
+  await expect(page).toHaveURL(/\/maps\//);
+  await sidePanel(page).getByRole('tab', { name: 'Nearby' }).click();
 }
-/** "My Maps" tab: lands on the last-used (or first) personal map. */
+/** "My Map" tab: lands on the last-used (or first) personal map, showing the My pins panel. */
 export async function openMyMaps(page: Page) {
-  await tabs(page).getByRole('link', { name: 'My Maps' }).click();
+  await tabs(page).getByRole('link', { name: 'My Map', exact: true }).click();
   await expect(page).toHaveURL(/\/maps/);
+  await sidePanel(page).getByRole('tab', { name: 'My pins' }).click();
 }
 export async function openMap(page: Page, name = 'My Map') {
   await openMyMaps(page);

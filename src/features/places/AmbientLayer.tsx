@@ -4,16 +4,19 @@
  *     people on mapped footpaths (including park paths). Geometry comes from
  *     the basemap tiles; the motion and vehicle sizes are decorative — this is
  *     NOT real-time traffic, transit or crowd data, and the UI says so.
- *   - Vehicles are drawn as low 3D boxes (fill-extrusion), so real buildings
- *     correctly hide them; they are exaggerated in size to stay visible.
+ *   - Cars, trains and people are miniature 3D models built from small
+ *     extrusions (ambientModels.ts), so real buildings correctly hide them;
+ *     they are exaggerated in size to stay visible. Aircraft fly overhead in
+ *     the sky layer (weather/SkyLayer.tsx).
  *   - At night (see map/lighting.ts) a static warm glow marks real night-time
  *     venues from the tiles. The glow is not motion, so it also shows under
  *     reduced motion.
  *
  * Performance & comfort:
- *   - ≤ 16 agents in ONE GeoJSON source, updated ~15 fps from a single rAF loop;
- *   - paused while the map moves, the tab is hidden, or zoomed out; pause and
- *     0.5×/1×/2× speed from the "Map animations" pill;
+ *   - ≤ 16 agents (≈ 170 boxes) in ONE GeoJSON source, updated ~15 fps from a
+ *     single rAF loop;
+ *   - paused while the map moves, the tab is hidden, or zoomed out; pause,
+ *     0.5×/1×/2× speed and each kind are set in Settings → Map animations;
  *   - disabled by the animations switch / Settings or prefers-reduced-motion;
  *   - auto-disables for the session if frames become slow;
  *   - never interactive, drawn under markers and labels.
@@ -24,7 +27,8 @@ import { useMapInstance } from '@/features/map/MapContext';
 import { PLACES_LAYER, PLACES_SOURCE } from '@/features/map/atlasStyle';
 import { NIGHT_TINT } from '@/features/map/MapViewEffects';
 import { useIsNight } from '@/features/map/lighting';
-import { boxAround, getAmbientPlayback, LIMITS, makeAgent, poseAt, useAmbientEnabled, useReducedMotion, type Agent, type AgentKind } from './ambient';
+import { getAmbientPlayback, LIMITS, makeAgent, useAmbientEnabled, useAmbientKinds, useReducedMotion, type Agent, type AgentKind, type AmbientKinds } from './ambient';
+import { carFeatures, personFeatures, trainFeatures } from './ambientModels';
 
 const SRC = 'atlas-ambient';
 const LAYER = 'atlas-ambient';
@@ -33,7 +37,6 @@ const MIN_ZOOM = 14;
 const FRAME_MS = 66;
 const ROAD = ['primary', 'secondary', 'tertiary', 'trunk', 'minor'];
 const NIGHT_VENUES = ['bar', 'pub', 'nightclub', 'restaurant', 'cinema', 'theatre', 'biergarten'];
-const CAR_COLORS = ['#e4572e', '#2f5bea', '#f2c14e', '#ffffff', '#4caf50', '#8e44ad'];
 
 let autoDisabled = false;
 
@@ -43,7 +46,7 @@ function belowLabels(map: MLMap): string | undefined {
   return map.getStyle()?.layers?.find((l) => l.type === 'symbol')?.id;
 }
 
-function sampleAgents(map: MLMap): Agent[] {
+function sampleAgents(map: MLMap, kinds: AmbientKinds): Agent[] {
   const b = map.getBounds();
   const inView = ([x, y]: number[]) => x >= b.getWest() && x <= b.getEast() && y >= b.getSouth() && y <= b.getNorth();
   const lines = (classes: string[], kind: AgentKind): Agent[] => {
@@ -62,7 +65,11 @@ function sampleAgents(map: MLMap): Agent[] {
     // Prefer longer lines (smoother motion), keep it sparse.
     return out.sort((x, y) => y.length - x.length).slice(0, LIMITS[kind]);
   };
-  return [...lines(ROAD, 'car'), ...lines(['rail'], 'train'), ...lines(['path'], 'walker')];
+  return [
+    ...(kinds.cars ? lines(ROAD, 'car') : []),
+    ...(kinds.trains ? lines(['rail'], 'train') : []),
+    ...(kinds.people ? lines(['path'], 'walker') : []),
+  ];
 }
 
 /** Metres per CSS pixel at the map centre (512 px tiles). */
@@ -73,6 +80,8 @@ export function AmbientLayer() {
   const enabled = useAmbientEnabled();
   const reduced = useReducedMotion();
   const night = useIsNight();
+  const kinds = useAmbientKinds();
+  const kindsKey = `${kinds.cars}${kinds.people}${kinds.trains}`;
   const active = enabled && !reduced && !autoDisabled;
 
   // Static night glow at real venues (colour only, no motion).
@@ -106,13 +115,7 @@ export function AmbientLayer() {
     let prevFrame = 0;
     const slow: number[] = [];
 
-    const feature = (a: Agent, i: number, t: number) => {
-      const { position, heading } = poseAt(a, t);
-      const [len, wid, h, b, c] = a.kind === 'train' ? [unit * 4.2, unit * 0.55, unit * 0.5, 0, '#e8eef9']
-        : a.kind === 'car' ? [unit, unit * 0.48, unit * 0.36, 0, CAR_COLORS[i % CAR_COLORS.length]]
-          : [unit * 0.3, unit * 0.3, unit * 0.55, 0, ['#ef6f6c', '#3d7dd8', '#f4b942', '#7b5ea7'][i % 4]];
-      return { type: 'Feature' as const, properties: { c, h, b }, geometry: { type: 'Polygon' as const, coordinates: [boxAround(position, heading, len, wid)] } };
-    };
+    const features = (a: Agent, t: number) => (a.kind === 'train' ? trainFeatures(a, t, unit) : a.kind === 'car' ? carFeatures(a, t, unit) : personFeatures(a, t, unit));
 
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
@@ -129,13 +132,16 @@ export function AmbientLayer() {
       prevFrame = now;
       if (paused) return;
       simT += dt * speed;
-      (map.getSource(SRC) as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: agents.map((a, i) => feature(a, i, simT)) });
+      // Never queue geometry faster than the worker can parse it: skip this frame
+      // until the previous update is applied (keeps the source idle between frames).
+      if (!map.isSourceLoaded(SRC)) return;
+      (map.getSource(SRC) as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: agents.flatMap((a) => features(a, simT)) });
     };
     const stop = () => { running = false; cancelAnimationFrame(raf); };
     const clear = () => (map.getSource(SRC) as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: [] });
     const resume = () => {
       if (document.hidden || map.getZoom() < MIN_ZOOM) { stop(); clear(); return; }
-      agents = sampleAgents(map);
+      agents = sampleAgents(map, kinds);
       unit = Math.max(5, metresPerPixel(map) * 14);
       if (!running) { running = true; last = 0; prevFrame = 0; raf = requestAnimationFrame(tick); }
     };
@@ -158,7 +164,8 @@ export function AmbientLayer() {
       if (map.getLayer(LAYER)) map.removeLayer(LAYER);
       if (map.getSource(SRC)) map.removeSource(SRC);
     };
-  }, [map, styleVersion, active]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, styleVersion, active, kindsKey]);
 
   return null;
 }

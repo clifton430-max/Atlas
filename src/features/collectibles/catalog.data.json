@@ -1,5 +1,5 @@
 {
- "version": 1,
+ "version": 2,
  "monuments": [
   {
    "id": "stonehenge",
@@ -180,6 +180,192 @@
    "latitude": 41.00833,
    "longitude": 28.98,
    "description": "Domed building in Istanbul, completed in AD 537 under Justinian I."
+  },
+  {
+   "id": "great-torii",
+   "name": "Great Torii of Itsukushima",
+   "rarity": "common",
+   "region": "Asia",
+   "wikidata": "Q191763",
+   "latitude": 34.29577,
+   "longitude": 132.32011,
+   "description": "The vermilion gate of Itsukushima Shrine that seems to float at high tide, Miyajima, Japan (current gate 1875)."
+  },
+  {
+   "id": "kinderdijk-windmills",
+   "name": "Windmills of Kinderdijk",
+   "rarity": "common",
+   "region": "Europe",
+   "wikidata": "Q740066",
+   "latitude": 51.88333,
+   "longitude": 4.63333,
+   "description": "Eighteenth-century polder windmills along the canals of Kinderdijk, the Netherlands."
+  },
+  {
+   "id": "wayfinders-cairn",
+   "name": "Wayfinder’s Cairn",
+   "rarity": "common",
+   "region": "Atlas Originals",
+   "wikidata": null,
+   "latitude": null,
+   "longitude": null,
+   "description": "Fictional: a stacked-stone cairn crowned with a brass compass, where Atlas explorers leave directions for each other.",
+   "fictional": true
+  },
+  {
+   "id": "brandenburg-gate",
+   "name": "Brandenburg Gate",
+   "rarity": "uncommon",
+   "region": "Europe",
+   "wikidata": "Q82425",
+   "latitude": 52.51627,
+   "longitude": 13.37772,
+   "description": "Neoclassical gate by Carl Gotthard Langhans crowned by the Quadriga, Berlin (1791)."
+  },
+  {
+   "id": "tower-of-hercules",
+   "name": "Tower of Hercules",
+   "rarity": "uncommon",
+   "region": "Europe",
+   "wikidata": "Q245151",
+   "latitude": 43.38583,
+   "longitude": -8.40639,
+   "description": "The oldest Roman lighthouse still in use, A Coruña, Spain (1st–2nd century AD)."
+  },
+  {
+   "id": "lantern-lighthouse",
+   "name": "Lantern Lighthouse",
+   "rarity": "uncommon",
+   "region": "Atlas Originals",
+   "wikidata": null,
+   "latitude": null,
+   "longitude": null,
+   "description": "Fictional: a striped lighthouse ringed by floating paper lanterns that guide night-time explorers home.",
+   "fictional": true
+  },
+  {
+   "id": "golden-gate-bridge",
+   "name": "Golden Gate Bridge",
+   "rarity": "rare",
+   "region": "North America",
+   "wikidata": "Q44440",
+   "latitude": 37.81972,
+   "longitude": -122.47861,
+   "description": "Art Deco suspension bridge in International Orange across the Golden Gate strait, San Francisco (1937)."
+  },
+  {
+   "id": "himeji-castle",
+   "name": "Himeji Castle",
+   "rarity": "rare",
+   "region": "Asia",
+   "wikidata": "Q188754",
+   "latitude": 34.83944,
+   "longitude": 134.69361,
+   "description": "The 'White Heron' — a hilltop Japanese castle with tiered white keeps (1609)."
+  },
+  {
+   "id": "floating-observatory",
+   "name": "Floating Observatory",
+   "rarity": "rare",
+   "region": "Atlas Originals",
+   "wikidata": null,
+   "latitude": null,
+   "longitude": null,
+   "description": "Fictional: a domed star observatory on a rock island that hovers over a mirror-still pool.",
+   "fictional": true
+  },
+  {
+   "id": "temple-of-heaven",
+   "name": "Temple of Heaven",
+   "rarity": "epic",
+   "region": "Asia",
+   "wikidata": "Q125445",
+   "latitude": 39.8822,
+   "longitude": 116.4066,
+   "description": "The Hall of Prayer for Good Harvests with its triple blue-tiled roof, Beijing (1420; rebuilt 1889)."
+  },
+  {
+   "id": "notre-dame",
+   "name": "Notre-Dame de Paris",
+   "rarity": "epic",
+   "region": "Europe",
+   "wikidata": "Q2981",
+   "latitude": 48.853,
+   "longitude": 2.3498,
+   "description": "Gothic cathedral on the Île de la Cité with twin towers, rose windows and flying buttresses (1163–1345)."
+  },
+  {
+   "id": "clockwork-compass",
+   "name": "Clockwork Compass Tower",
+   "rarity": "epic",
+   "region": "Atlas Originals",
+   "wikidata": null,
+   "latitude": null,
+   "longitude": null,
+   "description": "Fictional: a brass-and-copper clockwork tower whose great compass rose turns toward undiscovered places.",
+   "fictional": true
+  },
+  {
+   "id": "great-sphinx",
+   "name": "Great Sphinx of Giza",
+   "rarity": "legendary",
+   "region": "Africa",
+   "wikidata": "Q130958",
+   "latitude": 29.97527,
+   "longitude": 31.13768,
+   "description": "Limestone lion with a human head guarding the Giza plateau, Egypt (c. 2500 BC)."
+  },
+  {
+   "id": "potala-palace",
+   "name": "Potala Palace",
+   "rarity": "legendary",
+   "region": "Asia",
+   "wikidata": "Q71229",
+   "latitude": 29.65778,
+   "longitude": 91.11694,
+   "description": "The White and Red Palaces rising up Marpo Ri hill, Lhasa (17th century)."
+  },
+  {
+   "id": "skyward-harbour",
+   "name": "Skyward Harbour",
+   "rarity": "legendary",
+   "region": "Atlas Originals",
+   "wikidata": null,
+   "latitude": null,
+   "longitude": null,
+   "description": "Fictional: a lighthouse spire where airships moor on brass rings before setting off to chart the skies.",
+   "fictional": true
+  },
+  {
+   "id": "borobudur",
+   "name": "Borobudur",
+   "rarity": "mythic",
+   "region": "Asia",
+   "wikidata": "Q42798",
+   "latitude": -7.60793,
+   "longitude": 110.20384,
+   "description": "Ninth-century Buddhist temple of stacked terraces and bell-shaped stupas, Central Java, Indonesia."
+  },
+  {
+   "id": "crystal-spire",
+   "name": "Crystal Spire of the Cartographers",
+   "rarity": "mythic",
+   "region": "Atlas Originals",
+   "wikidata": null,
+   "latitude": null,
+   "longitude": null,
+   "description": "Fictional: a cluster of glowing crystals circled by golden rings, said to hold every route ever charted.",
+   "fictional": true
+  },
+  {
+   "id": "farnese-atlas",
+   "name": "Farnese Atlas",
+   "rarity": "celestial",
+   "region": "Europe",
+   "wikidata": "Q2555479",
+   "latitude": 40.8534,
+   "longitude": 14.2505,
+   "description": "Ancient Roman marble of the Titan Atlas kneeling beneath the celestial globe — the oldest known depiction of the constellations — National Archaeological Museum, Naples (2nd century AD)."
   }
  ],
  "skins": [
@@ -290,6 +476,120 @@
    "name": "Worldmaker’s Atlas",
    "rarity": "mythic",
    "description": "Jewel-toned continents, golden roads and a parchment-and-gold frame."
+  },
+  {
+   "id": "paper-sketch",
+   "name": "Paper Sketch",
+   "rarity": "common",
+   "description": "A pencil sketch on cream paper: graphite roads and hand-lettered italic labels."
+  },
+  {
+   "id": "mint-transit",
+   "name": "Mint Transit",
+   "rarity": "common",
+   "description": "Clean transit-map look: mint parks, green motorways and red rail lines."
+  },
+  {
+   "id": "harvest-fields",
+   "name": "Harvest Fields",
+   "rarity": "common",
+   "description": "Wheat-gold land, olive parks and linen texture, like a farmer’s almanac map."
+  },
+  {
+   "id": "cherry-blossom",
+   "name": "Cherry Blossom",
+   "rarity": "uncommon",
+   "description": "Blush-pink parks and plum labels, with petals drifting across the map."
+  },
+  {
+   "id": "nordic-frost",
+   "name": "Nordic Frost",
+   "rarity": "uncommon",
+   "description": "Frosted whites and fjord blues on a linen texture."
+  },
+  {
+   "id": "terracotta-villa",
+   "name": "Terracotta Villa",
+   "rarity": "uncommon",
+   "description": "Mediterranean terracotta roofs, olive groves and a deep-blue sea."
+  },
+  {
+   "id": "blueprint",
+   "name": "Blueprint",
+   "rarity": "rare",
+   "description": "An engineer’s blueprint: white linework and a measuring grid on Prussian blue."
+  },
+  {
+   "id": "autumn-ember",
+   "name": "Autumn Ember",
+   "rarity": "rare",
+   "description": "Maple-red woods, amber parks and rust-coloured roads."
+  },
+  {
+   "id": "tropical-lagoon",
+   "name": "Tropical Lagoon",
+   "rarity": "rare",
+   "description": "Vivid lagoon turquoise, palm greens and coral highways."
+  },
+  {
+   "id": "neon-metropolis",
+   "name": "Neon Metropolis",
+   "rarity": "epic",
+   "description": "After-dark synthwave city: magenta and cyan neon roads with twinkling lights."
+  },
+  {
+   "id": "jade-dynasty",
+   "name": "Jade Dynasty",
+   "rarity": "epic",
+   "description": "Carved-jade greens with gold and lacquer-red roads on silk-like linen."
+  },
+  {
+   "id": "arctic-aurora",
+   "name": "Arctic Aurora",
+   "rarity": "epic",
+   "description": "A polar night under a slowly dancing aurora and a field of stars."
+  },
+  {
+   "id": "volcanic-forge",
+   "name": "Volcanic Forge",
+   "rarity": "legendary",
+   "description": "Obsidian land, molten lava roads and embers rising from the forge."
+  },
+  {
+   "id": "sunken-atlantis",
+   "name": "Sunken Atlantis",
+   "rarity": "legendary",
+   "description": "A drowned city in aquamarine with gilded avenues and shimmering light."
+  },
+  {
+   "id": "samurai-ink",
+   "name": "Samurai Ink",
+   "rarity": "legendary",
+   "description": "Sumi-ink brushwork on washi paper, sealed with vermilion red."
+  },
+  {
+   "id": "dragons-hoard",
+   "name": "Dragon’s Hoard",
+   "rarity": "mythic",
+   "description": "Crimson and gold treasure-vault cartography, glittering with sparks."
+  },
+  {
+   "id": "eternal-garden",
+   "name": "Eternal Garden",
+   "rarity": "mythic",
+   "description": "An endless garden at dusk where fireflies drift over lush green paths."
+  },
+  {
+   "id": "clockmakers-chart",
+   "name": "Clockmaker’s Chart",
+   "rarity": "mythic",
+   "description": "Brass, copper and sepia on aged parchment with a precision grid."
+  },
+  {
+   "id": "atlas-of-the-heavens",
+   "name": "Atlas of the Heavens",
+   "rarity": "celestial",
+   "description": "The sky Atlas carries: a living star chart with gold constellation routes, aurora and shooting stars."
   }
  ]
 }

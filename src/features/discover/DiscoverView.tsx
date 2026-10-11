@@ -1,5 +1,7 @@
 /**
- * Discover context (/). Public data only:
+ * The explore layer — discovery on the ONE unified map. It is rendered on
+ * every personal map (/maps/:mapId) and on / (before any map exists), so
+ * nearby places and events sit alongside your saved pins. Public data only:
  *   - events (Ticketmaster, clustered layer with event-type icons),
  *   - places (OpenStreetMap POIs from the basemap tiles, by category),
  *   - hover/keyboard-focus previews, rich details in the inspector with an
@@ -27,11 +29,24 @@ import { parsePlaceRef, type Place } from '@/features/places/types';
 import { SelectionEmphasis } from '@/features/places/SelectionEmphasis';
 import { InspectorPortal } from '@/app/Inspector';
 import { DiscoverLayer } from './DiscoverLayer';
+import { osmFeatureId } from '@/features/map/atlasStyle';
+
+const EMPTY: string[] = [];
 import { EventCard } from './EventCard';
 import { MarkerPreview } from './MarkerPreview';
 import { useDiscoverEvents } from './useDiscoverEvents';
 
+/** Discovery only (no personal map open yet, or the chess room). */
 export function DiscoverView() {
+  return <ExploreLayer />;
+}
+
+export function ExploreLayer({ hiddenPlaceRefs = EMPTY, hiddenEventIds = EMPTY }: {
+  /** Places saved on the open map: drawn once, as droplets, so their small icon is hidden. */
+  hiddenPlaceRefs?: string[];
+  /** Events saved on the open map (same rule). */
+  hiddenEventIds?: string[];
+} = {}) {
   const { map } = useMapInstance();
   const discover = useDiscoverEvents();
   const saved = useSavedEvents();
@@ -43,6 +58,12 @@ export function DiscoverView() {
   const placeDetails = usePlaceDetails(selectedPlace);
 
   const subclasses = useMemo(() => subclassesFor(categories, subcats), [categories, subcats]);
+  const hiddenFeatureIds = useMemo(() => hiddenPlaceRefs.flatMap((r) => {
+    const p = parsePlaceRef(r);
+    return p ? [osmFeatureId(p.osmType, p.osmId)] : [];
+  }), [hiddenPlaceRefs]);
+  const hiddenEvents = useMemo(() => new Set(hiddenEventIds), [hiddenEventIds]);
+  const mappedEvents = useMemo(() => (hiddenEvents.size ? discover.filtered.filter((e) => !hiddenEvents.has(e.id)) : discover.filtered), [discover.filtered, hiddenEvents]);
   const savedIds = useMemo(() => new Set(saved.data?.keys() ?? []), [saved.data]);
   const fromList = discover.all.find((e) => e.id === selectedId);
   // A search result may be outside the loaded viewport: fetch it directly.
@@ -53,9 +74,9 @@ export function DiscoverView() {
   });
   const selected = fromList ?? single.data ?? null;
 
-  const onSelect = useCallback((id: string) => uiStore.set({ selectedEventId: id, selectedPlace: null, hoverItem: null }), []);
+  const onSelect = useCallback((id: string) => uiStore.set({ selectedEventId: id, selectedPlace: null, hoverItem: null, selectedPinId: null }), []);
   const onHoverEvent = useCallback((id: string | null) => uiStore.set({ hoverItem: id ? { kind: 'event', id } : null }), []);
-  const onSelectPlace = useCallback((p: Place) => uiStore.set({ selectedPlace: p, selectedEventId: null, hoverItem: null }), []);
+  const onSelectPlace = useCallback((p: Place) => uiStore.set({ selectedPlace: p, selectedEventId: null, hoverItem: null, selectedPinId: null }), []);
   const onHoverPlace = useCallback((p: Place | null) => uiStore.set({ hoverItem: p ? { kind: 'place', place: p } : null }), []);
 
   const selectChild = (c: PlaceChild) => {
@@ -83,8 +104,8 @@ export function DiscoverView() {
 
   return (
     <>
-      <DiscoverLayer events={discover.filtered} savedIds={savedIds} selectedId={selectedId} onSelect={onSelect} onHover={onHoverEvent} />
-      <PlacesLayer subclasses={subclasses} selected={selectedPlace} onSelect={onSelectPlace} onHover={onHoverPlace} />
+      <DiscoverLayer events={mappedEvents} savedIds={savedIds} selectedId={selectedId} onSelect={onSelect} onHover={onHoverEvent} />
+      <PlacesLayer subclasses={subclasses} excludeFeatureIds={hiddenFeatureIds} selected={selectedPlace} onSelect={onSelectPlace} onHover={onHoverPlace} />
       <SelectionEmphasis event={selected} place={selectedPlace} />
       {showPreview && <MarkerPreview event={hoveredEvent} place={hoveredPlace} />}
 

@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => freshGuest(page));
 
 test('opens without an auth wall and shows Guest Mode clearly', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/maps\//); // the unified map opens the guest's local map
   await expect(page.getByRole('button', { name: /Guest · on this device/ })).toBeVisible();
   await page.getByRole('button', { name: /Guest · on this device/ }).click();
   await expect(page.getByText('saved only in this browser on this device', { exact: false })).toBeVisible();
@@ -27,6 +27,7 @@ test('guest maps, groups (with icons), pins, edit, move, OR filter, persistence 
   await waitForMap(page);
 
   // Create + rename a map
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await page.getByRole('button', { name: 'New map' }).click();
   await page.getByRole('dialog', { name: 'New private map' }).getByLabel('Name').fill('Guest trip');
   await page.getByRole('button', { name: 'Create map' }).click();
@@ -47,6 +48,7 @@ test('guest maps, groups (with icons), pins, edit, move, OR filter, persistence 
 
   // Two custom pins; group required
   const addPin = async (title: string, dx: number, groups: string[], newGroup?: string) => {
+    await page.getByRole('tab', { name: 'My pins' }).click();
     await page.getByRole('button', { name: 'Add custom pin' }).click();
     await clickMapAt(page, dx, 0);
     const dlg = page.getByRole('dialog', { name: 'New custom pin' });
@@ -58,6 +60,7 @@ test('guest maps, groups (with icons), pins, edit, move, OR filter, persistence 
     await expect(page.getByRole('button', { name: title, exact: true })).toBeVisible();
   };
   // Required group: attempt without one first
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await page.getByRole('button', { name: 'Add custom pin' }).click();
   await clickMapAt(page, -150, 0);
   const d0 = page.getByRole('dialog', { name: 'New custom pin' });
@@ -71,14 +74,14 @@ test('guest maps, groups (with icons), pins, edit, move, OR filter, persistence 
 
   // OR filter
   await page.getByRole('button', { name: /Group filter: All Groups/ }).click();
-  await page.getByRole('checkbox', { name: 'Food' }).check();
+  await page.getByRole('dialog', { name: 'Group filter' }).getByRole('checkbox', { name: 'Food', exact: true }).check();
   await expect(page.getByRole('button', { name: 'Cafe', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Club', exact: true })).toHaveCount(0);
-  await page.getByRole('checkbox', { name: 'Music' }).check();
+  await page.getByRole('dialog', { name: 'Group filter' }).getByRole('checkbox', { name: 'Music', exact: true }).check();
   await expect(page.getByRole('button', { name: 'Group filter: Groups: Food, Music' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Club', exact: true })).toBeVisible();
-  await page.getByRole('checkbox', { name: 'Food' }).uncheck();
-  await page.getByRole('checkbox', { name: 'Music' }).uncheck();
+  await page.getByRole('dialog', { name: 'Group filter' }).getByRole('checkbox', { name: 'Food', exact: true }).uncheck();
+  await page.getByRole('dialog', { name: 'Group filter' }).getByRole('checkbox', { name: 'Music', exact: true }).uncheck();
   await expect(page.getByRole('checkbox', { name: 'All Groups' })).toBeChecked();
   await page.keyboard.press('Escape');
 
@@ -115,6 +118,7 @@ test('guest image upload becomes the actual, anchored, interactive map marker', 
   await page.goto('/');
   await openMap(page);
   await waitForMap(page);
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await page.getByRole('button', { name: 'Add custom pin' }).click();
   await clickMapAt(page);
   const dlg = page.getByRole('dialog', { name: 'New custom pin' });
@@ -132,8 +136,9 @@ test('guest image upload becomes the actual, anchored, interactive map marker', 
 
   const marker = page.getByRole('button', { name: 'Photo spot', exact: true });
   await expect(marker).toHaveAttribute('data-image-marker', 'true');
-  await expect(marker.locator('img')).toHaveAttribute('src', /^data:image\//); // local, not uploaded
-  await expect(marker.locator('svg')).toHaveCount(0);
+  // The image fills the droplet pin's head (the standard pin shape).
+  await expect(marker.locator('image')).toHaveAttribute('href', /^data:image\//); // local, not uploaded
+  await expect(marker.locator('[data-droplet="true"]')).toHaveCount(1);
 
   // Anchored: the marker's center stays on the coordinate after the map moves.
   const coord = await page.evaluate(() => {
@@ -144,7 +149,7 @@ test('guest image upload becomes the actual, anchored, interactive map marker', 
   await page.evaluate(() => (window as AtlasWindow).__atlasMap!.panBy([140, 60], { duration: 0 }));
   await page.waitForTimeout(150);
   const [b, p] = await Promise.all([
-    marker.locator('img').boundingBox(),
+    marker.boundingBox(),
     page.evaluate((c) => {
       const m = (window as AtlasWindow).__atlasMap!;
       const pt = m.project(c as [number, number]);
@@ -152,8 +157,9 @@ test('guest image upload becomes the actual, anchored, interactive map marker', 
       return { x: r.left + pt.x, y: r.top + pt.y };
     }, coord),
   ]);
+  // Droplets are anchored at the tip: bottom-centre of the marker element.
   expect(Math.abs(b!.x + b!.width / 2 - p.x)).toBeLessThan(3);
-  expect(Math.abs(b!.y + b!.height / 2 - p.y)).toBeLessThan(3);
+  expect(Math.abs(b!.y + b!.height - p.y)).toBeLessThan(4);
 
   // Interactive: close and reopen via the image marker.
   await card.getByRole('button', { name: 'Close pin details' }).click();
@@ -210,6 +216,7 @@ test('sharing a guest pin goes to the local demo map only', async ({ page }) => 
   await page.goto('/');
   await openMap(page);
   await waitForMap(page);
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await page.getByRole('button', { name: 'Add custom pin' }).click();
   await clickMapAt(page);
   const dlg = page.getByRole('dialog', { name: 'New custom pin' });
@@ -233,6 +240,7 @@ test('sharing a guest pin goes to the local demo map only', async ({ page }) => 
 
 test('reset guest workspace from Settings → Guest data', async ({ page }) => {
   await page.goto('/maps');
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await page.getByRole('button', { name: 'New map' }).click();
   await page.getByRole('dialog', { name: 'New private map' }).getByLabel('Name').fill('Temp');
   await page.getByRole('button', { name: 'Create map' }).click();
@@ -242,6 +250,7 @@ test('reset guest workspace from Settings → Guest data', async ({ page }) => {
   await page.getByRole('button', { name: 'Reset', exact: true }).click();
   await expect(page.getByText(/1 map, 0 groups, 0 pins/)).toBeVisible();
   await page.goto('/maps');
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await expect(mapLink(page, 'Temp')).toHaveCount(0);
   await expect(mapLink(page, 'My Map')).toBeVisible();
 });
@@ -260,6 +269,7 @@ test('corrupt local data is backed up and the app still loads', async ({ page })
 
 test('full browser storage is reported and nothing is half-saved', async ({ page }) => {
   await page.goto('/maps');
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await expect(mapLink(page, 'My Map')).toBeVisible();
   // Simulate a full quota from now on.
   await page.evaluate(() => {
@@ -269,6 +279,7 @@ test('full browser storage is reported and nothing is half-saved', async ({ page
       return orig.call(this, k, v);
     };
   });
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await page.getByRole('button', { name: 'New map' }).click();
   await page.getByRole('dialog', { name: 'New private map' }).getByLabel('Name').fill('Wont fit');
   await page.getByRole('button', { name: 'Create map' }).click();

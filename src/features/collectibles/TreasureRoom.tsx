@@ -61,6 +61,9 @@ export function TreasureRoom() {
   );
 }
 
+/** Basis points -> "29.9%", "1%", "0.1%" (exact; no rounding up). */
+export const formatOdds = (bp: number) => `${(bp / 100).toFixed(bp % 100 === 0 ? 0 : bp % 10 === 0 ? 1 : 2)}%`;
+
 function OddsTable({ crate }: { crate: CrateKind }) {
   const status = useCrateStatus(crate);
   const defs = (crate === 'monument' ? MONUMENTS : SKINS) as (MonumentDef | SkinDef)[];
@@ -73,16 +76,16 @@ function OddsTable({ crate }: { crate: CrateKind }) {
       <table className="w-full text-sm">
         <thead className="sr-only"><tr><th>Rarity</th><th>Chance per roll</th><th>Possible rewards</th></tr></thead>
         <tbody>
-          {RARITIES.map((r) => (
+          {RARITIES.filter((r) => w[r] != null).map((r) => (
             <tr key={r} className="border-t border-[#f2e7d1] align-top">
               <td className="py-1 pr-2"><span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: RARITY[r].soft, color: RARITY[r].ink }}>{RARITY[r].label}</span></td>
-              <td className="py-1 pr-2 text-right font-semibold tabular-nums">{(w[r] / 100).toFixed(w[r] % 100 ? 2 : 0)}%</td>
+              <td className="py-1 pr-2 text-right font-semibold tabular-nums">{formatOdds(w[r])}</td>
               <td className="py-1 text-xs text-neutral-600">{defs.filter((d) => d.rarity === r).map((d) => d.name).join(', ')}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="mt-2 text-[11px] text-neutral-500">Each roll is independent: the Mythic chance is {(w.mythic / 100).toFixed(0)}% every time, so no number of rolls guarantees one. Rarity is drawn first, then one reward of that rarity at equal odds.</p>
+      <p className="mt-2 text-[11px] text-neutral-500">Each roll is independent: the Mythic chance is {formatOdds(w.mythic)}{w.celestial != null ? ` and the Celestial chance ${formatOdds(w.celestial)}` : ''} every time, so no number of rolls guarantees one. Rarity is drawn first, then one reward of that rarity at equal odds.</p>
     </section>
   );
 }
@@ -117,9 +120,12 @@ function CratePanel({ crate }: { crate: CrateKind }) {
         {result && phase === 'reveal' && (
           <Reveal crate={crate} result={result}>
             {crate === 'monument'
-              ? <><Button size="sm" variant="cta" icon={<MapPin className="size-4" aria-hidden />} onClick={() => setPlacing(result.defId)}>Place on My Map</Button>
-                <Link to="/treasure?tab=collection" className="inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium ring-1 ring-line hover:bg-white">View in Collection</Link></>
-              : <Button size="sm" variant="cta" icon={<Palette className="size-4" aria-hidden />} onClick={() => setEquipping(result.defId)}>Equip or preview on a map</Button>}
+              ? <Button size="sm" variant="cta" icon={<MapPin className="size-4" aria-hidden />} onClick={() => setPlacing(result.defId)}>Place item</Button>
+              : <Button size="sm" variant="cta" icon={<Palette className="size-4" aria-hidden />} onClick={() => setEquipping(result.defId)}>Equip or preview</Button>}
+            <Button size="sm" variant="secondary" data-testid="reward-later" onClick={() => {
+              setResult(null);
+              toast.success(`${defName(result.defId)} is in your collection — ${crate === 'monument' ? 'place it' : 'equip it'} any time from Treasure → Collection.`);
+            }}>Close / Later</Button>
           </Reveal>
         )}
         {roll.isPending && <p className="text-sm text-neutral-600">Opening… the server is choosing your reward.</p>}
@@ -263,12 +269,12 @@ function CollectibleDetail({ def, kind, copies }: { def: MonumentDef | SkinDef; 
       {kind === 'skin' && <ul className="flex flex-wrap gap-1 text-[11px]">{skinFeatures(skinThemeFor(def.defId)!).map((f) => <li key={f} className="rounded-full bg-[#f3e6cc] px-2 py-0.5">{f}</li>)}</ul>}
       <div className="flex flex-wrap gap-2">
         {kind === 'monument' && copies > 0 && <Button size="sm" variant="cta" icon={<MapPin className="size-4" aria-hidden />} onClick={() => setPlacing(true)}>Place on My Map</Button>}
-        {kind === 'monument' && 'latitude' in def && (
+        {kind === 'monument' && 'latitude' in def && def.latitude != null && def.longitude != null && (
           <Button size="sm" variant="ghost" onClick={() => navigate(`/?${new URLSearchParams({ at: `${def.latitude},${def.longitude}`, landmark: def.name })}`)}>Locate the real landmark</Button>
         )}
         {kind === 'skin' && <Button size="sm" variant={copies ? 'cta' : 'secondary'} icon={copies ? <Palette className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />} onClick={() => setEquipping(true)}>{copies ? 'Equip or preview' : 'Preview on a map'}</Button>}
       </div>
-      {kind === 'monument' && 'wikidata' in def && <p className="text-[11px] text-neutral-500">{def.attribution} <a className="underline" href={`https://www.wikidata.org/wiki/${def.wikidata}`} target="_blank" rel="noopener noreferrer">Wikidata {def.wikidata}</a></p>}
+      {kind === 'monument' && 'wikidata' in def && <p className="text-[11px] text-neutral-500">{def.attribution} {def.fictional ? <span className="font-medium">Fictional — not a real place.</span> : def.wikidata && <a className="underline" href={`https://www.wikidata.org/wiki/${def.wikidata}`} target="_blank" rel="noopener noreferrer">Wikidata {def.wikidata}</a>}</p>}
       {placing && <PlaceOnMapDialog defId={def.defId} onClose={() => setPlacing(false)} />}
       {equipping && <EquipSkinDialog defId={def.defId} onClose={() => setEquipping(false)} />}
     </div>

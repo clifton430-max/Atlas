@@ -1,17 +1,19 @@
 /**
  * Shows a pin's saved source snapshot (see pinSource.ts), clearly labelled as
  * coming from its provider and kept apart from the user's own title/note.
- * Opening hours are shown verbatim; nothing is inferred.
+ * Opening hours are shown as a weekly table (or verbatim when they can't be
+ * fully understood); nothing is inferred.
  */
 import { Accessibility, Clock, ExternalLink, Globe, Mail, MapPin, Phone } from 'lucide-react';
 import { safeExternalUrl } from '@/lib/validation';
 import { formatRelative } from '@/lib/format';
 import { sourceUrl, type PinSource } from './pinSource';
+import { OpeningHours } from '@/features/places/OpeningHours';
 
 const PROVIDER: Record<PinSource['provider'], string> = { osm: 'OpenStreetMap', ticketmaster: 'Ticketmaster', 'dev-fixture': 'Development sample' };
 const WHEELCHAIR: Record<string, string> = { yes: 'Wheelchair accessible (as mapped)', designated: 'Designed for wheelchair users (as mapped)', limited: 'Limited wheelchair access (as mapped)', no: 'Not wheelchair accessible (as mapped)' };
 
-export function SourceDetails({ source, compact }: { source: PinSource; compact?: boolean }) {
+export function SourceDetails({ source, compact, at }: { source: PinSource; compact?: boolean; at?: { latitude: number | null; longitude: number | null } }) {
   const website = safeExternalUrl(source.website);
   const link = sourceUrl(source);
   return (
@@ -36,7 +38,7 @@ export function SourceDetails({ source, compact }: { source: PinSource; compact?
         {source.address && <Row icon={<MapPin className="size-3.5" />} label="Address">{source.address}</Row>}
         {source.openingHours && (
           <Row icon={<Clock className="size-3.5" />} label="Opening hours">
-            <span className="font-mono text-xs">{source.openingHours}</span> <span className="text-[11px] text-neutral-500">(opening hours as listed — may be out of date)</span>
+            <OpeningHours raw={source.openingHours} latitude={at?.latitude} longitude={at?.longitude} compact={compact} />
           </Row>
         )}
         {website && <Row icon={<Globe className="size-3.5" />} label="Official website"><a href={website} target="_blank" rel="noopener noreferrer" className="break-all text-accent underline">{new URL(website).hostname}</a></Row>}

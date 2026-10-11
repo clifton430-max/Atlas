@@ -16,15 +16,30 @@ function glbJson(path: string) {
 }
 
 describe('collectible catalog and 3D assets', () => {
-  it('has ≥3 monuments and ≥3 skins per rarity, with verified coordinates', () => {
-    for (const r of RARITIES) {
-      expect(MONUMENTS.filter((m) => m.rarity === r).length).toBeGreaterThanOrEqual(3);
-      expect(SKINS.filter((s) => s.rarity === r).length).toBeGreaterThanOrEqual(3);
+  it('has ≥5 monuments and ≥5 skins per regular rarity and exactly ONE of each at Celestial', () => {
+    for (const r of RARITIES.filter((x) => x !== 'celestial')) {
+      expect(MONUMENTS.filter((m) => m.rarity === r).length, r).toBeGreaterThanOrEqual(5);
+      expect(SKINS.filter((s) => s.rarity === r).length, r).toBeGreaterThanOrEqual(5);
     }
+    expect(MONUMENTS.filter((m) => m.rarity === 'celestial').map((m) => m.id)).toEqual(['farnese-atlas']);
+    expect(SKINS.filter((s) => s.rarity === 'celestial').map((s) => s.id)).toEqual(['atlas-of-the-heavens']);
+    expect(RARITIES.at(-1)).toBe('celestial'); // ranks above Mythic
+    expect(new Set(MONUMENTS.map((m) => m.id)).size).toBe(MONUMENTS.length);
+    expect(new Set(SKINS.map((m) => m.id)).size).toBe(SKINS.length);
+  });
+
+  it('real landmarks have verified Wikidata ids and coordinates; fictional ones have none and say so', () => {
     for (const m of MONUMENTS) {
-      expect(m.wikidata).toMatch(/^Q\d+$/);
-      expect(Math.abs(m.latitude)).toBeLessThanOrEqual(90);
-      expect(Math.abs(m.longitude)).toBeLessThanOrEqual(180);
+      if (m.fictional) {
+        expect(m.wikidata, m.id).toBeNull();
+        expect(m.latitude, m.id).toBeNull();
+        expect(m.region).toBe('Atlas Originals');
+        expect(m.description).toMatch(/^Fictional/);
+        continue;
+      }
+      expect(m.wikidata, m.id).toMatch(/^Q\d+$/);
+      expect(Math.abs(m.latitude!), m.id).toBeLessThanOrEqual(90);
+      expect(Math.abs(m.longitude!), m.id).toBeLessThanOrEqual(180);
     }
   });
 
@@ -46,7 +61,7 @@ describe('map skins', () => {
     for (const s of SKINS) expect(skinThemeFor(s.defId), s.id).not.toBeNull();
     const sig = Object.values(SKIN_THEMES).map((t) => [t.background, t.land, t.water, t.road.major, t.label, t.font].join('|'));
     expect(new Set(sig).size).toBe(Object.keys(SKIN_THEMES).length);
-    expect(Object.keys(SKIN_THEMES)).toHaveLength(18);
+    expect(Object.keys(SKIN_THEMES)).toHaveLength(SKINS.length);
   });
 
   it('applies to the live style and restores the exact original values', () => {

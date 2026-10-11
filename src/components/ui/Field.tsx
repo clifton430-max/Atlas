@@ -150,7 +150,7 @@ export function Switch({ checked, onChange, label, description, disabled }: {
         onClick={() => onChange(!checked)}
         className={cn('relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50', checked ? 'bg-neutral-900' : 'bg-neutral-300')}
       >
-        <span className={cn('absolute top-0.5 size-4 rounded-full bg-white shadow transition-transform', checked ? 'translate-x-4.5' : 'translate-x-0.5')} />
+        <span className={cn('absolute left-0 top-0.5 size-4 rounded-full bg-white shadow transition-transform', checked ? 'translate-x-4.5' : 'translate-x-0.5')} />
       </button>
     </div>
   );

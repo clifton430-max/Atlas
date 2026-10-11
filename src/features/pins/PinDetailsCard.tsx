@@ -131,7 +131,7 @@ export function PinDetailsCard({ pin, groups, onClose }: { pin: Pin; groups: Gro
         {isChessVenue(pin.placeRef) && <Link to={chessRoomPath(pin.placeRef!)} className="block rounded-xl bg-[#5b4632] px-3 py-2 text-center text-sm font-semibold text-white">Enter Chess Room</Link>}
         <Directions latitude={pin.latitude} longitude={pin.longitude} name={pinTitle(pin)} />
         {pin.source && (
-          <div className="rounded-xl bg-canvas p-3"><SourceDetails source={pin.source} /></div>
+          <div className="rounded-xl bg-canvas p-3"><SourceDetails source={pin.source} at={pin} /></div>
         )}
         {pin.placeRef && !pin.source && (
           <p className="text-xs text-neutral-500">

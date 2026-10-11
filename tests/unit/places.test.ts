@@ -51,7 +51,7 @@ describe('OSM feature ids and places', () => {
 });
 
 describe('distance', () => {
-  it('computes great-circle distance and labels it honestly as straight-line', () => {
+  it('computes great-circle distance and words it simply ("0.7 mi away"), never "straight line"', () => {
     const esb = { latitude: 40.7484, longitude: -73.9857 };
     const tsq = { latitude: 40.758, longitude: -73.9855 };
     expect(haversineMeters(esb, tsq)).toBeGreaterThan(1050);
@@ -59,7 +59,9 @@ describe('distance', () => {
     expect(formatDistance(1067, 'de-DE')).toBe('1.1 km');
     expect(formatDistance(250, 'de-DE')).toBe('250 m');
     expect(formatDistance(1067, 'en-US')).toBe('0.7 mi');
-    expect(distanceLabel(esb, tsq, 'de-DE')).toBe('1.1 km away (straight line)');
+    expect(distanceLabel(esb, tsq, 'de-DE')).toBe('1.1 km away');
+    expect(distanceLabel(esb, tsq, 'en-US')).toBe('0.7 mi away');
+    expect(distanceLabel(esb, tsq, 'en-US')).not.toMatch(/straight/i);
     expect(distanceLabel(null, tsq)).toBeNull();
     expect(distanceLabel(esb, { latitude: null, longitude: null })).toBeNull();
   });

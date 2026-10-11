@@ -108,9 +108,14 @@ const toLocalInput = (iso: string) => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 };
 
-function MeetupForm({ mapId, pinId, me, existing, onDone }: { mapId: string; pinId: string; me: { id: string; name: string } | null; existing?: Meetup; onDone: () => void }) {
+export function MeetupForm({ mapId, pinId, at, me, existing, onDone }: {
+  mapId: string; pinId?: string; me: { id: string; name: string } | null; existing?: Meetup; onDone: () => void;
+  /** Plan at arbitrary coordinates instead of an existing pin (creates the meeting-point pin). */
+  at?: { latitude: number; longitude: number };
+}) {
   const toast = useToast();
-  const { create, update } = useMeetupMutations(mapId, me);
+  const { create, createAt, update } = useMeetupMutations(mapId, me);
+  const [title, setTitle] = useState('');
   const tz = existing?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
   const soon = new Date(Math.ceil(Date.now() / 1800_000) * 1800_000 + 3600_000).toISOString();
   const [start, setStart] = useState(toLocalInput(existing?.startsAt ?? soon));
@@ -119,7 +124,7 @@ function MeetupForm({ mapId, pinId, me, existing, onDone }: { mapId: string; pin
   const [capacity, setCapacity] = useState(existing?.capacity ? String(existing.capacity) : '');
   const [visibility, setVisibility] = useState<MeetupVisibility>(existing?.visibility ?? 'members');
   const [error, setError] = useState<unknown>(null);
-  const busy = create.isPending || update.isPending;
+  const busy = create.isPending || createAt.isPending || update.isPending;
 
   const submit = () => {
     const startsAt = new Date(start);
@@ -127,15 +132,22 @@ function MeetupForm({ mapId, pinId, me, existing, onDone }: { mapId: string; pin
     const cap = capacity.trim() ? Number(capacity) : null;
     const invalid = validateMeetupInput({ startsAt, endsAt, capacity: cap });
     if (invalid) return setError(invalid);
+    if (at && !title.trim()) return setError('Give the meeting point a name.');
     const input: MeetupInput = { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), timezone: tz, description: description.trim() || null, capacity: cap, visibility };
     const opts = { onSuccess: () => { toast.success(existing ? 'Meetup updated.' : 'Meetup planned. Members were notified.'); onDone(); }, onError: setError };
     if (existing) update.mutate({ ...input, id: existing.id }, opts);
-    else create.mutate({ ...input, sharedPinId: pinId }, opts);
+    else if (at) createAt.mutate({ ...input, title: title.trim(), ...at }, opts);
+    else if (pinId) create.mutate({ ...input, sharedPinId: pinId }, opts);
   };
 
   const field = 'mt-1 h-9 w-full rounded-lg border border-line bg-white px-2 text-sm';
   return (
     <form className="space-y-2 rounded-xl bg-canvas p-3" aria-label={existing ? 'Edit meetup' : 'Plan a meetup'} onSubmit={(e) => { e.preventDefault(); submit(); }}>
+      {at && (
+        <label className="block text-xs text-neutral-700">Meeting point name
+          <input required value={title} maxLength={300} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. North gate of the park" className={field} autoFocus />
+        </label>
+      )}
       <div className="grid grid-cols-2 gap-2">
         <label className="text-xs text-neutral-700">Starts<input type="datetime-local" required value={start} onChange={(e) => setStart(e.target.value)} className={field} /></label>
         <label className="text-xs text-neutral-700">Ends<input type="datetime-local" required value={end} onChange={(e) => setEnd(e.target.value)} className={field} /></label>

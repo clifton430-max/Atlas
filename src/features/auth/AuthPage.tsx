@@ -4,6 +4,7 @@
  * signup trigger (which falls back to a generated username if taken).
  * After auth, the user returns to `?next=` (only same-origin paths allowed).
  */
+import { AtlasMark } from '@/components/brand/AtlasMark';
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { requireSupabase } from '@/lib/supabase';
@@ -158,7 +159,7 @@ export function AuthFrame({ title, children }: { title: string; children: React.
   return (
     <main className="grid min-h-full place-items-center bg-[radial-gradient(circle_at_30%_20%,#ffffff,#ececec)] p-6">
       <div className="w-full max-w-[400px] rounded-2xl bg-white p-7 shadow-float ring-1 ring-black/5">
-        <Link to="/" className="mb-5 flex items-center gap-2 text-sm font-semibold"><img src="/atlas.svg" alt="" className="size-6" />Atlas</Link>
+        <Link to="/" className="mb-5 flex items-center gap-2 text-sm font-semibold"><AtlasMark variant="tile" className="size-7 rounded-[8px]" />Atlas</Link>
         <h1 className="mb-5 text-xl font-semibold tracking-tight">{title}</h1>
         {children}
       </div>

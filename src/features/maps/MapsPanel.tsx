@@ -91,7 +91,7 @@ export function MapsPanel() {
               {placing ? 'Click the map… (cancel)' : 'Add custom pin'}
             </Button>
             <GroupFilterControl mapId={personal.params.mapId!} />
-            <GroupsSection mapId={personal.params.mapId!} />
+            <GroupsSection key={personal.params.mapId} mapId={personal.params.mapId!} />
           </div>
         )}
       </div>

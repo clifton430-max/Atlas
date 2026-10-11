@@ -26,6 +26,8 @@ import { Button } from '@/components/ui/Button';
 import { ErrorMessage, Spinner } from '@/components/ui/Feedback';
 import { useMaps } from './api';
 import { InspectorPortal } from '@/app/Inspector';
+import { ExploreLayer } from '@/features/discover/DiscoverView';
+import { pinGlyph } from '@/features/pins/pinVisual';
 
 export function PersonalMapView() {
   const { mapId = '' } = useParams();
@@ -54,6 +56,9 @@ export function PersonalMapView() {
   const visible = useMemo(() => applyGroupFilter(pins.data ?? [], filter), [pins.data, filter]);
   const groupColor = useMemo(() => new Map((groups.data ?? []).map((g) => [g.id, g.color])), [groups.data]);
   const selected = pins.data?.find((p) => p.id === selectedPinId) ?? null;
+  // Saved on this map -> drawn once as a droplet; the small discovery icon is hidden.
+  const savedPlaceRefs = useMemo(() => (pins.data ?? []).flatMap((p) => (p.placeRef ? [p.placeRef] : [])), [pins.data]);
+  const savedEventIds = useMemo(() => (pins.data ?? []).flatMap((p) => (p.eventId ? [p.eventId] : [])), [pins.data]);
   usePinDeepLink(pins.data, (id) => uiStore.set({ selectedPinId: id }));
 
   // Placement mode: next map click chooses the custom pin location.
@@ -98,7 +103,9 @@ export function PersonalMapView() {
       ...(placements.data ?? []).map((p) => [p.longitude, p.latitude])];
     const anyVisible = pts.some(([lng, lat]) => b.contains([lng, lat]));
     const saved = loadMapView(mapId);
-    if (!anyVisible && saved) map.easeTo({ ...saved, duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 900 });
+    // Already looking at (about) the saved view: don't animate to it again.
+    const same = saved && b.contains(saved.center as [number, number]) && Math.abs(saved.zoom - map.getZoom()) < 0.75;
+    if (!anyVisible && saved && !same) map.easeTo({ ...saved, duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 900 });
   }, [map, mapId, pins.isSuccess, pins.data, placements.data, placements.isLoading, placementsEnabled]);
   useEffect(() => () => {
     if (!map) return;
@@ -115,6 +122,7 @@ export function PersonalMapView() {
 
   return (
     <>
+      <ExploreLayer hiddenPlaceRefs={savedPlaceRefs} hiddenEventIds={savedEventIds} />
       {visible.map((p, i) =>
         p.latitude != null && p.longitude != null ? (
           <PinMarker
@@ -128,7 +136,10 @@ export function PersonalMapView() {
             fallbackIcon={p.kind === 'event' ? 'ticket' : 'map-pin'}
             groupColors={p.groupIds.map((g) => groupColor.get(g)).filter((c): c is string => !!c)}
             selected={p.id === selectedPinId}
-            onSelect={() => uiStore.set({ selectedPinId: p.id })}
+            onSelect={() => uiStore.set({ selectedPinId: p.id, selectedPlace: null, selectedEventId: null })}
+            glyph={pinGlyph(p)}
+            caption={pinTitle(p)}
+            hover={{ title: pinTitle(p), meta: pinGlyph(p)?.label ?? (p.kind === 'custom' ? 'Custom pin' : null), description: p.note ?? p.source?.description ?? p.address ?? p.source?.address }}
           />
         ) : null,
       )}
@@ -170,13 +181,13 @@ export function PersonalMapView() {
 function EmptyWorld() {
   const { signedIn } = useCollectiblesAccount();
   return (
-    <section aria-label="Your map is empty" className="absolute bottom-28 left-1/2 z-10 w-[min(420px,calc(100%-24px))] -translate-x-1/2 rounded-2xl bg-white/95 p-4 text-center shadow-float ring-1 ring-black/5 backdrop-blur animate-rise-in">
-      <p className="text-[15px] font-semibold">Your map is waiting for its first landmark</p>
-      <p className="mt-1 text-xs text-neutral-600">Pins, saved places and 3D monuments you add appear here, in your personal world.</p>
-      <div className="mt-3 flex flex-wrap justify-center gap-2">
+    <section aria-label="Your map is empty" className="absolute left-1/2 top-4 z-10 w-[min(460px,calc(100%-120px))] -translate-x-1/2 rounded-2xl bg-white/95 px-4 py-3 text-center shadow-float ring-1 ring-black/5 backdrop-blur animate-rise-in">
+      <p className="text-[14px] font-semibold">Your map is waiting for its first landmark</p>
+      <p className="mt-0.5 text-xs text-neutral-600">Save a place you find nearby, drop a custom pin, or place a 3D monument.</p>
+      <div className="mt-2 flex flex-wrap justify-center gap-2">
         <Button size="sm" variant="cta" onClick={() => uiStore.set({ placingPin: true, selectedPinId: null })}>Add a pin</Button>
         <Link to={signedIn ? '/treasure?tab=collection' : '/treasure'} className="inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium ring-1 ring-line hover:bg-neutral-50">Place a monument</Link>
-        <Link to="/" className="inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium text-brand hover:bg-neutral-50">Explore Discover</Link>
+        <button type="button" onClick={() => uiStore.set((s) => ({ panelTab: 'nearby', leftPanelOpen: true, panelToggles: s.panelToggles + 1 }))} className="inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium text-brand hover:bg-neutral-50">Explore nearby</button>
       </div>
     </section>
   );

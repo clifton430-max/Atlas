@@ -12,7 +12,7 @@ async function at(page: Page, center: [number, number], zoom: number, categories
     if (sessionStorage.getItem('__rd')) return;
     sessionStorage.setItem('__rd', '1');
     localStorage.setItem('atlas.viewport', JSON.stringify({ center: c, zoom: z }));
-    localStorage.setItem('atlas.discover.categories.v1', JSON.stringify({ visible: cats, subs: {} }));
+    localStorage.setItem('atlas.discover.categories.v2', JSON.stringify({ visible: cats, subs: {} }));
   }, [center, zoom, categories] as const);
 }
 
@@ -25,16 +25,16 @@ const screenPoint = (page: Page, lngLat: [number, number], dy = 0) => page.evalu
 
 test.beforeEach(async ({ page }) => freshGuest(page));
 
-test('shell: tabs switch contexts, side panel follows, My Maps remembers the last map', async ({ page }) => {
+test('shell: tabs switch contexts, side panel follows, My Map remembers the last map', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Discover', level: 1 })).toBeVisible();
+  await expect(page).toHaveURL(/\/maps\/.+/); // straight to the guest's map
+  await expect(page.getByRole('heading', { name: 'My Map', level: 1 })).toBeVisible();
   await expect(sidePanel(page).getByRole('toolbar', { name: 'Discover categories' })).toBeVisible();
 
   await openMyMaps(page);
-  await expect(page).toHaveURL(/\/maps\/.+/); // straight to the guest's map
-  await expect(page.getByRole('heading', { name: 'My Maps', level: 1 })).toBeVisible();
   await expect(sidePanel(page).getByRole('button', { name: 'Add custom pin' })).toBeVisible();
   // A second map becomes the remembered one.
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await page.getByRole('button', { name: 'New map' }).click();
   await page.getByRole('dialog', { name: 'New private map' }).getByLabel('Name').fill('Second');
   await page.getByRole('button', { name: 'Create map' }).click();
@@ -68,24 +68,24 @@ test('inspector: empty state with legend, selected event details, close returns 
   await expect(inspector(page).getByText('Nothing selected')).toBeVisible();
 });
 
-test('teardrop markers: the pin tip is on the coordinate, the body is clickable, selection enlarges it', async ({ page }) => {
+test('unsaved discovery markers are small badges centred on the coordinate; clicking selects; selection enlarges it', async ({ page }) => {
   await at(page, JAZZ, 15, ['events']);
   await page.goto('/');
   await waitForMap(page);
   await expect.poll(() => page.evaluate(() => (window as AtlasWindow).__atlasMap!.queryRenderedFeatures({ layers: ['discover-points'] }).length)).toBeGreaterThan(0);
-  // Clicking the pin body (above the coordinate) selects the event.
-  const body = await screenPoint(page, JAZZ, -20);
-  await page.mouse.click(body.x, body.y);
+  expect(await page.evaluate(() => (window as AtlasWindow).__atlasMap!.getLayoutProperty('discover-points', 'icon-anchor'))).toBe('center');
+  const c = await screenPoint(page, JAZZ, 0);
+  await page.mouse.click(c.x, c.y);
   await expect(inspector(page).getByRole('article', { name: /Late Night Jazz/ })).toBeVisible();
   const size = await page.evaluate(() => JSON.stringify((window as AtlasWindow).__atlasMap!.getLayoutProperty('discover-points', 'icon-size')));
-  expect(size).toContain('1.2'); // selected pin drawn larger
-  // Nothing renders below the tip: 12 px under the coordinate is empty map.
-  const below = await page.evaluate(([ll]) => {
+  expect(size).toContain('1.35'); // selected badge drawn larger
+  // Small: nothing of the badge 20 px above the coordinate (droplets are for saved pins).
+  const above = await page.evaluate(([ll]) => {
     const m = (window as AtlasWindow).__atlasMap!;
     const p = m.project(ll as [number, number]);
-    return m.queryRenderedFeatures([p.x, p.y + 12], { layers: ['discover-points'] }).length;
+    return m.queryRenderedFeatures([p.x, p.y - 24], { layers: ['discover-points'] }).length;
   }, [JAZZ] as const);
-  expect(below).toBe(0);
+  expect(above).toBe(0);
 });
 
 test('place details: inset layout, bookmark, collapsible "More about this place"', async ({ page }) => {
@@ -103,7 +103,7 @@ test('place details: inset layout, bookmark, collapsible "More about this place"
   await expect(card.getByText(/40\.748\d*, -73\.98/)).toBeVisible();
 });
 
-test('map toolbar: zoom, 2D/3D and animation controls work and are labelled', async ({ page }) => {
+test('map toolbar: zoom, 2D/3D work and are labelled; animation controls moved to Settings', async ({ page }) => {
   await page.goto('/');
   await waitForMap(page);
   const zoom = () => page.evaluate(() => (window as AtlasWindow).__atlasMap!.getZoom());
@@ -122,14 +122,14 @@ test('map toolbar: zoom, 2D/3D and animation controls work and are labelled', as
   await expect.poll(pitch).toBeGreaterThan(30);
   expect(await page.evaluate(() => localStorage.getItem('atlas.view.v1'))).toBe('3d');
 
-  const anim = page.getByRole('group', { name: 'Map animations' });
-  await anim.getByRole('button', { name: 'Pause map animations' }).click();
-  await expect(anim.getByRole('button', { name: 'Resume map animations' })).toBeVisible();
-  await anim.getByRole('button', { name: /Animation speed 1×/ }).click();
-  await expect(anim.getByRole('button', { name: /Animation speed 2×/ })).toBeVisible();
-
+  await expect(page.getByRole('group', { name: 'Map animations' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Layers' }).click();
-  await expect(page.getByRole('dialog', { name: 'Map layers' }).getByText(/Decorative:/)).toBeVisible();
+  const layers = page.getByRole('dialog', { name: 'Map layers' });
+  await expect(layers.getByText(/Decorative:/)).toBeVisible();
+  await layers.getByRole('link', { name: /Map animations & weather/ }).click();
+  await expect(page).toHaveURL(/\/settings\/animations$/);
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await expect(page.getByRole('button', { name: 'Resume' })).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('share and notifications are honest about what they can do', async ({ page }) => {
@@ -234,15 +234,18 @@ test('ambient animation: 3D vehicles on real roads in every context; pause and s
   await page.waitForTimeout(600);
   expect(await snapshot()).not.toBe(a); // moving
 
-  const anim = page.getByRole('group', { name: 'Map animations' });
-  await anim.getByRole('button', { name: 'Pause map animations' }).click();
+  // Pause / resume live in Settings (the map keeps running underneath the sheet).
+  await page.goto('/settings/animations');
+  await expect.poll(async () => (await snapshot())?.length ?? 0, { timeout: 15_000 }).toBeGreaterThan(10);
+  await page.getByRole('button', { name: 'Pause' }).click();
   await page.waitForTimeout(300);
   const p1 = await snapshot();
   await page.waitForTimeout(700);
   expect(await snapshot()).toBe(p1); // paused = frozen
-  await anim.getByRole('button', { name: 'Resume map animations' }).click();
+  await page.getByRole('button', { name: 'Resume' }).click();
   await page.waitForTimeout(500);
   expect(await snapshot()).not.toBe(p1);
+  await page.getByRole('button', { name: 'Close settings' }).click();
 
   // Lighting: Night adds the dusk tint; Day removes it. No motion involved.
   const tint = () => page.evaluate(() => (window as AtlasWindow).__atlasMap!.getPaintProperty('atlas-night-tint', 'fill-opacity'));
@@ -253,16 +256,17 @@ test('ambient animation: 3D vehicles on real roads in every context; pause and s
   await expect.poll(tint).toBe(0);
 });
 
-test('reduced motion: no moving vehicles, pill explains why, lighting still available', async ({ page }) => {
+test('reduced motion: no moving vehicles, Settings explains why, lighting still available', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await at(page, [-73.9857, 40.758], 15.8, []);
   await page.goto('/');
   await waitForMap(page);
   await page.waitForTimeout(1500);
   expect(await page.evaluate(() => !!(window as AtlasWindow).__atlasMap!.getSource('atlas-ambient'))).toBe(false);
-  const anim = page.getByRole('group', { name: 'Map animations' });
-  await expect(anim).toHaveAttribute('title', /reduced motion/);
-  await expect(anim.getByRole('button', { name: 'Pause map animations' })).toBeDisabled();
+  await page.goto('/settings/animations');
+  await expect(page.getByText(/Your system asks for reduced motion/)).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Show moving map life' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Close settings' }).click();
   await page.getByRole('button', { name: 'Layers' }).click();
   await page.getByRole('radio', { name: 'Night' }).click();
   await expect.poll(() => page.evaluate(() => (window as AtlasWindow).__atlasMap!.getPaintProperty('atlas-night-tint', 'fill-opacity'))).toBeGreaterThan(0.2);

@@ -116,7 +116,7 @@ function SortMenu() {
             );
           })}
           <p className="px-3 pb-1.5 pt-1 text-[11px] text-neutral-500">
-            {location ? 'Nearest = closest to you (straight line). Sorting changes only the order of the lists.' : 'Nearest uses the map centre until you share your location with “Distance”.'}
+            {location ? 'Nearest = closest to you first. Sorting changes only the order of the lists.' : 'Nearest uses the map centre until you share your location with “Distance”.'}
           </p>
         </div>
       )}

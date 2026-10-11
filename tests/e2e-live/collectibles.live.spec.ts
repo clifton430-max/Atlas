@@ -2,7 +2,7 @@
  * LIVE end-to-end collectibles journey through the real UI:
  * open a monument crate -> server-selected 3D reward -> place it on a personal
  * map -> reload (persists, renders, selectable) -> rotate/resize -> remove;
- * open a skin crate -> equip -> reload (persists) -> Discover unchanged.
+ * open a skin crate -> equip -> reload (persists) -> shared maps unchanged.
  */
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
@@ -38,7 +38,7 @@ test('collect a 3D monument, place it, and customise a personal map', async ({ p
   await expect(reveal.getByTestId('model-viewer')).toHaveAttribute('data-state', 'ready', { timeout: 20_000 });
 
   // Place it on the personal map.
-  await reveal.getByRole('button', { name: 'Place on My Map' }).click();
+  await reveal.getByRole('button', { name: 'Place item' }).click();
   await page.getByRole('radio', { name: map!.name }).check();
   await page.getByRole('button', { name: 'Choose position on map' }).click();
   await expect(page.getByTestId('placement-controls')).toBeVisible();
@@ -82,7 +82,7 @@ test('collect a 3D monument, place it, and customise a personal map', async ({ p
   expect((await a.from('monument_placements').select('id').eq('map_id', map!.id)).data).toEqual([]);
   expect((await a.from('user_collectibles').select('copies').eq('def_id', lastRoll!.def_id).single()).data!.copies).toBeGreaterThanOrEqual(1);
 
-  // Skin crate -> equip -> persists after reload; Discover keeps its own style.
+  // Skin crate -> equip -> persists after reload; shared maps keep their own style.
   await page.goto('/treasure?tab=skin');
   await page.getByLabel('Skip animations').check();
   await page.getByRole('button', { name: /Open crate|Open another/ }).click();
@@ -97,7 +97,7 @@ test('collect a 3D monument, place it, and customise a personal map', async ({ p
   await waitForMap(page);
   await expect.poll(() => bg(page)).toBe(SKIN_BG[skinId]);
   expect((await a.from('map_skins').select('def_id').eq('map_id', map!.id).single()).data!.def_id).toBe(`skin:${skinId}`);
-  await page.getByRole('navigation', { name: 'Map contexts' }).getByRole('link', { name: 'Discover' }).click();
+  await page.getByRole('navigation', { name: 'Map contexts' }).getByRole('link', { name: 'Shared' }).click();
   await expect.poll(() => bg(page)).not.toBe(SKIN_BG[skinId]);
   await a.from('map_skins').delete().eq('map_id', map!.id);
 });

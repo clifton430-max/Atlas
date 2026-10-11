@@ -27,8 +27,9 @@ test('personal map: create map, custom pin with required group, group filter, im
   const pinTitle = `E2E pin ${RUN}`;
   const groupName = `E2E group ${RUN}`;
 
-  // Create a map (My Maps tab)
-  await page.getByRole('navigation', { name: 'Map contexts' }).getByRole('link', { name: 'My Maps' }).click();
+  // Create a map (My Map tab -> My pins)
+  await page.getByRole('navigation', { name: 'Map contexts' }).getByRole('link', { name: 'My Map', exact: true }).click();
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await page.getByRole('button', { name: 'New map' }).click();
   await page.getByRole('dialog', { name: 'New private map' }).getByLabel('Name').fill(mapName);
   await page.getByRole('button', { name: 'Create map' }).click();
@@ -78,12 +79,12 @@ test('personal map: create map, custom pin with required group, group filter, im
   await appearance.getByRole('button', { name: 'Save appearance' }).click();
   await expect(appearance).toBeHidden();
   await expect(marker).toHaveAttribute('data-image-marker', 'true');
-  await expect(marker.locator('img')).toHaveCount(1);
-  await expect(marker.locator('svg')).toHaveCount(0);
-  // Image loads from a signed Storage URL
-  const src = await marker.locator('img').getAttribute('src');
+  // The image fills the droplet pin's head, loaded from a signed Storage URL.
+  await expect(marker.locator('[data-droplet="true"] image')).toHaveCount(1);
+  const src = await marker.locator('image').getAttribute('href');
   expect(src).toContain('/storage/v1/object/sign/pin-images/');
-  await expect.poll(() => marker.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0);
+  const loaded = await page.evaluate(async (u) => { const r = await fetch(u!); return r.ok && (r.headers.get('content-type') ?? '').startsWith('image/'); }, src);
+  expect(loaded).toBe(true);
 
   // Interactive: close card, click the image marker to reopen
   await card.getByRole('button', { name: 'Close pin details' }).click();

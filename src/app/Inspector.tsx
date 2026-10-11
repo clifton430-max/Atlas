@@ -78,16 +78,17 @@ export function InspectorBody() {
 }
 
 function InspectorEmpty() {
-  const discover = !!useMatch('/');
+  const home = !!useMatch('/');
   const personal = !!useMatch('/maps/:mapId');
+  const discover = home || personal;
   const collab = !!useMatch('/collab/*');
   const hint = discover
-    ? 'Select an event or place on the map or in the list to see its details here.'
-    : personal ? 'Select a pin on the map to see and edit its details here.'
+    ? 'Select a place, event or one of your pins on the map or in the side panel to see its details here.'
+    : personal ? ''
       : collab ? 'Select a shared pin on the map to see its details here.' : 'Select something on the map to see its details here.';
   return (
     <div className="atlas-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-4">
-      <h2 className="text-[17px] font-semibold tracking-tight">{discover ? 'Selected place' : 'Details'}</h2>
+      <h2 className="text-[17px] font-semibold tracking-tight">{'Details'}</h2>
       <div className="mt-4 flex flex-col items-center rounded-2xl border border-dashed border-line px-4 py-8 text-center">
         <span className="grid size-10 place-items-center rounded-full bg-canvas text-neutral-500"><MousePointerClick className="size-5" aria-hidden /></span>
         <p className="mt-3 text-sm font-medium">Nothing selected</p>

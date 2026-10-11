@@ -34,11 +34,21 @@ function Markers({ onClick }: { onClick: () => void }) {
       <PinMarkerButton
         label="Image marker"
         onSelect={onClick}
-        appearance={{ ...DEFAULT_APPEARANCE, imageId: 'x', size: 48, imageMask: 'rounded' }}
+        appearance={{ ...DEFAULT_APPEARANCE, shape: 'rounded', imageId: 'x', size: 48, imageMask: 'rounded' }}
         imageUrl={url}
         fallbackIcon="map-pin"
         groupColors={['#2f5bea']}
       />
+    </MapMarker>
+  );
+}
+
+/** The standard droplet pin, anchored by its tip. */
+export const DROPLET_COORD = { latitude: 40.7527, longitude: -73.9772 };
+function Droplet({ onClick }: { onClick: () => void }) {
+  return (
+    <MapMarker {...DROPLET_COORD} anchor="bottom">
+      <PinMarkerButton label="Droplet marker" onSelect={onClick} appearance={DEFAULT_APPEARANCE} fallbackIcon="map-pin" hover={{ title: 'Droplet marker', description: 'A short description shown on hover.' }} />
     </MapMarker>
   );
 }
@@ -50,6 +60,7 @@ export function MarkerCheck() {
       <div className="relative h-full">
         <MapCanvas styleUrl={resolveMapStyleUrl('positron')}>
           <Markers onClick={() => setClicks((c) => c + 1)} />
+          <Droplet onClick={() => setClicks((c) => c + 1)} />
         </MapCanvas>
         <output data-testid="clicks" className="absolute left-2 top-2 rounded bg-white px-2 py-1 text-sm shadow">clicks: {clicks}</output>
       </div>

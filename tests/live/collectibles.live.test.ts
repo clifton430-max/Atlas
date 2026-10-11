@@ -19,10 +19,11 @@ describe.skipIf(!liveConfigured)('collectibles (live)', () => {
   });
   afterAll(async () => { for (const fn of cleanup.reverse()) await Promise.resolve(fn()).catch(() => undefined); });
 
-  it('publishes exactly the odds the server uses (sum 100%, Mythic 1%)', async () => {
+  it('publishes exactly the odds the server uses (version 2: sum 100%, Mythic 1%, Celestial 0.1%)', async () => {
     for (const crate of ['monument', 'skin']) {
       const { data } = await A.rpc('crate_status', { p_crate: crate });
-      expect(data[0].weights).toEqual({ common: 3000, uncommon: 2500, rare: 2000, epic: 1400, legendary: 1000, mythic: 100 });
+      expect(data[0].config_version).toBe(2);
+      expect(data[0].weights).toEqual({ common: 2990, uncommon: 2500, rare: 2000, epic: 1400, legendary: 1000, mythic: 100, celestial: 10 });
       expect(data[0].rolls_left).toBe(3);
     }
   });

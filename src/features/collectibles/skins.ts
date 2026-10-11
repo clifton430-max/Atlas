@@ -36,7 +36,13 @@ export interface SkinTheme {
   vignette?: string;
   /** Hide decorative tree canopies (e.g. star charts). */
   noTrees?: boolean;
+  /**
+   * Animated atmosphere drawn over the map while the skin is on (CSS only,
+   * never interactive; a still frame under reduced motion).
+   */
+  overlay?: SkinOverlay;
 }
+export type SkinOverlay = 'aurora' | 'embers' | 'fireflies' | 'sparkle' | 'petals' | 'heavens';
 
 const t = (id: string, x: Omit<SkinTheme, 'id'>): SkinTheme => ({ id, ...x });
 
@@ -141,6 +147,106 @@ export const SKIN_THEMES: Record<string, SkinTheme> = {
   }),
 };
 
+// ---- Catalog v2 skins ------------------------------------------------------
+Object.assign(SKIN_THEMES, {
+  'paper-sketch': t('paper-sketch', {
+    background: '#f7f6f2', land: '#f2f1ec', water: '#d9dfe3', park: '#e4e8dc', wood: '#d8ddd0', building: '#e6e4de',
+    extrusion: ['#efeeea', '#e4e2dc', '#d3d6da'], road: { minor: '#ffffff', major: '#ffffff', motorway: '#c9c9c9', casing: '#8a8a8a', path: '#b5b5b5' },
+    rail: '#6b6b6b', boundary: '#8a8a8a', label: '#3a3a3a', halo: '#f7f6f2', font: 'italic', texture: 'paper',
+  }),
+  'mint-transit': t('mint-transit', {
+    background: '#eef7f2', land: '#e6f2ec', water: '#9fd8e0', park: '#bfe6cf', wood: '#a8dbbd', building: '#dcebe3',
+    extrusion: ['#e4f1ea', '#d6e8de', '#a9d6c7'], road: { minor: '#ffffff', major: '#ffffff', motorway: '#2bb673', casing: '#b6d3c5', path: '#c4ddd0' },
+    rail: '#e94e3c', boundary: '#4a9c7d', label: '#1f4f3e', halo: '#ffffff', font: 'bold',
+  }),
+  'harvest-fields': t('harvest-fields', {
+    background: '#f3e7c4', land: '#ecdcaf', water: '#6fa8b8', park: '#c7c770', wood: '#9fae5c', building: '#e0cc9c',
+    extrusion: ['#ead6a6', '#dfc58f', '#b9a670'], road: { minor: '#faf2da', major: '#fbedc7', motorway: '#c98b2e', casing: '#a8894f', path: '#b9975a' },
+    rail: '#6e5a32', boundary: '#8a6b2e', label: '#4d3b16', halo: '#f8efd4', font: 'regular', texture: 'linen',
+  }),
+  'cherry-blossom': t('cherry-blossom', {
+    background: '#fdf0f3', land: '#fbe6ec', water: '#9ec9e6', park: '#f6c6d6', wood: '#eeaec4', building: '#f3dde3',
+    extrusion: ['#f8e4ea', '#f1d2dc', '#c9b8e6'], road: { minor: '#ffffff', major: '#ffffff', motorway: '#e88aa8', casing: '#d6b0bd', path: '#e3bfcb' },
+    rail: '#8e6a78', boundary: '#c76b8e', label: '#6b2b44', halo: '#fff7f9', font: 'italic', overlay: 'petals',
+  }),
+  'nordic-frost': t('nordic-frost', {
+    background: '#eef3f7', land: '#e7eef4', water: '#7fa9c9', park: '#d3e3e8', wood: '#bfd4dc', building: '#dde6ee',
+    extrusion: ['#e9f0f5', '#dbe5ed', '#b4c9da'], road: { minor: '#ffffff', major: '#ffffff', motorway: '#9bb8d3', casing: '#a9bccb', path: '#b8c9d6' },
+    rail: '#5f7486', boundary: '#6f8fae', label: '#2a3e52', halo: '#f7fafc', font: 'regular', texture: 'linen',
+  }),
+  'terracotta-villa': t('terracotta-villa', {
+    background: '#f5e6d3', land: '#f0dcc4', water: '#3d8fb0', park: '#b7c98a', wood: '#94ae6b', building: '#e3b896',
+    extrusion: ['#ecc4a2', '#e0a982', '#c97c56'], road: { minor: '#fbf1e4', major: '#fff3e0', motorway: '#c45a32', casing: '#b88b66', path: '#c79a72' },
+    rail: '#6e4a33', boundary: '#a64b2a', label: '#5a2a14', halo: '#fbf0e2', font: 'bold',
+  }),
+  blueprint: t('blueprint', {
+    background: '#1d4f91', land: '#1f5499', water: '#163f75', park: '#2a5fa3', wood: '#2a5fa3', building: '#2c62a8',
+    extrusion: ['#2f67ae', '#3570b8', '#4b86cc'], road: { minor: '#9cc3f0', major: '#d6e8ff', motorway: '#ffffff', casing: '#1a467f', path: '#7aaae0' },
+    rail: '#d6e8ff', boundary: '#ffffff', label: '#ffffff', halo: '#1d4f91', font: 'regular', graticule: '#ffffff40', noTrees: true,
+  }),
+  'autumn-ember': t('autumn-ember', {
+    background: '#f6e3cc', land: '#f0d6b6', water: '#4f7f99', park: '#e09a4f', wood: '#c4682e', building: '#e2c09c',
+    extrusion: ['#ebc9a1', '#dfb184', '#b5764a'], road: { minor: '#fbefe0', major: '#fff1dc', motorway: '#b8441f', casing: '#a87a52', path: '#b9864f' },
+    rail: '#5c3a22', boundary: '#9b3d1a', label: '#4d2410', halo: '#fbeedd', font: 'italic', texture: 'linen',
+  }),
+  'tropical-lagoon': t('tropical-lagoon', {
+    background: '#fff6dd', land: '#f8ecc6', water: '#00b3c6', park: '#6fd08c', wood: '#3fb46a', building: '#f2e2b8',
+    extrusion: ['#fbe7bf', '#f4d79f', '#5fd3dd'], road: { minor: '#ffffff', major: '#ffffff', motorway: '#ff7a59', casing: '#e1c98f', path: '#e6c98a' },
+    rail: '#6f6a52', boundary: '#00a0b0', label: '#00525c', halo: '#ffffff', font: 'bold',
+  }),
+  'neon-metropolis': t('neon-metropolis', {
+    background: '#0d0b1e', land: '#141030', water: '#08061a', park: '#1b1640', wood: '#1b1640', building: '#1d1842',
+    extrusion: ['#251d55', '#30256b', '#ff2fb3'], road: { minor: '#2b2366', major: '#00e5ff', motorway: '#ff2fb3', casing: '#08061a', path: '#3a2f80' },
+    rail: '#ffe14d', boundary: '#ff2fb3', label: '#e8f9ff', halo: '#0d0b1e', font: 'bold', vignette: 'rgba(120,0,90,0.35)', noTrees: true, overlay: 'sparkle',
+  }),
+  'jade-dynasty': t('jade-dynasty', {
+    background: '#e3efe4', land: '#d7e8d9', water: '#2f7f74', park: '#8fc4a0', wood: '#5f9f7a', building: '#c9dccb',
+    extrusion: ['#d0e3d2', '#b9d4be', '#3f8f78'], road: { minor: '#f4faf4', major: '#d4af37', motorway: '#b03a2e', casing: '#5e7f68', path: '#8aa68f' },
+    rail: '#2a4a3a', boundary: '#b03a2e', label: '#1d3d30', halo: '#eef6ef', font: 'regular', texture: 'linen', graticule: '#2f7f7433',
+  }),
+  'arctic-aurora': t('arctic-aurora', {
+    background: '#0b1a2a', land: '#11253a', water: '#071321', park: '#163246', wood: '#163246', building: '#1a3149',
+    extrusion: ['#1f3b56', '#264766', '#5fd3c2'], road: { minor: '#2a4a68', major: '#7fe3d0', motorway: '#b9f6ff', casing: '#071321', path: '#2f5a78' },
+    rail: '#9fd6ff', boundary: '#7fe3d0', label: '#e6fbff', halo: '#071321', font: 'italic', texture: 'stars', vignette: 'rgba(0,20,40,0.4)', noTrees: true, overlay: 'aurora',
+  }),
+  'volcanic-forge': t('volcanic-forge', {
+    background: '#1b1414', land: '#241a19', water: '#120c0c', park: '#2e2220', wood: '#2e2220', building: '#2c201e',
+    extrusion: ['#3a2a27', '#4a3430', '#ff5a1f'], road: { minor: '#4a2a1e', major: '#ff7a1a', motorway: '#ffcf33', casing: '#120c0c', path: '#5a3324' },
+    rail: '#ff7a1a', boundary: '#ff5a1f', label: '#ffe7d1', halo: '#120c0c', font: 'bold', vignette: 'rgba(80,10,0,0.45)', noTrees: true, overlay: 'embers',
+  }),
+  'sunken-atlantis': t('sunken-atlantis', {
+    background: '#0f3b4a', land: '#14505f', water: '#0a2a36', park: '#1d6a6a', wood: '#1d6a6a', building: '#1a5c6a',
+    extrusion: ['#1f6c7a', '#26808c', '#7fe0d0'], road: { minor: '#2c7f8a', major: '#9ff0e0', motorway: '#e8d48a', casing: '#0a2a36', path: '#3a8f96' },
+    rail: '#e8d48a', boundary: '#9ff0e0', label: '#e6fffb', halo: '#0a2a36', font: 'italic', graticule: '#9ff0e033', vignette: 'rgba(0,30,40,0.45)', noTrees: true, overlay: 'sparkle',
+  }),
+  'samurai-ink': t('samurai-ink', {
+    background: '#f4efe3', land: '#efe8d8', water: '#4a4a4a', park: '#d8d2c2', wood: '#c4bdab', building: '#e2dccd',
+    extrusion: ['#ebe5d6', '#dcd5c4', '#6a6a6a'], road: { minor: '#ffffff', major: '#2b2b2b', motorway: '#b3241f', casing: '#2b2b2b', path: '#7a7a7a' },
+    rail: '#2b2b2b', boundary: '#b3241f', label: '#1a1a1a', halo: '#f4efe3', font: 'bold', texture: 'paper', vignette: 'rgba(40,30,20,0.25)',
+  }),
+  'dragons-hoard': t('dragons-hoard', {
+    background: '#2a0f12', land: '#3a1418', water: '#1a0709', park: '#4a1c1e', wood: '#4a1c1e', building: '#4a1a1e',
+    extrusion: ['#5a2024', '#6e262a', '#d4af37'], road: { minor: '#6e2a2c', major: '#d4af37', motorway: '#ffd966', casing: '#1a0709', path: '#7a3a2c' },
+    rail: '#d4af37', boundary: '#ffd966', label: '#ffe9a8', halo: '#1a0709', font: 'bold', texture: 'linen', graticule: '#d4af3740', vignette: 'rgba(40,0,0,0.5)', noTrees: true, overlay: 'sparkle',
+  }),
+  'eternal-garden': t('eternal-garden', {
+    background: '#e7f3dc', land: '#dcedcb', water: '#4fa3b8', park: '#7fc56a', wood: '#4f9f4a', building: '#d4e2c0',
+    extrusion: ['#dbe9c8', '#c8dcb0', '#8fc79a'], road: { minor: '#f7fbef', major: '#fff8dd', motorway: '#e8b84a', casing: '#93ad7c', path: '#a9bf8a' },
+    rail: '#4a5a3a', boundary: '#6f9a4a', label: '#24401c', halo: '#f2f9ea', font: 'italic', vignette: 'rgba(20,60,20,0.25)', overlay: 'fireflies',
+  }),
+  'clockmakers-chart': t('clockmakers-chart', {
+    background: '#e9dcc0', land: '#e2d1ad', water: '#5c7f8a', park: '#c2bd8a', wood: '#a8a26e', building: '#d6c29a',
+    extrusion: ['#dfc9a0', '#cfb684', '#b87333'], road: { minor: '#f5ecd7', major: '#c9a227', motorway: '#b87333', casing: '#6a5432', path: '#9a7f4c' },
+    rail: '#4a3a22', boundary: '#b87333', label: '#3a2c14', halo: '#f2e8d2', font: 'italic', texture: 'parchment', graticule: '#6a543266', vignette: 'rgba(70,45,15,0.35)',
+  }),
+  // Celestial (the one top-tier skin): Atlas holds up the heavens.
+  'atlas-of-the-heavens': t('atlas-of-the-heavens', {
+    background: '#070a24', land: '#0f1438', water: '#05071a', park: '#161d4a', wood: '#161d4a', building: '#151b46',
+    extrusion: ['#1c2458', '#252f6e', '#f2c94c'], road: { minor: '#2a3478', major: '#f2c94c', motorway: '#fff1b8', casing: '#05071a', path: '#3a4590' },
+    rail: '#c9b6ff', boundary: '#f2c94c', label: '#fff4cf', halo: '#05071a', font: 'italic', texture: 'stars', graticule: '#f2c94c59', vignette: 'rgba(5,5,30,0.55)', noTrees: true, overlay: 'heavens',
+  }),
+} satisfies Record<string, SkinTheme>);
+
 export const skinThemeFor = (defId: string | null | undefined): SkinTheme | null =>
   defId ? SKIN_THEMES[defId.replace(/^skin:/, '')] ?? null : null;
 
@@ -150,5 +256,11 @@ export function skinFeatures(th: SkinTheme): string[] {
   if (th.texture) out.push(`${th.texture[0].toUpperCase()}${th.texture.slice(1)} texture`);
   if (th.graticule) out.push('Navigation grid');
   if (th.vignette) out.push('Vignette');
+  if (th.overlay) out.push(OVERLAY_LABEL[th.overlay]);
   return out;
 }
+
+export const OVERLAY_LABEL: Record<SkinOverlay, string> = {
+  aurora: 'Animated aurora', embers: 'Rising embers', fireflies: 'Drifting fireflies', sparkle: 'Twinkling sparkles',
+  petals: 'Falling petals', heavens: 'Living star sky with aurora and shooting stars',
+};

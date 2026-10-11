@@ -21,6 +21,7 @@ import { useEquipSkin, useInventory, useMapSkin } from '@/features/collectibles/
 import { PERSONAL_DEFAULT, skinThemeFor } from '@/features/collectibles/skins';
 import { useToast } from '@/components/ui/Toast';
 import { useMapInstance } from './MapContext';
+import { SkinOverlayFx } from '@/features/collectibles/SkinOverlayFx';
 import { applyTheme, resetThemeState, restoreTheme } from './themeApplier';
 
 export type World = 'discover' | 'personal' | 'shared';
@@ -63,6 +64,7 @@ export function WorldTheme() {
 
   return (
     <>
+      {theme?.overlay && <SkinOverlayFx overlay={theme.overlay} />}
       {theme?.vignette && <div aria-hidden className="pointer-events-none absolute inset-0 z-[5] transition-opacity duration-700" style={{ background: `radial-gradient(ellipse at center, transparent 55%, ${theme.vignette} 100%)` }} />}
       {sweep && (
         <div key={sweep.key} aria-hidden data-testid="world-sweep" onAnimationEnd={() => setSweep(null)}

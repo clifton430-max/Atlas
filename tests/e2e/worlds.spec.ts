@@ -1,9 +1,9 @@
 /**
- * Discover <-> My Maps worlds (no backend), skins preview, Treasure for guests,
+ * My Map <-> Shared worlds (no backend), skins preview, Treasure for guests,
  * and the monument asset pipeline in a real browser.
  */
 import { expect, test, type Page } from '@playwright/test';
-import { freshGuest, openDiscover, openMyMaps, waitForMap, type AtlasWindow } from './helpers';
+import { freshGuest, openMyMaps, waitForMap, type AtlasWindow } from './helpers';
 
 const bg = (page: Page) => page.evaluate(() => (window as AtlasWindow).__atlasMap!.getPaintProperty('background', 'background-color'));
 const ui = (page: Page, patch: Record<string, unknown>) => page.evaluate((p) => (window as unknown as { __atlasUi: { set(x: unknown): void } }).__atlasUi.set(p), patch);
@@ -13,10 +13,10 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem('atlas.lighting.v1', 'day'); });
 });
 
-test('switching worlds re-themes the live map (no reload), sweeps, and restores Discover exactly', async ({ page }) => {
-  await page.goto('/');
+test('switching worlds re-themes the live map (no reload), sweeps, and restores the shared look exactly', async ({ page }) => {
+  await page.goto('/collab/demo');
   await waitForMap(page);
-  const discoverBg = await bg(page);
+  const sharedBg = await bg(page);
   const mapObj = await page.evaluate(() => { (window as unknown as { __first: unknown }).__first = (window as AtlasWindow).__atlasMap; return true; });
   expect(mapObj).toBe(true);
   await openMyMaps(page);
@@ -27,8 +27,8 @@ test('switching worlds re-themes the live map (no reload), sweeps, and restores 
   // Empty personal map shows actionable empty state.
   await expect(page.getByRole('region', { name: 'Your map is empty' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Your map is empty' }).getByRole('button', { name: 'Add a pin' })).toBeVisible();
-  await openDiscover(page);
-  await expect.poll(() => bg(page)).toBe(discoverBg);
+  await page.getByRole('navigation', { name: 'Map contexts' }).getByRole('link', { name: 'Shared' }).click();
+  await expect.poll(() => bg(page)).toBe(sharedBg);
 });
 
 test('skin preview changes real map properties on a personal map only; stop preview restores', async ({ page }) => {
@@ -41,15 +41,16 @@ test('skin preview changes real map properties on a personal map only; stop prev
   expect(await page.evaluate(() => JSON.stringify((window as AtlasWindow).__atlasMap!.getLayoutProperty('label_city', 'text-font')))).toContain('Noto Sans Regular');
   await page.getByRole('button', { name: 'Stop preview' }).click();
   await expect.poll(() => bg(page)).toBe('#ece4d2');
-  // Previews never leak into Discover or shared maps.
+  // Previews never leak into shared maps.
   await ui(page, { skinPreview: { mapId, defId: 'skin:celestial-routes' } });
-  await openDiscover(page);
+  await page.goto('/collab/demo');
+  await waitForMap(page);
   await expect.poll(() => bg(page)).not.toBe('#0b1030');
 });
 
 test('reduced motion: worlds switch without the sweep', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
+  await page.goto('/collab/demo');
   await waitForMap(page);
   await openMyMaps(page);
   await expect.poll(() => bg(page)).toBe('#ece4d2');
@@ -59,8 +60,9 @@ test('reduced motion: worlds switch without the sweep', async ({ page }) => {
 test('the tab indicator glides to the active context', async ({ page }) => {
   await page.goto('/');
   const ind = page.getByTestId('tab-indicator');
+  await expect(ind).toBeVisible();
   const x0 = (await ind.boundingBox())!.x;
-  await openMyMaps(page);
+  await page.getByRole('navigation', { name: 'Map contexts' }).getByRole('link', { name: 'Shared' }).click();
   await expect.poll(async () => (await ind.boundingBox())!.x).toBeGreaterThan(x0 + 20);
 });
 
@@ -71,11 +73,11 @@ test('Treasure without a server: catalog browsable, honest about rolling, no fak
   await expect(page.getByText(/Crates need the Atlas server/)).toBeVisible();
   await expect(page.getByRole('button', { name: /Open crate/ })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Collection' }).click();
-  await expect(page.getByText('0/18 unique collected')).toBeVisible();
+  await expect(page.getByText('0/36 unique collected')).toBeVisible();
   await page.getByRole('tab', { name: 'Map Skin Crates' }).click();
   await page.getByRole('tab', { name: 'Collection' }).click();
   await page.getByRole('radio', { name: 'Map skins' }).click();
-  await expect(page.getByRole('list', { name: 'Map skins' }).getByRole('listitem')).toHaveCount(18);
+  await expect(page.getByRole('list', { name: 'Map skins' }).getByRole('listitem')).toHaveCount(37);
 });
 
 test('all 18 monument models load as interactive colour 3D (asset pipeline)', async ({ page }) => {

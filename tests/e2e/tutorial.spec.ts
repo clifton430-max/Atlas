@@ -77,7 +77,7 @@ test('Escape (focus in the card) exits; keyboard can drive the tour', async ({ p
   await next(page).focus();
   await page.keyboard.press('Enter');
   await expect(counter(page)).toContainText('Step 2 of');
-  await expect(card(page).getByRole('heading', { name: 'Three kinds of map' })).toBeFocused();
+  await expect(card(page).getByRole('heading', { name: 'One map, two views' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(card(page)).toHaveCount(0);
 });
@@ -89,7 +89,7 @@ test('panel tasks reopen hidden panels; collapsing then expanding completes the 
   await page.getByRole('button', { name: 'Collapse side panel' }).click();
   await openHelpChapter(page, '1. Getting around Atlas');
   await next(page).click();
-  await expect(card(page).getByRole('heading', { name: 'Three kinds of map' })).toBeVisible();
+  await expect(card(page).getByRole('heading', { name: 'One map, two views' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Collapse side panel' })).toBeVisible(); // reopened
   for (let i = 0; i < 3; i++) {
     const s = card(page).getByRole('button', { name: 'Skip step' });
@@ -105,6 +105,7 @@ test('practice actions are verified, and the sandbox never touches guest data', 
   await freshGuest(page);
   await page.goto('/maps');
   // A guest map that must survive the tour untouched.
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await page.getByRole('button', { name: 'New map' }).click();
   await page.getByRole('dialog', { name: 'New private map' }).getByLabel('Name').fill('Keep me');
   await page.getByRole('button', { name: 'Create map' }).click();
@@ -113,6 +114,7 @@ test('practice actions are verified, and the sandbox never touches guest data', 
   await openHelpChapter(page, '3. Personal maps');
   await expect(card(page).getByRole('heading', { name: 'Create a map' })).toBeVisible();
   await expect(mapLink(page, 'Keep me')).toHaveCount(0); // sandbox shows practice maps only
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await page.getByRole('button', { name: 'New map' }).click();
   await page.getByRole('dialog', { name: 'New private map' }).getByLabel('Name').fill('Practice A');
   await page.getByRole('button', { name: 'Create map' }).click();
@@ -124,6 +126,7 @@ test('practice actions are verified, and the sandbox never touches guest data', 
   // Custom pin task
   await expect(card(page).getByRole('heading', { name: 'Add a custom pin' })).toBeVisible();
   await waitForMap(page);
+  await page.getByRole('tab', { name: 'My pins' }).click();
   await page.getByRole('button', { name: 'Add custom pin' }).click();
   await clickMapAt(page, 40, 40);
   const dlg = page.getByRole('dialog', { name: 'New custom pin' });

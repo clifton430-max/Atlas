@@ -127,4 +127,47 @@ describe('meetups', () => {
     expect(await mine(viewer)).toEqual([]);
     expect(await mine(stranger)).toEqual([]);
   });
+
+  it('custom pins anywhere: editors only, validated, idempotent on retry, editable by author or owner', async () => {
+    await t.as(viewer);
+    expect(await t.fails(`select public.create_shared_custom_pin($1, 'Bench', 1.5, 2.5)`, [mapId])).toMatch(/editor access/);
+    await t.as(stranger);
+    expect(await t.fails(`select public.create_shared_custom_pin($1, 'Bench', 1.5, 2.5)`, [mapId])).toMatch(/editor access/);
+    await t.as(editor);
+    expect(await t.fails(`select public.create_shared_custom_pin($1, '  ', 1.5, 2.5)`, [mapId])).toMatch(/title/);
+    expect(await t.fails(`select public.create_shared_custom_pin($1, 'X', 91, 2.5)`, [mapId])).toMatch(/coordinates/);
+    const a = (await t.one<{ create_shared_custom_pin: string }>(`select public.create_shared_custom_pin($1, 'Bench', 1.5, 2.5, 'Under the oak')`, [mapId])).create_shared_custom_pin;
+    const b = (await t.one<{ create_shared_custom_pin: string }>(`select public.create_shared_custom_pin($1, 'Bench', 1.5, 2.5, 'Under the oak')`, [mapId])).create_shared_custom_pin;
+    expect(b).toBe(a); // retry -> same pin, no duplicate
+    expect((await t.query(`select count(*)::int as n from public.shared_pins where title = 'Bench'`))[0]).toEqual({ n: 1 });
+    // Viewers see it (members), cannot edit it.
+    await t.as(viewer);
+    expect(await t.query(`select note from public.shared_pins where id = $1`, [a])).toEqual([{ note: 'Under the oak' }]);
+    expect(await t.fails(`select public.update_shared_pin_details($1, 'Mine now')`, [a])).toMatch(/Only the person/);
+    // Author edits partially (note kept); owner may edit too.
+    await t.as(editor);
+    await t.query(`select public.update_shared_pin_details($1, p_title => 'Oak bench')`, [a]);
+    expect(await t.query(`select title, note from public.shared_pins where id = $1`, [a])).toEqual([{ title: 'Oak bench', note: 'Under the oak' }]);
+    await t.as(owner);
+    await t.query(`select public.update_shared_pin_details($1, p_latitude => 1.6, p_longitude => 2.6)`, [a]);
+    expect(await t.query(`select latitude, longitude from public.shared_pins where id = $1`, [a])).toEqual([{ latitude: 1.6, longitude: 2.6 }]);
+    await t.as(stranger);
+    expect(await t.fails(`select public.update_shared_pin_details($1, 'x')`, [a])).toMatch(/not found/);
+  });
+
+  it('meetups at arbitrary coordinates create pin + meetup atomically and retry safely', async () => {
+    await t.as(viewer);
+    expect(await t.fails(`select public.create_meetup_at($1, 'Picnic', 3, 4, $2, $3, 'UTC')`, [mapId, inHours(1), inHours(2)])).toMatch(/editor access/);
+    await t.as(editor);
+    // Invalid schedule -> nothing is created (the pin insert rolls back too).
+    expect(await t.fails(`select public.create_meetup_at($1, 'Picnic', 3, 4, $2, $3, 'UTC')`, [mapId, inHours(3), inHours(1)])).toMatch(/end after it starts/);
+    expect((await t.query(`select count(*)::int as n from public.shared_pins where title = 'Picnic'`))[0]).toEqual({ n: 0 });
+    const starts = inHours(1); const ends = inHours(2);
+    const r1 = (await t.one<{ create_meetup_at: { shared_pin_id: string; meetup_id: string } }>(`select public.create_meetup_at($1, 'Picnic', 3, 4, $2, $3, 'UTC', 'Bring snacks', 5)`, [mapId, starts, ends])).create_meetup_at;
+    const r2 = (await t.one<{ create_meetup_at: { shared_pin_id: string; meetup_id: string } }>(`select public.create_meetup_at($1, 'Picnic', 3, 4, $2, $3, 'UTC', 'Bring snacks', 5)`, [mapId, starts, ends])).create_meetup_at;
+    expect(r2).toEqual(r1);
+    expect(await t.query(`select latitude, longitude from public.shared_pins where id = $1`, [r1.shared_pin_id])).toEqual([{ latitude: 3, longitude: 4 }]);
+    expect(await t.query(`select capacity, description from public.meetups where id = $1`, [r1.meetup_id])).toEqual([{ capacity: 5, description: 'Bring snacks' }]);
+    expect(await t.query(`select user_id from public.meetup_attendees where meetup_id = $1`, [r1.meetup_id])).toEqual([{ user_id: editor }]);
+  });
 });

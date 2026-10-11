@@ -2,6 +2,11 @@
  * Accessible chessboard. Legality comes from the rules engine (chess.js):
  * only legal destinations can be chosen; promotion asks for a piece.
  *
+ * Look: empty squares are drawn as compact tiles on the walnut board; a
+ * square expands to full size while a piece occupies it, so a move visibly
+ * shrinks the square left behind and expands the one arrived at. This is
+ * presentation only: it never changes the game state or the board geometry.
+ *
  * Input: click/tap a piece then a highlighted square, or use the keyboard —
  * arrow keys move between squares, Enter/Space selects and moves, Escape
  * clears the selection. Every square has a spoken label ("e4, white knight").
@@ -13,6 +18,9 @@ import { cn } from '@/components/ui/cn';
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const NAMES: Record<string, string> = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
 const GLYPH: Record<string, string> = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' };
+
+/** Scale of an empty square's tile (occupied squares are full size). */
+export const EMPTY_SCALE = 0.86;
 
 export interface BoardMove { from: string; to: string; promotion?: 'q' | 'r' | 'b' | 'n' }
 
@@ -76,7 +84,7 @@ export function ChessBoard({ fen, orientation, canMove, onMove, lastMove, label 
 
   return (
     <div className="relative w-full max-w-[min(560px,100%)]">
-      <div ref={gridRef} role="grid" aria-label={label} className="grid aspect-square grid-cols-8 overflow-hidden rounded-xl shadow-float ring-4 ring-[#5b4632]">
+      <div ref={gridRef} role="grid" aria-label={label} className="grid aspect-square grid-cols-8 grid-rows-8 overflow-hidden rounded-xl bg-[#6b5139] shadow-float ring-4 ring-[#5b4632]">
         {rows.map((r) => (
           <div key={r} role="row" className="contents">
           {cols.map((f) => {
@@ -84,6 +92,7 @@ export function ChessBoard({ fen, orientation, canMove, onMove, lastMove, label 
           const p = game.get(sq as Square);
           const dark = (FILES.indexOf(f) + r) % 2 === 1;
           const isTarget = targets.has(sq);
+          const expanded = !!p || selected === sq || checkSquare === sq;
           const name = p ? `${p.color === 'w' ? 'white' : 'black'} ${NAMES[p.type]}` : 'empty';
           return (
             <button
@@ -91,20 +100,27 @@ export function ChessBoard({ fen, orientation, canMove, onMove, lastMove, label 
               type="button"
               role="gridcell"
               data-square={sq}
+              data-occupied={p ? 'true' : undefined}
               tabIndex={focus === sq ? 0 : -1}
               aria-label={`${sq}, ${name}${selected === sq ? ', selected' : ''}${isTarget ? ', legal move' : ''}`}
               aria-selected={selected === sq}
               onFocus={() => setFocus(sq)}
               onKeyDown={(e) => onKey(e, sq)}
               onClick={() => activate(sq)}
-              className={cn('relative grid select-none place-items-center text-[clamp(22px,5.4vw,44px)] leading-none focus-visible:z-10 focus-visible:outline-4 focus-visible:-outline-offset-4',
-                dark ? 'bg-[#b58863]' : 'bg-[#f0d9b5]',
-                (lastMove?.from === sq || lastMove?.to === sq) && (dark ? 'bg-[#aaa23a]' : 'bg-[#cdd26a]'),
-                selected === sq && 'shadow-[inset_0_0_0_4px_#4f7a28]',
-                checkSquare === sq && 'bg-[radial-gradient(circle,#ef4444_0%,#ef444466_45%,transparent_70%)]')}
+              className="relative grid select-none place-items-center text-[clamp(22px,5.4vw,44px)] leading-none focus-visible:z-10 focus-visible:outline-4 focus-visible:-outline-offset-4"
             >
+              {/* The square's tile: compact when empty, full size when a piece stands on it
+                  (or it is part of the last move / selection). Only the tile scales — the
+                  grid cell keeps its size, so the board never shifts. */}
+              <span aria-hidden data-tile
+                className={cn('pointer-events-none absolute inset-0 transition-[transform,border-radius,background-color] duration-200 ease-out motion-reduce:transition-none',
+                  dark ? 'bg-[#b58863]' : 'bg-[#f0d9b5]',
+                  (lastMove?.from === sq || lastMove?.to === sq) && (dark ? 'bg-[#aaa23a]' : 'bg-[#cdd26a]'),
+                  selected === sq && 'shadow-[inset_0_0_0_4px_#4f7a28]',
+                  checkSquare === sq && 'bg-[radial-gradient(circle,#ef4444_0%,#ef444466_45%,transparent_70%)]')}
+                style={{ transform: expanded ? 'scale(1)' : `scale(${EMPTY_SCALE})`, borderRadius: expanded ? 2 : 7 }} />
               {p && (
-                <span aria-hidden className={cn('drop-shadow-[0_2px_1px_rgba(0,0,0,0.35)]', p.color === 'w' ? 'text-white [-webkit-text-stroke:1.5px_#2b2118]' : 'text-[#1b1511]')}>
+                <span aria-hidden className={cn('relative drop-shadow-[0_2px_1px_rgba(0,0,0,0.35)]', p.color === 'w' ? 'text-white [-webkit-text-stroke:1.5px_#2b2118]' : 'text-[#1b1511]')}>
                   {GLYPH[p.type]}
                 </span>
               )}
@@ -113,8 +129,8 @@ export function ChessBoard({ fen, orientation, canMove, onMove, lastMove, label 
                   ? <span aria-hidden className="pointer-events-none absolute inset-1 rounded-full ring-4 ring-black/25" />
                   : <span aria-hidden className="pointer-events-none absolute size-[28%] rounded-full bg-black/25" />
               )}
-              {f === cols[0] && <span aria-hidden className={cn('absolute left-0.5 top-0.5 text-[10px] font-semibold', dark ? 'text-[#f0d9b5]' : 'text-[#b58863]')}>{r}</span>}
-              {r === rows[7] && <span aria-hidden className={cn('absolute bottom-0.5 right-1 text-[10px] font-semibold', dark ? 'text-[#f0d9b5]' : 'text-[#b58863]')}>{f}</span>}
+              {f === cols[0] && <span aria-hidden className={cn('absolute left-1 top-1 text-[10px] font-semibold', dark ? 'text-[#f0d9b5]' : 'text-[#7a5a3d]')}>{r}</span>}
+              {r === rows[7] && <span aria-hidden className={cn('absolute bottom-0.5 right-1.5 text-[10px] font-semibold', dark ? 'text-[#f0d9b5]' : 'text-[#7a5a3d]')}>{f}</span>}
             </button>
           );
           })}

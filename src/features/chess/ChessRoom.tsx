@@ -7,8 +7,8 @@
  *   Play online: friends / collaborators, validated by the server.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Flag, FlipVertical2, Handshake, RotateCcw, Swords, Wifi } from 'lucide-react';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Flag, FlipVertical2, Handshake, Link2, RotateCcw, Swords, Wifi } from 'lucide-react';
 import { useAuth } from '@/app/AuthProvider';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button, IconButton } from '@/components/ui/Button';
@@ -19,7 +19,8 @@ import { cn } from '@/components/ui/cn';
 import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { claimableDraw, TERMINATION_LABEL, type Outcome } from '../../../supabase/functions/_shared/chessGame';
 import { ChessBoard, type BoardMove } from './ChessBoard';
-import { claimLocalDraw, gameFrom, loadLocalGame, newLocalGame, playLocal, saveLocalGame, type LocalChess } from './localGame';
+import { claimLocalDraw, gameFrom, importLocalGame, loadLocalGame, newLocalGame, playLocal, saveLocalGame, type LocalChess } from './localGame';
+import { chessGameLink, chessPositionLink, chessRoomLink, isUuid, parseChessMoves } from '@/lib/shareLinks';
 import { useChessActions, useGame, useMyGames, useOpponents, type OnlineGame } from './online';
 import { CHESS_VENUES } from './venues';
 
@@ -47,6 +48,7 @@ export function ChessRoom() {
             <h1 id="chess-title" className="text-lg font-semibold tracking-tight">Chess room</h1>
             <p className="truncate text-xs text-neutral-600">{venue && CHESS_VENUES[venue] ? `At the ${CHESS_VENUES[venue].name}, St. Louis` : 'Play locally or with friends'}</p>
           </div>
+          <CopyChessLink gameId={tab === 'online' ? gameId : undefined} venue={venue} />
           <div role="tablist" aria-label="Game mode" className="flex rounded-xl bg-white p-1 ring-1 ring-[#e8dcc6]">
             {([['local', 'Play here'], ['online', 'Play online']] as const).map(([t, label]) => (
               <button key={t} role="tab" aria-selected={tab === t} type="button" onClick={() => setTab(t)}
@@ -59,6 +61,36 @@ export function ChessRoom() {
         <div className="flex-1 p-3 sm:p-5">{tab === 'local' ? <LocalChessGame /> : <OnlineChess gameId={gameId} venue={venue} />}</div>
       </section>
     </div>
+  );
+}
+
+/**
+ * Copies the link for what is on screen: the online game (opens only for its
+ * two players), or the local position (a validated copy for the recipient),
+ * or the venue's chess room. Never creates a game or session.
+ */
+function CopyChessLink({ gameId, venue }: { gameId?: string; venue: string | null }) {
+  const toast = useToast();
+  const [fallback, setFallback] = useState<string | null>(null);
+  const copy = async () => {
+    const local = loadLocalGame();
+    const url = gameId ? chessGameLink(gameId) : local.moves.length ? chessPositionLink(local.moves, venue) : chessRoomLink(venue);
+    const what = gameId ? 'Game link copied — it opens only for the two players.' : local.moves.length ? 'Position link copied — it opens a copy of this board.' : 'Chess room link copied.';
+    try { await navigator.clipboard.writeText(url); toast.success(what); setFallback(null); } catch { setFallback(url); }
+  };
+  return (
+    <>
+      <Button size="sm" variant="ghost" icon={<Link2 className="size-4" aria-hidden />} onClick={copy} data-testid="copy-chess-link">
+        <span className="hidden sm:inline">Copy link</span><span className="sr-only sm:hidden">Copy link</span>
+      </Button>
+      {fallback && (
+        <div role="dialog" aria-label="Copy this link" className="absolute right-4 top-16 z-50 w-80 rounded-xl bg-white p-3 text-xs shadow-float ring-1 ring-line">
+          <p className="mb-1 font-medium">Your browser blocked copying. Select the link and copy it:</p>
+          <input readOnly autoFocus value={fallback} onFocus={(e) => e.target.select()} className="h-8 w-full rounded-lg border border-line px-2" aria-label="Chess link" />
+          <button type="button" className="mt-2 underline" onClick={() => setFallback(null)}>Close</button>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -95,6 +127,12 @@ function lastMoveOf(moves: string[]) {
 }
 
 function LocalChessGame() {
+  const [params, setParams] = useSearchParams();
+  const shared = useMemo(() => {
+    const sans = parseChessMoves(params);
+    return params.has('moves') ? (sans ? importLocalGame(sans) : 'invalid' as const) : null;
+  }, [params]);
+  const dropShared = () => setParams((p) => { p.delete('moves'); return p; }, { replace: true });
   const [state, setState] = useState<LocalChess>(() => loadLocalGame());
   const [flip, setFlip] = useState(false);
   const [confirm, setConfirm] = useState<'new' | 'resign' | 'draw' | null>(null);
@@ -112,6 +150,17 @@ function LocalChessGame() {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,560px)_1fr]">
+      {shared && (
+        <div role="status" className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-3 text-sm ring-1 ring-[#e8dcc6] lg:col-span-2">
+          {shared === 'invalid' ? <span>This position link isn’t valid (a move in it is illegal or malformed).</span> : (
+            <>
+              <span className="min-w-0 flex-1">Someone shared a position with you ({shared.moves.length} moves). {state.moves.length ? 'Loading it replaces the game on this device.' : ''}</span>
+              <Button size="sm" variant="cta" onClick={() => { update(shared); dropShared(); }}>Load position</Button>
+            </>
+          )}
+          <Button size="sm" variant="ghost" onClick={dropShared}>Dismiss</Button>
+        </div>
+      )}
       <div className="space-y-2">
         <PlayerStrip name="Black" color="b" active={!state.outcome && turn === 'b'} />
         <ChessBoard fen={g.fen()} orientation={flip ? 'b' : 'w'} canMove={!state.outcome} onMove={onMove} lastMove={lastMoveOf(state.moves)} label="Local chessboard" />
@@ -140,8 +189,9 @@ function LocalChessGame() {
 }
 
 function PlayerStrip({ name, color, active, userId }: { name: string; color: 'w' | 'b'; active: boolean; userId?: string }) {
+  // Fixed height: the "To move" badge appearing must never nudge the board.
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <div className="flex h-7 items-center gap-2 text-sm">
       {userId ? <Avatar userId={userId} name={name} size="sm" /> : <span aria-hidden className={cn('size-6 rounded-full ring-2 ring-[#5b4632]', color === 'w' ? 'bg-white' : 'bg-[#1b1511]')} />}
       <span className="font-semibold">{name}</span>
       <span className="text-xs text-neutral-500">{color === 'w' ? 'White' : 'Black'}</span>
@@ -151,15 +201,18 @@ function PlayerStrip({ name, color, active, userId }: { name: string; color: 'w'
 }
 
 function OnlineChess({ gameId, venue }: { gameId?: string; venue: string | null }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const ws = useWorkspace();
+  const loc = useLocation();
+  if (loading) return <Spinner label="Checking your session" />;
+  if (gameId && !isUuid(gameId)) return <ErrorMessage error="This chess link is malformed. Check that it was copied completely." />;
   if (!user || ws.local) {
     return (
       <div className="mx-auto max-w-md space-y-3 rounded-2xl bg-white p-6 text-center ring-1 ring-[#e8dcc6]">
         <Wifi className="mx-auto size-8 text-[#5b4632]" aria-hidden />
         <p className="font-semibold">Online games need an account</p>
         <p className="text-sm text-neutral-600">Challenge friends or collaborators and play on separate devices. Moves are checked by the Atlas server. “Play here” works without an account.</p>
-        {ws.mode === 'guest' && <Link to="/auth?next=%2Fchess" className="inline-block text-sm font-medium text-brand underline">Sign in</Link>}
+        {ws.mode === 'guest' && <Link to={`/auth?next=${encodeURIComponent(loc.pathname + loc.search)}`} className="inline-block text-sm font-medium text-brand underline">{gameId ? 'Sign in to open this game' : 'Sign in'}</Link>}
       </div>
     );
   }
@@ -256,7 +309,15 @@ function OnlineGameView({ id, me }: { id: string; me: string }) {
 
   if (q.isLoading) return <Spinner label="Loading game" />;
   if (q.error) return <ErrorMessage error={q.error} />;
-  if (!q.data || !g) return <ErrorMessage error="This game doesn’t exist or isn’t yours." />;
+  if (!q.data || !g) {
+    return (
+      <div className="space-y-2 rounded-xl bg-white p-4 text-sm ring-1 ring-[#e8dcc6]" role="alert">
+        <p className="font-semibold">This game can’t be opened</p>
+        <p className="text-neutral-600">It may have been deleted, or you aren’t one of its two players. Online games are visible only to the people playing them.</p>
+        <Link to="/chess" className="font-medium text-brand underline">Back to your games</Link>
+      </div>
+    );
+  }
   const { game } = q.data;
   const mine: 'w' | 'b' = game.white.id === me ? 'w' : 'b';
   const turn = g.turn();

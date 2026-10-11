@@ -27,26 +27,30 @@ export function toggleSidePanel() {
 
 export function IconRail() {
   const left = useUi((s) => s.leftPanelOpen);
-  const discover = !!useMatch('/');
-  const maps = !!useMatch('/maps/*');
+  const personal = !!useMatch('/maps/*');
+  const home = !!useMatch('/');
+  const maps = personal || home;
   const collab = !!useMatch('/collab/*');
   const friends = !!useMatch('/settings/friends');
   const treasure = !!useMatch('/treasure');
   const settings = !!useMatch('/settings/*') && !friends;
 
-  /** On Discover, "Filters" opens the side panel and focuses the filter controls. */
+  /** "Nearby" opens the side panel's Nearby tab at the category filters. */
   const focusFilters = () => {
-    if (!uiStore.get().leftPanelOpen) uiStore.set((s) => ({ leftPanelOpen: true, panelToggles: s.panelToggles + 1 }));
+    uiStore.set((s) => ({ panelTab: 'nearby', ...(s.leftPanelOpen ? {} : { leftPanelOpen: true, panelToggles: s.panelToggles + 1 }) }));
     requestAnimationFrame(() => document.getElementById('discover-filters')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
   };
 
   return (
     <nav aria-label="Sections" className="hidden w-16 shrink-0 flex-col items-center gap-1.5 border-r border-line bg-white py-3 md:flex">
-      <NavLink to="/" end aria-label="Explore" title="Explore" className={() => itemCls(discover)} onClick={openSidePanel}><MapPin className="size-5" aria-hidden /></NavLink>
-      <NavLink to="/maps" aria-label="Your maps" title="Your maps" className={() => itemCls(maps)} onClick={openSidePanel}><Box className="size-5" aria-hidden /></NavLink>
+      <NavLink to="/maps" aria-label="My Map" title="My Map" className={() => itemCls(maps)} onClick={openSidePanel}><MapPin className="size-5" aria-hidden /></NavLink>
       <NavLink to="/collab" aria-label="Collaboration maps" title="Collaboration maps" className={() => itemCls(collab)} onClick={openSidePanel}><Users className="size-5" aria-hidden /></NavLink>
-      {discover && (
-        <button type="button" aria-label="Jump to filters" title="Jump to filters" className={itemCls(false)} onClick={focusFilters}><SlidersHorizontal className="size-5" aria-hidden /></button>
+      {maps && (
+        <button type="button" aria-label="Nearby places and filters" title="Nearby places and filters" className={itemCls(false)} onClick={focusFilters}><SlidersHorizontal className="size-5" aria-hidden /></button>
+      )}
+      {maps && (
+        <button type="button" aria-label="My pins and groups" title="My pins and groups" className={itemCls(false)}
+          onClick={() => uiStore.set((s) => ({ panelTab: 'pins', ...(s.leftPanelOpen ? {} : { leftPanelOpen: true, panelToggles: s.panelToggles + 1 }) }))}><Box className="size-5" aria-hidden /></button>
       )}
       <NavLink to="/treasure" aria-label="Treasure" title="Treasure: monument and map skin crates" className={() => itemCls(treasure)}><Gem className="size-5" aria-hidden /></NavLink>
       <NavLink to="/settings/friends" aria-label="Friends" title="Friends" className={() => itemCls(friends)}><UserRound className="size-5" aria-hidden /></NavLink>

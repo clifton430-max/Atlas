@@ -70,7 +70,7 @@ test('category Discover, place card and category dropdown have no WCAG A/AA viol
     if (sessionStorage.getItem('__b')) return;
     sessionStorage.setItem('__b', '1');
     localStorage.setItem('atlas.viewport', JSON.stringify({ center: [-73.9705, 40.7735], zoom: 15.5 }));
-    localStorage.setItem('atlas.discover.categories.v1', JSON.stringify({ visible: ['events', 'food', 'parks'], subs: {} }));
+    localStorage.setItem('atlas.discover.categories.v2', JSON.stringify({ visible: ['events', 'food', 'parks'], subs: {} }));
   });
   await page.goto('/');
   await expect(page.getByTestId('welcome-overlay')).toBeHidden({ timeout: 3000 });

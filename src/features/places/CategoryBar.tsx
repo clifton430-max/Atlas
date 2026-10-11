@@ -18,10 +18,10 @@ export function CategoryBar() {
   const none = visible.length === 0;
   return (
     <div role="toolbar" aria-label="Discover categories" data-tour="category-bar"
-      className="flex flex-wrap items-center gap-2">
+      className="flex flex-wrap items-center gap-1.5">
       {CATEGORIES.map((c) => <CategoryChip key={c.id} category={c} on={visible.includes(c.id)} />)}
       <button type="button" onClick={none ? showAll : hideAll} data-tour="hide-all"
-        className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium text-neutral-800 ring-1 ring-line hover:bg-neutral-50">
+        className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-white px-3 text-[12px] font-medium text-neutral-800 ring-1 ring-line hover:bg-neutral-50">
         {none ? <Eye className="size-4" aria-hidden /> : <EyeOff className="size-4" aria-hidden />}
         {none ? 'Show all' : 'Hide all'}
       </button>
@@ -35,9 +35,9 @@ function CategoryChip({ category: c, on }: { category: Category; on: boolean }) 
     <div className={cn('flex shrink-0 items-center rounded-full bg-white transition-shadow', !on && 'ring-1 ring-line hover:ring-neutral-300')}
       style={on ? { background: `${c.color}14`, boxShadow: `inset 0 0 0 2px ${c.color}` } : undefined}>
       <button type="button" aria-pressed={on} onClick={() => toggleCategory(c.id)}
-        className="flex h-10 items-center gap-2 rounded-l-full pl-1.5 pr-1 text-[13px] font-medium text-neutral-800">
-        <span className="relative grid size-7 place-items-center rounded-full" style={on ? { background: c.color, color: '#fff' } : { background: `${c.color}1f`, color: c.color }}>
-          <LucideNode icon={c.icon} className="size-4" />
+        className="flex h-8 items-center gap-1.5 rounded-l-full pl-1 pr-0.5 text-[12px] font-medium text-neutral-800">
+        <span className="relative grid size-6 place-items-center rounded-full" style={on ? { background: c.color, color: '#fff' } : { background: `${c.color}1f`, color: c.color }}>
+          <LucideNode icon={c.icon} className="size-3.5" />
           {on && (
             <span className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full bg-white ring-1" style={{ color: c.color, ['--tw-ring-color' as string]: c.color }}>
               <Check className="size-2.5" strokeWidth={3.5} aria-hidden />
@@ -49,7 +49,7 @@ function CategoryChip({ category: c, on }: { category: Category; on: boolean }) 
       </button>
       <Popover label={`${c.label} options`} align="left" trigger={({ open, toggle, id }) => (
         <button type="button" aria-expanded={open} aria-controls={id} onClick={toggle} aria-label={`${c.label} types`}
-          className="grid h-10 w-7 place-items-center rounded-r-full pr-1 text-neutral-500 hover:text-neutral-900">
+          className="grid h-8 w-6 place-items-center rounded-r-full pr-1 text-neutral-500 hover:text-neutral-900">
           <ChevronDown className="size-3.5" aria-hidden />
         </button>
       )}>

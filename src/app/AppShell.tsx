@@ -28,6 +28,8 @@ import { MapCanvas } from '@/features/map/MapCanvas';
 import { MapProvider } from '@/features/map/MapContext';
 import { MapToolbar } from '@/features/map/MapToolbar';
 import { AmbientLayer } from '@/features/places/AmbientLayer';
+import { SkyLayer } from '@/features/weather/SkyLayer';
+import { UserLocationMarker } from '@/features/places/UserLocationMarker';
 import { useProfile } from '@/features/settings/profileApi';
 import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { useLocalSnapshot } from '@/features/workspace/useLocalSnapshot';
@@ -67,6 +69,8 @@ export function AppShell() {
             <main className="relative min-w-0 flex-1" aria-label="Map" data-tour="map-area">
               <MapCanvas styleUrl={styleUrl}>
                 <AmbientLayer />
+                <SkyLayer />
+                <UserLocationMarker />
                 <RouteLayer />
                 <WorldTheme />
                 <Outlet />

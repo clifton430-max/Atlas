@@ -9,6 +9,7 @@
 import { Directions } from '@/features/routing/Directions';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { OpeningHours } from './OpeningHours';
 import { isChessVenue, chessRoomPath } from '@/features/chess/venues';
 import { Crown, Accessibility, Bookmark, BookmarkPlus, ChevronDown, Mail, Clock, ExternalLink, Globe, LocateFixed, MapPin, Navigation, Phone, Utensils } from 'lucide-react';
 import { Button, IconButton } from '@/components/ui/Button';
@@ -92,7 +93,7 @@ export function PlaceCard({ place, onSave, onSelectChild, saved, footer }: {
           </Row>
           <Row icon={<Clock className="size-4" aria-hidden />} label="Hours">
             {d?.openingHours
-              ? <><span className="font-mono text-xs">{d.openingHours}</span><span className="block text-[11px] text-neutral-500">As listed on OpenStreetMap — may be out of date.</span></>
+              ? <OpeningHours raw={d.openingHours} latitude={place.latitude} longitude={place.longitude} />
               : <Muted loading={details.isLoading} failed={details.isError}>Hours not listed</Muted>}
           </Row>
           {website && (

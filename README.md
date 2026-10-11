@@ -1,12 +1,21 @@
 # Atlas
 
-Atlas is a desktop-first, map-first web app. You can discover public events on an interactive map, save events and custom places to **private** personal maps, organize pins into color-coded groups, and share selected pins on purpose through permission-based collaboration maps.
+Atlas is a map-first web app built around **one map**: places and events near you appear as small category icons, and the places you keep appear as droplet pins on your **private** personal maps. You organize pins into color-coded groups and share selected pins on purpose through permission-based collaboration maps.
 
 - **Product spec:** [ATLAS_CONTEXT.md](ATLAS_CONTEXT.md)
 - **Engineering notes:** [ATLAS_DEV_NOTES.md](ATLAS_DEV_NOTES.md)
 - **Status:** the implementation checklist and verification status are in [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)
 
 > **Current state (2026-10-10):** Atlas works without an account (**Guest Mode**, data stored on this device) and includes an **interactive tutorial**. Signed in, it runs against the linked Supabase project. Ticketmaster live data is verified through the deployed Edge Function. The one remaining external blocker is public email delivery, which needs custom SMTP. See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md).
+
+## Unified map overhaul (2026-10-11)
+
+- **One map:** the old Discover screen is now part of **My Map**. The side panel has two tabs: **Nearby** (categories, filters, "Things near me" sorted closest-first with "0.4 mi away") and **My pins** (maps, custom pins, expandable groups). Old Discover links (`/?place=…`) still work.
+- **Markers:** small round badges for places you haven't saved; droplet pins (category colour and glyph) for saved places and custom pins. Hover a pin for a short card; click/tap for details.
+- **Settings → Map animations & weather:** map life (cars, people, trains, aircraft — decorative), pause and speed; weather **Automatic** (real conditions from [Open-Meteo](https://open-meteo.com), CC BY 4.0), **Manual** (clear, cloudy, rain, storm, fog, snow), or **Off**.
+- **Treasure:** 36 monuments and 37 map skins; new top rarity **Celestial** (0.1 %, one per crate); reward screen offers **Place item** or **Close / Later**.
+- **Sharing:** shared maps and chess games keep working after a refresh or when opened in a new tab (`vercel.json` SPA fallback); chess rooms have **Copy link**. Collaborators can drop pins and plan meetups anywhere.
+- **Brand:** a new original Atlas mark (map pin + globe + orbit) across the app, favicon, app icons and loading screen.
 
 ## Collaboration, chess and collectibles (2026-10-10)
 
@@ -303,7 +312,8 @@ npm run typecheck      # tsc --noEmit
 npm run lint           # eslint
 npm test               # Vitest: unit + component + database (PGlite) suites
 npm run test:db        # database/RLS suite only
-npm run test:e2e       # Playwright, no backend: Discover, Guest Mode, tutorial, accessibility
+npm run test:e2e       # Playwright, no backend: unified map, Guest Mode, tutorial, weather, chess, accessibility
+npx playwright test -c playwright.hosting.config.ts   # production build served with vercel.json: deep links survive refresh
 npm run build          # typecheck + production build
 npm run types:generate # regenerate src/lib/database.types.ts from the linked project
 ```
@@ -328,11 +338,11 @@ node scripts/live/provision-test-users.mjs --delete   # remove the test users an
 
 ## Deployment
 
-The frontend is a static SPA. Run `npm run build` and serve `dist/` from any static host (Vercel, Netlify, Cloudflare Pages, S3 with a CDN). **Configure an SPA fallback** so deep links like `/invite/<token>` and `/maps/<id>` serve `index.html`.
+The frontend is a static SPA. Run `npm run build` and serve `dist/` from any static host (Vercel, Netlify, Cloudflare Pages, S3 with a CDN). **An SPA fallback is required** so deep links like `/collab/<id>`, `/chess/<id>`, `/invite/<token>` and `/maps/<id>` serve `index.html` on a refresh or direct open. On Vercel this is `vercel.json` (included); `node scripts/serve-like-vercel.mjs` serves `dist/` with the same rules for local checks. Other hosts need the equivalent rewrite (Netlify: `/* /index.html 200`).
 
 Set the `VITE_*` variables in the host's build environment.
 
-Backend: run `supabase db push` and `supabase functions deploy discover-events`, then set the secrets described above.
+Backend: run `supabase db push` and deploy the Edge Functions (`discover-events`, `place-details`, `route`, `chess-move`), then set the secrets described above. The weather service (Open-Meteo) needs no key or setup; its free tier is for non-commercial use.
 
 Production checklist:
 - Set the production **Site URL** and **Redirect URLs** in Supabase Auth.

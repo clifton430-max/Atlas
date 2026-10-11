@@ -1,10 +1,11 @@
 /**
  * Top navigation bar:
- *   logo · map switcher · Discover / My Maps / Shared · search · notifications · help · account · Share
+ *   logo · map switcher · My Map / Shared · search · notifications · help · account · Share
  *
  * On narrow screens the tabs move to a second row and the search field takes
  * the remaining width; nothing is removed.
  */
+import { AtlasMark } from '@/components/brand/AtlasMark';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Link, NavLink, useMatch } from 'react-router-dom';
 import { cn } from '@/components/ui/cn';
@@ -24,8 +25,8 @@ export function TopNav() {
       {/* One set of tabs: inline on wide screens, wrapped onto a second row below lg. */}
       <div className="flex flex-wrap items-center gap-x-2 px-3 md:gap-x-3 md:px-4">
         <Link to="/" className="flex h-14 shrink-0 items-center gap-2 pr-1" aria-label="Atlas home">
-          <img src="/atlas.svg" alt="" className="size-7" />
-          <span className="hidden text-lg font-semibold tracking-tight sm:inline">Atlas</span>
+          <AtlasMark variant="tile" className="size-8 rounded-[9px] shadow-sm" />
+          <span className="hidden text-lg font-semibold tracking-[-0.02em] text-[#14235c] sm:inline">Atlas</span>
         </Link>
         <span className="hidden h-6 w-px bg-line md:block" aria-hidden />
         <MapSwitcher />
@@ -50,16 +51,18 @@ const tabCls = (active: boolean) => cn(
 );
 
 /**
- * Discover / My Maps / Shared — the three map contexts. One indicator bar
+ * My Map / Shared — the two map contexts (discovery lives inside My Map). One indicator bar
  * glides to the active tab (instantly under reduced motion).
  */
 function ContextTabs({ className }: { className?: string }) {
-  const discover = !!useMatch('/');
-  const maps = !!useMatch('/maps/*');
+  const home = !!useMatch('/');
+  const personal = !!useMatch('/maps/*');
+  const chess = !!useMatch('/chess/*');
+  const maps = personal || home || chess;
   const collab = !!useMatch('/collab/*');
   const nav = useRef<HTMLElement>(null);
   const [bar, setBar] = useState<{ left: number; width: number } | null>(null);
-  const active = discover ? 0 : maps ? 1 : collab ? 2 : -1;
+  const active = maps ? 0 : collab ? 1 : -1;
   useLayoutEffect(() => {
     const measure = () => {
       const el = nav.current?.querySelectorAll<HTMLElement>('a')[active];
@@ -71,8 +74,7 @@ function ContextTabs({ className }: { className?: string }) {
   }, [active]);
   return (
     <nav ref={nav} aria-label="Map contexts" data-tour="nav-contexts" className={cn('relative flex items-center', className)}>
-      <NavLink to="/" end className={() => tabCls(discover)} aria-current={discover ? 'page' : undefined} data-tour="nav-discover" onClick={openSidePanel}>Discover</NavLink>
-      <NavLink to="/maps" className={() => tabCls(maps)} aria-current={maps ? 'page' : undefined} onClick={openSidePanel}>My Maps</NavLink>
+      <NavLink to="/maps" className={() => tabCls(maps)} aria-current={maps ? 'page' : undefined} data-tour="nav-discover" onClick={openSidePanel}>My Map</NavLink>
       <NavLink to="/collab" className={() => tabCls(collab)} aria-current={collab ? 'page' : undefined} onClick={openSidePanel}>Shared</NavLink>
       {bar && <span aria-hidden data-testid="tab-indicator" className="absolute bottom-0 h-[3px] rounded-full bg-brand transition-[left,width] duration-300 ease-out motion-reduce:transition-none" style={{ left: bar.left, width: bar.width }} />}
     </nav>

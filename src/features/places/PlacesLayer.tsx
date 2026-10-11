@@ -8,12 +8,15 @@
 import { useEffect, useRef } from 'react';
 import type { MapLayerMouseEvent } from 'maplibre-gl';
 import { useMapInstance } from '@/features/map/MapContext';
+import { uiStore } from '@/app/store';
 import { NO_PLACES_FILTER, PLACES_LAYER, osmFeatureId, placeIconSize, placesFilter } from '@/features/map/atlasStyle';
 import type { Place } from './types';
 import { placeFromFeature } from './placeFromFeature';
 
-export function PlacesLayer({ subclasses, selected, onSelect, onHover }: {
+export function PlacesLayer({ subclasses, excludeFeatureIds = [], selected, onSelect, onHover }: {
   subclasses: string[];
+  /** Feature ids not to draw (places saved on the open map, shown as droplets). */
+  excludeFeatureIds?: number[];
   /** Selected place: its pin is drawn larger (selected state). */
   selected: Place | null;
   onSelect: (p: Place) => void;
@@ -22,11 +25,11 @@ export function PlacesLayer({ subclasses, selected, onSelect, onHover }: {
   const { map, styleVersion } = useMapInstance();
   const cb = useRef({ onSelect, onHover });
   cb.current = { onSelect, onHover };
-  const key = subclasses.join('|');
+  const key = `${subclasses.join('|')}#${excludeFeatureIds.join(',')}`;
 
   useEffect(() => {
     if (!map || styleVersion === 0 || !map.getLayer(PLACES_LAYER)) return;
-    map.setFilter(PLACES_LAYER, placesFilter(subclasses));
+    map.setFilter(PLACES_LAYER, placesFilter(subclasses, excludeFeatureIds));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, styleVersion, key]);
 
@@ -40,6 +43,9 @@ export function PlacesLayer({ subclasses, selected, onSelect, onHover }: {
     if (!map || styleVersion === 0 || !map.getLayer(PLACES_LAYER)) return;
     let hovered: string | null = null;
     const onClick = (e: MapLayerMouseEvent) => {
+      // While placing a pin or monument, a click chooses a location instead.
+      const ui = uiStore.get();
+      if (ui.placingPin || ui.movingPinId || ui.placingMonument) return;
       // Event pins and clusters are drawn above places: a click on an overlap belongs to the event.
       const above = ['discover-points', 'discover-clusters'].filter((l) => map.getLayer(l));
       if (above.length && map.queryRenderedFeatures(e.point, { layers: above }).length) return;

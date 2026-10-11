@@ -17,6 +17,9 @@ import { useMatch } from 'react-router-dom';
 import { CalendarDays, Loader2, MapPin, MapPinned, Search, Users, X } from 'lucide-react';
 import { uiStore, useUi } from '@/app/store';
 import { useAuth } from '@/app/AuthProvider';
+import { osmFeatureId, PLACES_SOURCE } from '@/features/map/atlasStyle';
+import { placeFromFeature } from '@/features/places/placeFromFeature';
+import { parsePlaceRef } from '@/features/places/types';
 import { useMapInstance } from '@/features/map/MapContext';
 import { useDebounced } from '@/lib/useDebounced';
 import { searchPlaces, type PlaceResult } from '@/services/events/geocoder';
@@ -40,8 +43,11 @@ const icons = { event: CalendarDays, pin: MapPinned, shared: Users, place: MapPi
 export function SearchBar() {
   const { user } = useAuth();
   const { map } = useMapInstance();
-  const discoverCtx = useMatch('/');
+  const home = useMatch('/');
+  const chess = useMatch('/chess/*');
   const personal = useMatch('/maps/:mapId');
+  // Discovery is part of every personal map now (the unified map).
+  const discoverCtx = !!home || !!chess || !!personal;
   const collab = useMatch('/collab/:mapId');
   const keyword = useUi((s) => s.discoverKeyword);
   const listId = useId();
@@ -60,7 +66,7 @@ export function SearchBar() {
   const shared = useSharedPins(collab?.params.mapId);
 
   // Reset when switching context.
-  const ctxKey = discoverCtx ? 'd' : personal ? `p${personal.params.mapId}` : collab ? `c${collab.params.mapId}` : 'other';
+  const ctxKey = personal ? `p${personal.params.mapId}` : discoverCtx ? 'd' : collab ? `c${collab.params.mapId}` : 'other';
   useEffect(() => {
     setText('');
     setOpen(false);
@@ -104,7 +110,7 @@ export function SearchBar() {
           id: `e${e.id}`, section: 'Events', icon: 'event', label: e.name,
           detail: [e.venueName, e.city, e.category].filter(Boolean).join(' · '),
           run: () => {
-            uiStore.set({ selectedEventId: e.id });
+            uiStore.set({ selectedEventId: e.id, selectedPlace: null, selectedPinId: null });
             if (e.longitude != null && e.latitude != null) fly(e.longitude, e.latitude);
             finish('');
           },
@@ -119,7 +125,7 @@ export function SearchBar() {
           id: `p${p.id}`, section: 'Your pins', icon: 'pin', label: pinTitle(p),
           detail: p.address ?? p.event?.venueName ?? undefined,
           run: () => {
-            uiStore.set({ selectedPinId: p.id });
+            uiStore.set({ selectedPinId: p.id, selectedPlace: null, selectedEventId: null });
             if (p.longitude != null && p.latitude != null) fly(p.longitude, p.latitude);
             finish('');
           },
@@ -139,13 +145,26 @@ export function SearchBar() {
       out.push({
         id: `g${pl.id}`, section: 'Places', icon: 'place', label: pl.name, detail: pl.detail,
         run: () => {
-          fly(pl.longitude, pl.latitude, 13);
-          // On a personal map (account or guest), a search hit becomes a new pin that keeps its source.
+          fly(pl.longitude, pl.latitude, personal && pl.osmRef ? 16 : 13);
+          // On a personal map, a search hit that is a mapped place opens that place's details
+          // (with "Add to map"); anything else (an address, a street) offers a new custom pin
+          // that keeps its source.
           if (personal) {
-            uiStore.set({ newPinAt: {
+            const offerPin = () => uiStore.set({ newPinAt: {
               latitude: pl.latitude, longitude: pl.longitude, title: pl.name, address: [pl.name, pl.detail].filter(Boolean).join(', '),
               placeRef: pl.osmRef, source: searchResultToPinSource(pl),
             } });
+            const ref = pl.osmRef ? parsePlaceRef(pl.osmRef) : null;
+            if (!ref || !map) offerPin();
+            else {
+              map.once('idle', () => {
+                const fid = osmFeatureId(ref.osmType, ref.osmId);
+                const f = map.querySourceFeatures(PLACES_SOURCE, { sourceLayer: 'poi' }).find((x) => Number(x.id) === fid);
+                const place = f ? placeFromFeature(f) : null;
+                if (place) uiStore.set({ selectedPlace: place, selectedEventId: null, selectedPinId: null });
+                else offerPin();
+              });
+            }
           }
           finish(pl.name);
         },

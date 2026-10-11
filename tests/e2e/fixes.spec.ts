@@ -10,7 +10,7 @@ async function at(page: Page, center: [number, number], zoom: number, categories
     if (sessionStorage.getItem('__fx')) return;
     sessionStorage.setItem('__fx', '1');
     localStorage.setItem('atlas.viewport', JSON.stringify({ center: c, zoom: z }));
-    localStorage.setItem('atlas.discover.categories.v1', JSON.stringify({ visible: cats, subs: {} }));
+    localStorage.setItem('atlas.discover.categories.v2', JSON.stringify({ visible: cats, subs: {} }));
   }, [center, zoom, categories] as const);
 }
 const bearing = (page: Page) => page.evaluate(() => (window as AtlasWindow).__atlasMap!.getBearing());
@@ -30,15 +30,17 @@ test('compass shows the bearing and resets the map to north from any bearing', a
   }
 });
 
-test('Discover tab works in both directions and opens its side panel even when collapsed', async ({ page }) => {
+test('My Map / Shared tabs work in both directions and open the side panel even when collapsed', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Collapse side panel' }).click();
-  await openMyMaps(page);
-  await expect(sidePanel(page).getByRole('heading', { name: 'My Maps', level: 1 })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Map contexts' }).getByRole('link', { name: 'Shared' }).click();
+  await expect(sidePanel(page).getByRole('heading', { name: 'Shared', level: 1 })).toBeVisible();
   await page.getByRole('button', { name: 'Collapse side panel' }).click();
   await openDiscover(page);
-  await expect(page.getByRole('navigation', { name: 'Map contexts' }).getByRole('link', { name: 'Discover' })).toHaveAttribute('aria-current', 'page');
-  await expect(sidePanel(page).getByRole('heading', { name: 'Discover', level: 1 })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Map contexts' }).getByRole('link', { name: 'My Map' })).toHaveAttribute('aria-current', 'page');
+  await expect(sidePanel(page).getByRole('heading', { name: 'My Map', level: 1 })).toBeVisible();
+  await openMyMaps(page);
+  await expect(sidePanel(page).getByRole('button', { name: 'Add custom pin' })).toBeVisible();
 });
 
 test('share menu separates the Atlas link, official website and OpenStreetMap page; Atlas link opens the same place', async ({ page }) => {
@@ -60,7 +62,7 @@ test('share menu separates the Atlas link, official website and OpenStreetMap pa
   await page.goto(new URL(atlas).pathname + new URL(atlas).search);
   await waitForMap(page);
   await expect(inspector(page).getByRole('article', { name: /Place: Empire State Building/ })).toBeVisible({ timeout: 20_000 });
-  await expect(page).toHaveURL(/\/$/); // params consumed
+  await expect(page).toHaveURL(/\/maps\/[0-9a-f-]{36}$/); // unified map; params consumed
 });
 
 test('event deep link selects the event by id; malformed links are ignored', async ({ page }) => {
@@ -71,7 +73,7 @@ test('event deep link selects the event by id; malformed links are ignored', asy
   await expect(inspector(page).getByRole('article', { name: /Event: Sample: Street Food Market/ })).toBeVisible({ timeout: 15_000 });
 });
 
-test('directions without a backend: honest message plus a labelled straight-line fallback', async ({ page, context }) => {
+test('directions without a backend: honest message plus a simple distance (never called a route)', async ({ page, context }) => {
   await at(page, [-74.0007, 40.7309], 15, ['events']);
   await page.goto('/');
   await waitForMap(page);
@@ -81,7 +83,8 @@ test('directions without a backend: honest message plus a labelled straight-line
   const dir = inspector(page).getByRole('region', { name: 'Directions' });
   await dir.getByRole('button', { name: 'Get route from my location' }).click();
   await expect(dir).toContainText('Routing needs the Atlas server');
-  await expect(dir).toContainText(/away \(straight line\)/);
+  await expect(dir).toContainText(/\d mi away/);
+  await expect(dir).not.toContainText(/straight/i);
   await expect(dir).not.toContainText(/\bmin\b/); // no fabricated travel time
 });
 

@@ -578,6 +578,19 @@ New dependencies (both lazy-loaded):
         map's content is on screen.
     -   An empty personal world shows actions.
 
+### Phase 14 --- Unified map overhaul (2026-10-11)
+
+-   **Unified map.** `ExploreLayer` (discover/DiscoverView.tsx) renders discovery on every personal map; `MapsHome` handles `/` and `/maps` (redirect with the query string). `SidePanel` has Nearby | My pins tabs (`uiStore.panelTab`, persisted). Saved place refs / event ids on the open map are excluded from the discovery layers (`placesFilter(subclasses, excludeFeatureIds)`).
+-   **Markers.** `markerImages.ts` renders round badges (centre-anchored). `PinMarkerVisual` draws the droplet (`DROPLET_PATH`) for shape `circle`; `pinVisual.ts` derives the category glyph from the pin's source snapshot. `PinMarker` anchors droplets at the tip and shows a hover card.
+-   **Basemap POIs.** `atlasStyle.restrictBasemapPoi` limits stock POI layers to `DESIGNATED_BASEMAP_POI` (parking, entrances); `poi_transit` is untouched.
+-   **Weather & sky.** `weather/weather.ts` (prefs, WMO mapping, Open-Meteo fetch with 0.25° rounding, `useTimeZoneAt`), `weather/SkyLayer.tsx` (one 2D canvas inside MapLibre's canvas container, below markers; effects eased toward `targetMix`; simulated clock honours pause/speed), `weather/aircraft.ts`.
+-   **Map life models.** `places/ambientModels.ts` builds cars/trains/people from extrusion boxes; `AmbientLayer` skips frames while the GeoJSON worker is busy (`isSourceLoaded`).
+-   **Hours.** `lib/openingHours.ts` parses the common OSM forms; `places/OpeningHours.tsx` renders them in the place's zone.
+-   **Collectibles v2.** Models in `scripts/models/monuments2.mjs`; `scripts/models/write-0020.sh` regenerates migration 0020 from the catalog (`gen-catalog-sql.mjs`). Skin overlays: `collectibles/SkinOverlayFx.tsx` + CSS in `index.css`. Dev pages: `/__dev/reveal`, `/__dev/monuments`, `/__dev/marker-check`.
+-   **Chess.** Board rows fixed (`grid-rows-8`); tiles scale by occupancy. Links: `lib/shareLinks.ts` (`chessGameLink`, `chessPositionLink`, `parseChessMoves`); `chess/localMoves.ts` keeps the engine out of the main bundle.
+-   **Hosting.** `vercel.json` rewrites; `scripts/serve-like-vercel.mjs` + `playwright.hosting.config.ts` verify it locally.
+-   **Compass.** `map/deviceHeading.ts` (iOS permission + Android absolute orientation); `places/UserLocationMarker.tsx`.
+
 ## 10. Environment and setup documentation
 
 Document required variables in `.env.example` without real secrets.

@@ -27,7 +27,7 @@ import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { pinTitle, usePinMutations } from './api';
 
 const SHAPES: { id: PinShape; label: string }[] = [
-  { id: 'circle', label: 'Circle' },
+  { id: 'circle', label: 'Pin (droplet)' },
   { id: 'square', label: 'Square' },
   { id: 'rounded', label: 'Rounded square' },
   { id: 'diamond', label: 'Diamond' },

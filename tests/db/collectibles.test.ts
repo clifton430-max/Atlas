@@ -12,7 +12,7 @@ let alice: string; let bob: string;
 const catalog = JSON.parse(readFileSync('src/features/collectibles/catalog.data.json', 'utf8')) as {
   monuments: { id: string; rarity: string; name: string }[]; skins: { id: string; rarity: string; name: string }[];
 };
-const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'celestial'];
 const uuid = () => crypto.randomUUID();
 const open = (crate: string, key = uuid()) => t.one<{ def_id: string; rarity: string; duplicate: boolean; copies: number; rolls_left: number; replayed: boolean; roll: number }>(
   `select * from public.open_crate($1, $2)`, [crate, key]);
@@ -23,23 +23,31 @@ beforeEach(async () => {
 });
 
 describe('catalog and published odds', () => {
-  it('database catalog matches the client catalog; ≥3 rewards per rarity per crate', async () => {
+  it('database catalog matches the client catalog; ≥3 rewards per regular rarity, exactly 1 Celestial per crate', async () => {
     await t.asAnon();
     const defs = await t.query<{ id: string; kind: string; rarity: string; name: string }>(`select id, kind, rarity, name from public.collectible_defs order by id`);
     const expected = [...catalog.monuments.map((m) => ({ id: `monument:${m.id}`, kind: 'monument', rarity: m.rarity, name: m.name })),
       ...catalog.skins.map((s) => ({ id: `skin:${s.id}`, kind: 'skin', rarity: s.rarity, name: s.name }))].sort((a, b) => a.id.localeCompare(b.id));
     expect(defs).toEqual(expected);
     for (const kind of ['monument', 'skin']) for (const r of RARITIES) {
-      expect(defs.filter((d) => d.kind === kind && d.rarity === r).length, `${kind}/${r}`).toBeGreaterThanOrEqual(3);
+      const n = defs.filter((d) => d.kind === kind && d.rarity === r).length;
+      if (r === 'celestial') expect(n, `${kind}/${r}`).toBe(1);
+      else expect(n, `${kind}/${r}`).toBeGreaterThanOrEqual(3);
     }
+    // A second Celestial reward in the same crate is refused by the database.
+    await t.asAdmin();
+    expect(await t.fails(`insert into public.collectible_defs (id, kind, rarity, name) values ('skin:second-star', 'skin', 'celestial', 'Second star')`)).toMatch(/Only one Celestial/);
   });
 
-  it('both crates publish the same initial odds: total exactly 100%, Mythic exactly 1%', async () => {
+  it('both crates publish version-2 odds: total exactly 100%, Mythic exactly 1%, Celestial 0.1%; version 1 is kept, inactive', async () => {
     await t.asAnon(); // published odds are readable signed out
     for (const crate of ['monument', 'skin']) {
-      const { weights } = await t.one<{ weights: Record<string, number> }>(`select weights from public.crate_configs where crate = $1 and active`, [crate]);
-      expect(weights).toEqual({ common: 3000, uncommon: 2500, rare: 2000, epic: 1400, legendary: 1000, mythic: 100 });
+      const { weights, version } = await t.one<{ weights: Record<string, number>; version: number }>(`select weights, version from public.crate_configs where crate = $1 and active`, [crate]);
+      expect(version).toBe(2);
+      expect(weights).toEqual({ common: 2990, uncommon: 2500, rare: 2000, epic: 1400, legendary: 1000, mythic: 100, celestial: 10 });
       expect(Object.values(weights).reduce((a, b) => a + b, 0)).toBe(10000);
+      const v1 = await t.one<{ weights: Record<string, number>; active: boolean }>(`select weights, active from public.crate_configs where crate = $1 and version = 1`, [crate]);
+      expect(v1).toEqual({ weights: { common: 3000, uncommon: 2500, rare: 2000, epic: 1400, legendary: 1000, mythic: 100 }, active: false });
     }
   });
 
@@ -57,6 +65,11 @@ describe('catalog and published odds', () => {
     expect([await at(0), await at(2999), await at(3000), await at(5499), await at(5500), await at(7499), await at(7500),
       await at(8899), await at(8900), await at(9899), await at(9900), await at(9999)])
       .toEqual(['common', 'common', 'uncommon', 'uncommon', 'rare', 'rare', 'epic', 'epic', 'legendary', 'legendary', 'mythic', 'mythic']);
+    // Version 2: Celestial is the last 10 rolls (9990..9999).
+    const w2 = '{"common":2990,"uncommon":2500,"rare":2000,"epic":1400,"legendary":1000,"mythic":100,"celestial":10}';
+    const at2 = async (roll: number) => (await t.one<{ r: string }>(`select public.rarity_for_roll($1::jsonb, $2) r`, [w2, roll])).r;
+    expect([await at2(0), await at2(2989), await at2(2990), await at2(9889), await at2(9890), await at2(9989), await at2(9990), await at2(9999)])
+      .toEqual(['common', 'common', 'uncommon', 'legendary', 'mythic', 'mythic', 'celestial', 'celestial']);
   });
 
   it('the CSPRNG is uniform over 0..9999 (statistical check, 40k draws)', async () => {
@@ -98,7 +111,7 @@ describe('opening crates', () => {
     // Only one active monument so every roll hits the same reward.
     await t.query(`update public.collectible_defs set active = false where kind = 'monument'`);
     await t.query(`update public.crate_configs set active = false where crate = 'monument'`);
-    await t.query(`insert into public.crate_configs (crate, version, weights, active) values ('monument', 2, '{"common":10000,"uncommon":0,"rare":0,"epic":0,"legendary":0,"mythic":0}', true)`);
+    await t.query(`insert into public.crate_configs (crate, version, weights, active) values ('monument', 9, '{"common":10000,"uncommon":0,"rare":0,"epic":0,"legendary":0,"mythic":0}', true)`);
     await t.query(`update public.collectible_defs set active = true where id = 'monument:stonehenge'`);
     await t.as(alice);
     expect(await open('monument')).toMatchObject({ def_id: 'monument:stonehenge', duplicate: false, copies: 1 });
@@ -109,7 +122,7 @@ describe('opening crates', () => {
     await t.asAdmin();
     await t.query(`update public.collectible_defs set active = false where kind = 'skin' and rarity = 'common'`);
     await t.query(`update public.crate_configs set active = false where crate = 'skin'`);
-    await t.query(`insert into public.crate_configs (crate, version, weights, active) values ('skin', 2, '{"common":10000,"uncommon":0,"rare":0,"epic":0,"legendary":0,"mythic":0}', true)`);
+    await t.query(`insert into public.crate_configs (crate, version, weights, active) values ('skin', 9, '{"common":10000,"uncommon":0,"rare":0,"epic":0,"legendary":0,"mythic":0}', true)`);
     await t.as(alice);
     expect(await t.fails(`select * from public.open_crate('skin', $1)`, [uuid()])).toMatch(/blocked and not used/);
     expect(await t.query(`select * from public.crate_rolls`)).toEqual([]);

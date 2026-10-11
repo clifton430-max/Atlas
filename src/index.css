@@ -112,3 +112,55 @@
 .atlas-mythic::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.65) 48%, transparent 66%); background-size: 250% 100%; animation: atlas-shimmer 2.4s ease-in-out infinite; }
 @keyframes atlas-shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
 @media (prefers-reduced-motion: reduce) { .atlas-rays, .atlas-mythic::after { animation: none !important; } }
+
+/* Name under a droplet pin: dark text with a white halo, like the map's own labels. */
+.atlas-pin-caption {
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 1px 1px #fff;
+}
+
+/* ---- Skin overlays (SkinOverlayFx) ------------------------------------- */
+.atlas-fx-aurora {
+  position: absolute; left: -20%; right: -20%; top: -10%; height: 55%;
+  background: linear-gradient(100deg, transparent 10%, var(--a1) 35%, var(--a2) 55%, transparent 80%);
+  filter: blur(28px); opacity: 0.9; mix-blend-mode: screen;
+  animation: atlas-aurora 18s ease-in-out infinite alternate;
+}
+.atlas-fx-aurora-2 { top: 5%; animation-duration: 26s; animation-direction: alternate-reverse; }
+@keyframes atlas-aurora {
+  0% { transform: translateX(-6%) skewY(-4deg) scaleY(0.9); opacity: 0.55; }
+  50% { opacity: 0.95; }
+  100% { transform: translateX(6%) skewY(3deg) scaleY(1.15); opacity: 0.6; }
+}
+.atlas-fx-ember, .atlas-fx-firefly, .atlas-fx-star, .atlas-fx-petal { position: absolute; display: block; border-radius: 9999px; }
+.atlas-fx-ember { width: 5px; height: 5px; background: radial-gradient(circle, #ffd27a, #ff5a1f 60%, transparent 70%); animation: atlas-ember linear infinite; }
+@keyframes atlas-ember { 0% { translate: 0 30vh; opacity: 0; } 15% { opacity: 1; } 100% { translate: 3vw -40vh; opacity: 0; } }
+.atlas-fx-firefly { width: 7px; height: 7px; background: radial-gradient(circle, #fff7b0, #e8f25a 45%, transparent 70%); animation: atlas-firefly ease-in-out infinite alternate; }
+@keyframes atlas-firefly { 0% { translate: 0 0; opacity: 0.15; } 40% { opacity: 1; } 100% { translate: 4vw -3vh; opacity: 0.2; } }
+.atlas-fx-star { width: 3px; height: 3px; background: #fff; box-shadow: 0 0 6px 1px rgba(255, 244, 200, 0.85); animation: atlas-twinkle ease-in-out infinite; }
+@keyframes atlas-twinkle { 0%, 100% { opacity: 0.15; } 50% { opacity: 1; } }
+.atlas-fx-petal { width: 9px; height: 6px; border-radius: 80% 0 80% 0; background: #f7b6c8; animation: atlas-petal linear infinite; }
+@keyframes atlas-petal { 0% { translate: 0 -40vh; rotate: 0deg; opacity: 0; } 10% { opacity: 0.9; } 100% { translate: 8vw 60vh; rotate: 540deg; opacity: 0; } }
+.atlas-fx-shooting {
+  position: absolute; width: 140px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, rgba(255,244,200,0), #fff4c8);
+  rotate: -25deg; opacity: 0; animation: atlas-shoot 9s ease-out infinite;
+}
+@keyframes atlas-shoot { 0%, 82% { opacity: 0; translate: 0 0; } 86% { opacity: 1; } 100% { opacity: 0; translate: 220px 100px; } }
+@media (prefers-reduced-motion: reduce) {
+  .atlas-fx-aurora, .atlas-fx-ember, .atlas-fx-firefly, .atlas-fx-star, .atlas-fx-petal, .atlas-fx-shooting { animation: none !important; }
+  .atlas-fx-shooting { display: none; }
+}
+
+/* Celestial reveal (above Mythic): turning gold halo, starfield and a shimmering title. */
+.atlas-celestial-halo {
+  position: absolute; left: 50%; top: 42%; width: 520px; height: 520px; margin: -260px 0 0 -260px;
+  background: conic-gradient(from 0deg, transparent 0deg, #f2c94c55 20deg, transparent 45deg, #c9b6ff44 90deg, transparent 120deg, #f2c94c55 180deg, transparent 210deg, #7fd1ff33 270deg, transparent 300deg);
+  border-radius: 9999px; filter: blur(2px); animation: atlas-spin 22s linear infinite;
+}
+@keyframes atlas-spin { to { rotate: 360deg; } }
+.atlas-celestial-title {
+  background: linear-gradient(90deg, #fff4cf, #f2c94c, #ffffff, #f2c94c, #fff4cf); background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: atlas-shimmer 4s linear infinite;
+}
+@keyframes atlas-shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .atlas-celestial-halo, .atlas-celestial-title { animation: none !important; } }

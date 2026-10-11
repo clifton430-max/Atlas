@@ -1510,6 +1510,32 @@ export type Database = {
         }
         Returns: string
       }
+      create_meetup_at: {
+        Args: {
+          p_capacity?: number
+          p_collab_map_id: string
+          p_description?: string
+          p_ends_at: string
+          p_latitude: number
+          p_longitude: number
+          p_starts_at: string
+          p_timezone: string
+          p_title: string
+          p_visibility?: string
+        }
+        Returns: Json
+      }
+      create_shared_custom_pin: {
+        Args: {
+          p_address?: string
+          p_collab_map_id: string
+          p_latitude: number
+          p_longitude: number
+          p_note?: string
+          p_title: string
+        }
+        Returns: string
+      }
       decline_draw: { Args: { p_game_id: string }; Returns: undefined }
       edge_consume_rate_limit: {
         Args: { p_bucket: string; p_limit: number; p_window_seconds: number }
@@ -1733,6 +1759,18 @@ export type Database = {
           p_starts_at: string
           p_timezone: string
           p_visibility: string
+        }
+        Returns: undefined
+      }
+      update_shared_pin_details: {
+        Args: {
+          p_address?: string
+          p_clear_note?: boolean
+          p_latitude?: number
+          p_longitude?: number
+          p_note?: string
+          p_shared_pin_id: string
+          p_title?: string
         }
         Returns: undefined
       }

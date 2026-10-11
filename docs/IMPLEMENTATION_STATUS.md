@@ -1,6 +1,55 @@
 # Atlas — Implementation Status & Acceptance Checklist
 
-_Last updated: 2026-10-10 (master implementation session). Earlier sections below are kept for history._
+_Last updated: 2026-10-11 (unified-map overhaul). Earlier sections below are kept for history._
+
+## Unified-map overhaul — 2026-10-11
+
+| # | Area | Status | Verified by |
+|---|---|---|---|
+| 1 | One unified map: `/` and `/maps` open the last personal map with discovery + pins together; Discover tab removed; old `/?place=` / `?event=` / `?landmark=` links still work | Done | e2e `overhaul` (unified map, old links), `fixes`, `redesign` |
+| 2 | Markers: unsaved places/events = small round category badges; saved + custom pins = droplet (the app's own red droplet in the reference screenshots), category colour + glyph, tip on the coordinate; no duplicates (saved places are removed from the discovery layer) | Done | component `PinMarkerVisual`, e2e `discover` (droplet tip), `overhaul`, `redesign` |
+| 3 | Filters: every basemap POI is in an Atlas category (new Shops, Services & Health, Hotels & Stays); basemap POI symbols limited to parking/entrances; Hide all hides every category icon; saved pins never hidden by categories | Done | e2e `overhaul`, `livingmap` (Hide all) |
+| 4 | "Things near me": one list, closest-first across categories, "0.4 mi away" (no "straight line" anywhere), live location updates (watch, 25 m threshold), selection opens the right details | Done | unit `places`, e2e `overhaul`, `livingmap` |
+| 5 | Groups: expandable, live counts, pins listed by stable id, click flies + opens details, expansion remembered per map | Done | e2e `guest` (groups), manual |
+| 6 | Custom pins: droplet, hover card (desktop) / tap → details (touch), editable/removable; collaborators drop pins at any point; author/owner edit | Done | DB `meetups` (custom pins), e2e `discover` (hover card), live `overhaul` |
+| 7 | Weather: Automatic (real Open-Meteo data, 0.25° rounding, 15-min cache, honest "unavailable"), Manual (clear/partly cloudy/cloudy/rain/storm/fog/snow + intensity, never overwritten), Off; cross-fades; reduced motion = still frame | Done | unit `overhaul` (WMO mapping, mixes), e2e `overhaul` (manual persists, auto live + 429) |
+| 8 | Map life: cars (6 variants: wheels, glass cabin, roof, lights), people (legs, arms, head, walking cycle), trains (carriages on the track curve, cab noses, head/tail lights); smoothed turning; buildings occlude them | Done | unit `overhaul` (models), e2e `overhaul`, `redesign`, `livingmap` |
+| 9 | Aircraft: random, ≤ 2 at once, geographic paths across the view, livery/shadow/contrail, pausable, toggle in Settings; labelled decorative | Done | unit `overhaul` (paths) |
+| 10 | Gacha: 36 monuments (11 new real public-domain landmarks verified on Wikidata, 5 fictional "Atlas Originals", Celestial Farnese Atlas), 37 skins (19 new, several with animated overlays) | Done | unit + DB `collectibles` |
+| 10b | New top rarity **Celestial** (0.1 %, exactly one per crate, enforced by a DB trigger); odds v2 published (Common 29.9 %); v1 kept inactive; inventories untouched | Done | DB `collectibles`, live API + live e2e |
+| 11 | Reward screen: **Place item** / **Close / Later**; reward already saved server-side (idempotent); closing never places | Done | live e2e `overhaul` |
+| 12 | New original logo (pin-globe with orbit) in nav, sign-in, welcome, favicon, PNG app icons, manifest, loading screen | Done | e2e `overhaul` |
+| 13 | Shared maps: pins + attribution + avatars + live sync (existing) + meetups at arbitrary coordinates (one transaction) + viewers blocked server-side | Done | DB `meetups`, live e2e `overhaul` + `collab` |
+| 14 | Place data preserved (existing `pinSource`); opening hours now parsed into a weekly table with "Open now" in the place's time zone (verbatim fallback) | Done | unit `overhaul` (hours), live `livingmap` |
+| 15 | Routes/ETA (existing), website ≠ OSM link (existing), compass: needle follows rotation, reset to north, "turn the map with my phone" on devices with a compass, "you are here" dot with heading cone | Done | e2e `redesign`, manual (sensor needs a phone) |
+| 16 | Animation controls moved to Settings → Map animations & weather; floating bar removed; all persisted | Done | e2e `overhaul`, `redesign`, `livingmap` |
+| 17 | Chessboard: **root cause** — rows were auto-height, so empty ranks collapsed and a rank grew when a piece arrived (board jumped). Rows now fixed; empty squares are compact tiles that expand while occupied (visual only) | Done | e2e `overhaul` (geometry constant), `chess` |
+| 18 | Chess share links: Copy link in the room + Share menu (game link = players only; position link = validated copy; room link) — opening never creates a game | Done | e2e `overhaul`, live `chess` |
+| 19 | **Root cause of "shared pages break after refresh":** the host had no SPA fallback, so `/collab/…`, `/chess/…`, `/maps/…` returned **404** (confirmed on the live site). `vercel.json` adds the fallback (assets still 404 when missing). Sign-in returns to the shared link | Done locally; **needs a deploy** | hosting e2e (production build served with vercel.json rules), live e2e `overhaul` (refresh, new tab, fresh session, outsider) |
+
+**Database (applied to the linked project, additive):** `0019_custom_shared_pins_meetups_anywhere` (3 RPCs), `0020_celestial_tier_catalog_v2` (rarity check widened, weights validator + roll mapping accept 7 rarities, one-Celestial trigger, 37 new defs, odds v2). No data deleted; test accounts' crate rolls are cleared by the live tests only.
+
+**New external service:** Open-Meteo (weather + time zone for "open now"): no key; free for non-commercial use (commercial use needs their paid API); coordinates rounded to ~25 km; attributed in the UI.
+
+### Test results (this session)
+
+| Suite | Result |
+|---|---|
+| Typecheck, lint, production build | pass |
+| Unit + component + database (PGlite) | 192 / 192 |
+| Browser e2e, no backend (fixtures) | 82 / 82 (incl. axe a11y) |
+| Hosting: production build + vercel.json rules (refresh / direct open / back-forward / 404 assets) | 9 / 9 |
+| Live API (linked project) | 40 / 40 (+1 opt-in skipped) |
+| Live browser e2e (linked project, real accounts) | 20 / 20 |
+
+### Remaining limitations (honest)
+
+- The refresh fix takes effect on the live site **only after you deploy** (push to the branch Vercel builds).
+- Device-heading compass can only be exercised on a phone/tablet with a sensor; desktops use reset-to-north.
+- Weather "open now" time zones come from coordinates rounded to 0.25°, so a place right on a time-zone border can show the neighbouring zone (the zone name is shown).
+- Fictional monuments have no real location by design; they can still be placed on your maps.
+- Planes, cars, people and trains are decorative (no live traffic/flight data).
+- Existing pins keep their stored shape value; "circle" is now drawn as the droplet, explicitly chosen shapes (square/rounded/diamond/star) are kept.
 
 ## Master implementation (data integrity, collaboration, chess, collectibles, worlds) — 2026-10-10
 

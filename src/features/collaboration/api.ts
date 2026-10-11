@@ -192,6 +192,24 @@ export function useCollabMutations() {
   const invalidateMaps = () => qc.invalidateQueries({ queryKey: qk.collabMaps });
 
   return {
+    /** A custom pin at any point (editors/owners; retried requests return the same pin). */
+    addCustomPin: useMutation({
+      mutationFn: async (i: { collabMapId: string; title: string; note?: string | null; latitude: number; longitude: number }) =>
+        unwrap(await sb().rpc('create_shared_custom_pin', {
+          p_collab_map_id: i.collabMapId, p_title: i.title, p_latitude: i.latitude, p_longitude: i.longitude, p_note: i.note ?? undefined,
+        })) as string,
+      onSettled: (_d, _e, i) => qc.invalidateQueries({ queryKey: qk.sharedPins(i.collabMapId) }),
+    }),
+    /** Partial edit by the pin's author or the map owner (enforced by the server). */
+    updateSharedPin: useMutation({
+      mutationFn: async (i: { id: string; collabMapId: string; title?: string; note?: string | null; latitude?: number; longitude?: number }) => {
+        unwrap(await sb().rpc('update_shared_pin_details', {
+          p_shared_pin_id: i.id, p_title: i.title, p_note: i.note ?? undefined, p_clear_note: i.note === null,
+          p_latitude: i.latitude, p_longitude: i.longitude,
+        }));
+      },
+      onSettled: (_d, _e, i) => qc.invalidateQueries({ queryKey: qk.sharedPins(i.collabMapId) }),
+    }),
     create: useMutation({
       mutationFn: async (input: { name: string; description?: string }) =>
         unwrap(await sb().rpc('create_collab_map', { p_name: input.name, p_description: input.description || undefined })) as string,

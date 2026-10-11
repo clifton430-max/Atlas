@@ -135,6 +135,15 @@ export function useMeetupMutations(mapId: string, me: { id: string; name: string
       })) as string,
       onSettled: refresh,
     }),
+    /** Meetup at arbitrary coordinates: the meeting-point pin and the meetup in one server transaction. */
+    createAt: useMutation({
+      mutationFn: async (i: MeetupInput & { title: string; latitude: number; longitude: number }) => unwrap(await requireSupabase().rpc('create_meetup_at', {
+        p_collab_map_id: mapId, p_title: i.title, p_latitude: i.latitude, p_longitude: i.longitude,
+        p_starts_at: i.startsAt, p_ends_at: i.endsAt, p_timezone: i.timezone,
+        p_description: i.description ?? undefined, p_capacity: i.capacity ?? undefined, p_visibility: i.visibility,
+      })) as { shared_pin_id: string; meetup_id: string },
+      onSettled: () => { void refresh(); void qc.invalidateQueries({ queryKey: ['sharedPins', mapId] }); },
+    }),
     update: useMutation({
       mutationFn: async (i: MeetupInput & { id: string }) => {
         unwrap(await requireSupabase().rpc('update_meetup', {

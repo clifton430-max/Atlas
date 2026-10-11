@@ -11,7 +11,7 @@ async function atHallOfFame(page: Page) {
     if (sessionStorage.getItem('__ch')) return;
     sessionStorage.setItem('__ch', '1');
     localStorage.setItem('atlas.viewport', JSON.stringify({ center: [-90.2611, 38.6444], zoom: 17 }));
-    localStorage.setItem('atlas.discover.categories.v1', JSON.stringify({ visible: ['arts'], subs: {} }));
+    localStorage.setItem('atlas.discover.categories.v2', JSON.stringify({ visible: ['arts'], subs: {} }));
   });
 }
 const sq = (page: Page, s: string) => page.getByRole('gridcell', { name: new RegExp(`^${s},`) });
@@ -60,7 +60,7 @@ test('local game: legal moves only, castling, checkmate, persistence, return to 
   await expect(page.getByRole('status')).toHaveText('Black wins — Checkmate');
   await expect(page.getByRole('region', { name: 'Move history' })).toContainText('Qh4#');
   await page.getByRole('button', { name: 'Return to map' }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/maps\//); // the unified map
   await waitForMap(page);
 });
 

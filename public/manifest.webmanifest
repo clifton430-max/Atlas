@@ -1,0 +1,14 @@
+{
+  "name": "Atlas",
+  "short_name": "Atlas",
+  "description": "Explore places nearby, keep your own maps, and share a world with friends.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f3ea",
+  "theme_color": "#1b2a6b",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/atlas.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

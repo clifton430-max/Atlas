@@ -1,18 +1,20 @@
 /**
  * Bottom map toolbar (all map contexts):
- *   [locate · 2D/3D · zoom out · zoom in · reset view]   [map animations]   [layers]
+ *   [locate · 2D/3D · zoom out · zoom in · compass]   [weather status]   [layers]
+ * Map animation and weather controls live in Settings → Map animations & weather.
  * Replaces MapLibre's built-in navigation buttons with labelled, keyboard
  * accessible controls that match the app.
  */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Compass, Layers, Loader2, LocateFixed, Minus, Mountain, Plus, Square } from 'lucide-react';
+import { Compass, Layers, Loader2, LocateFixed, Minus, Mountain, Navigation2, Plus, Square } from 'lucide-react';
+import { headingSupported, startHeading, stopHeading, useDeviceHeading } from './deviceHeading';
 import { Popover } from '@/components/ui/Popover';
 import { Switch } from '@/components/ui/Field';
 import { cn } from '@/components/ui/cn';
 import { useToast } from '@/components/ui/Toast';
 import { requestUserLocation } from '@/features/places/userLocation';
-import { AnimationsControl } from '@/features/places/AnimationsControl';
+import { WeatherChip } from '@/features/weather/WeatherChip';
 import { useMapInstance } from './MapContext';
 import { MapLegend } from './MapLegend';
 import { LIGHTING_OPTIONS, setLightingMode, useIsNight, useLightingMode } from './lighting';
@@ -61,7 +63,7 @@ export function MapToolbar() {
         <CompassButton anim={anim} />
       </div>
 
-      <AnimationsControl className={cn(groupCls, 'order-last w-full justify-center sm:order-none sm:w-auto')} />
+      <WeatherChip className="order-last sm:order-none" />
 
       <Popover label="Map layers" trigger={({ open, toggle, id }) => (
         <button type="button" aria-expanded={open} aria-controls={id} onClick={toggle}
@@ -76,26 +78,56 @@ export function MapToolbar() {
 }
 
 /**
- * Compass: the needle shows where north is (rotates with the map bearing);
- * clicking turns the map to face north. Tilt is kept. No device sensors.
+ * Compass: the needle always points to north (it rotates with the map
+ * bearing, including rotation by touch/drag); clicking turns the map to face
+ * north (tilt is kept). On phones and tablets with an orientation sensor a
+ * second button makes the map follow the direction you're facing; dragging
+ * or rotating the map, or resetting to north, stops following. Without a
+ * sensor (most desktops) the reset-to-north behaviour is the fallback.
  */
 function CompassButton({ anim }: { anim: { duration?: number } }) {
   const { map } = useMapInstance();
+  const toast = useToast();
   const [bearing, setBearing] = useState(() => map?.getBearing() ?? 0);
+  const { heading, active } = useDeviceHeading();
+  const [following, setFollowing] = useState(false);
   useEffect(() => {
     if (!map) return;
     const on = () => setBearing(map.getBearing());
     on();
     map.on('rotate', on);
-    return () => { map.off('rotate', on); };
+    // A person rotating/dragging the map takes control back from the sensor.
+    const stopFollow = (e: { originalEvent?: unknown }) => { if (e.originalEvent) setFollowing(false); };
+    map.on('rotatestart', stopFollow);
+    map.on('dragstart', stopFollow);
+    return () => { map.off('rotate', on); map.off('rotatestart', stopFollow); map.off('dragstart', stopFollow); };
   }, [map]);
+  useEffect(() => {
+    if (!following || !map || heading == null) return;
+    const t = setTimeout(() => map.easeTo({ bearing: heading, duration: 120 }), 0);
+    return () => clearTimeout(t);
+  }, [following, heading, map]);
+  useEffect(() => { if (!following && active) stopHeading(); }, [following, active]);
   const north = Math.abs(bearing) < 0.5;
   const label = north ? 'Map faces north' : `Reset to north (bearing ${Math.round((bearing + 360) % 360)}°)`;
   return (
-    <button type="button" className={btnCls} disabled={!map} aria-label={label} title={label} data-bearing={Math.round(bearing)}
-      onClick={() => map?.easeTo({ bearing: 0, ...anim })}>
-      <Compass className="size-4 transition-transform" style={{ transform: `rotate(${-bearing - 45}deg)` }} aria-hidden />
-    </button>
+    <>
+      <button type="button" className={btnCls} disabled={!map} aria-label={label} title={label} data-bearing={Math.round(bearing)}
+        onClick={() => { setFollowing(false); map?.easeTo({ bearing: 0, ...anim }); }}>
+        <Compass className="size-4 transition-transform" style={{ transform: `rotate(${-bearing - 45}deg)` }} aria-hidden />
+      </button>
+      {headingSupported() && (
+        <button type="button" className={cn(btnCls, following && 'bg-accent-soft text-accent')} aria-pressed={following}
+          aria-label={following ? 'Stop following my heading' : 'Turn the map with my phone'} title={following ? 'Stop following my heading' : 'Turn the map with my phone'}
+          onClick={async () => {
+            if (following) { setFollowing(false); return; }
+            if (await startHeading()) setFollowing(true);
+            else toast.info('Your device’s compass isn’t available, so the map stays north-up.');
+          }}>
+          <Navigation2 className="size-4" aria-hidden />
+        </button>
+      )}
+    </>
   );
 }
 
@@ -134,6 +166,7 @@ function LayersPanel() {
       <Switch label="Decorative trees" description="Drawn only inside mapped parks and woods — not individual real trees." checked={trees} onChange={setTreesEnabled} />
       <LightingControl />
       <p className="text-xs text-neutral-600">Basemap style (light, bright, liberty) is in <Link to="/settings/appearance" className="underline">Settings → Map appearance</Link>.</p>
+      <p className="text-xs text-neutral-600">Moving cars, people, trains, aircraft and weather: <Link to="/settings/animations" className="underline">Settings → Map animations &amp; weather</Link>.</p>
       <MapLegend />
     </div>
   );

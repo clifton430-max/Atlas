@@ -9,7 +9,7 @@ test('place details show verified OSM data and an attributed Wikimedia Commons p
   await page.addInitScript(() => {
     localStorage.setItem('atlas.viewport', JSON.stringify({ center: [-73.9857, 40.7484], zoom: 17 }));
     localStorage.setItem('atlas.tutorial.v1', JSON.stringify({ firstRunHandled: true }));
-    localStorage.setItem('atlas.discover.categories.v1', JSON.stringify({ visible: ['attractions'], subs: {} }));
+    localStorage.setItem('atlas.discover.categories.v2', JSON.stringify({ visible: ['attractions'], subs: {} }));
   });
   await page.goto('/');
   await waitForMap(page);
@@ -17,7 +17,8 @@ test('place details show verified OSM data and an attributed Wikimedia Commons p
   await item.click();
   const card = page.getByRole('article', { name: 'Place: Empire State Building' });
   await expect(card.getByText(/350 5th Avenue/)).toBeVisible({ timeout: 30_000 });
-  await expect(card.getByText(/As listed on OpenStreetMap/)).toBeVisible();
+  // Hours are shown as a weekly table in the place's own time zone, or verbatim if unparseable.
+  await expect(card.getByText(/OpenStreetMap — may be out of date/)).toBeVisible();
   const photo = card.getByRole('img', { name: 'Photo of Empire State Building' });
   await expect(photo).toBeVisible();
   expect(await photo.getAttribute('src')).toMatch(/^https:\/\/(upload|thumb)\.wikimedia\.org\//);
@@ -36,7 +37,7 @@ test('save to an editable collaboration map with attendance; viewer maps are not
     await page.addInitScript(() => {
       localStorage.setItem('atlas.viewport', JSON.stringify({ center: [-30, 0.5], zoom: 9 }));
       localStorage.setItem('atlas.tutorial.v1', JSON.stringify({ firstRunHandled: true }));
-      localStorage.setItem('atlas.discover.categories.v1', JSON.stringify({ visible: ['events'], subs: {} }));
+      localStorage.setItem('atlas.discover.categories.v2', JSON.stringify({ visible: ['events'], subs: {} }));
     });
     await signIn(page, 'A');
     await waitForMap(page);

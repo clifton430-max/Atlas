@@ -6,11 +6,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Eye, HardDrive, Map as MapIcon, Palette, Shield, Tags, UserRound, Users, X, MapPinned } from 'lucide-react';
+import { CloudSun, Eye, HardDrive, Map as MapIcon, Palette, Shield, Tags, UserRound, Users, X, MapPinned } from 'lucide-react';
 import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { GuestDataSection } from '@/features/workspace/GuestDataSection';
 import { useLocalSnapshot } from '@/features/workspace/useLocalSnapshot';
-import { setAmbientEnabled, useAmbientEnabled, useReducedMotion } from '@/features/places/ambient';
+import { AnimationsSettings } from './AnimationsSettings';
 import { AccountRequiredCard, type AccountReason } from '@/features/workspace/AccountRequired';
 import { useAuth } from '@/app/AuthProvider';
 import { uiStore } from '@/app/store';
@@ -41,6 +41,7 @@ const SECTIONS = [
   { id: 'privacy', label: 'Privacy', Icon: Shield },
   { id: 'friends', label: 'Friends', Icon: Users },
   { id: 'appearance', label: 'Map appearance', Icon: Palette },
+  { id: 'animations', label: 'Map animations & weather', Icon: CloudSun },
   { id: 'groups', label: 'Groups', Icon: Tags },
   { id: 'pins', label: 'Pins', Icon: MapPinned },
   { id: 'collaboration', label: 'Collaboration', Icon: Eye },
@@ -66,21 +67,21 @@ export function SettingsPage() {
   });
 
   return (
-    <div className="absolute inset-0 z-40 flex justify-center bg-neutral-900/25 p-6 backdrop-blur-[1px]">
-      <section aria-labelledby="settings-title" className="flex h-full w-full max-w-[920px] overflow-hidden rounded-2xl bg-white shadow-float animate-rise-in">
-        <nav aria-label="Settings sections" data-tour="settings-nav" className="w-56 shrink-0 border-r border-neutral-200 bg-neutral-50 p-3">
+    <div className="absolute inset-0 z-40 flex justify-center bg-neutral-900/25 p-2 backdrop-blur-[1px] sm:p-6">
+      <section aria-labelledby="settings-title" className="flex h-full w-full max-w-[920px] flex-col overflow-hidden rounded-2xl bg-white shadow-float animate-rise-in md:flex-row">
+        <nav aria-label="Settings sections" data-tour="settings-nav" className="shrink-0 border-b border-neutral-200 bg-neutral-50 p-3 md:w-56 md:border-b-0 md:border-r">
           <h1 id="settings-title" className="px-2 pb-3 pt-1 text-base font-semibold">Settings</h1>
-          <ul className="space-y-0.5">
+          <ul className="atlas-scroll flex gap-1 overflow-x-auto pb-1 md:block md:space-y-0.5 md:overflow-visible md:pb-0">
             {SECTIONS.map(({ id, label, Icon }) => (
               <li key={id}>
-                <NavLink to={`/settings/${id}`} replace className={({ isActive }) => cn('flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm', isActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-200/60')}>
+                <NavLink to={`/settings/${id}`} replace className={({ isActive }) => cn('flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-2 py-1.5 text-sm', isActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-200/60')}>
                   <Icon className="size-4" aria-hidden />{label}
                 </NavLink>
               </li>
             ))}
           </ul>
         </nav>
-        <div className="relative min-w-0 flex-1 overflow-y-auto p-6">
+        <div className="relative min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
           <IconButton label="Close settings" className="absolute right-4 top-4" onClick={close}><X className="size-4" aria-hidden /></IconButton>
           {!user && ACCOUNT_ONLY[section] ? (
             <div className="max-w-md pt-6"><AccountRequiredCard reason={ACCOUNT_ONLY[section]} /></div>
@@ -97,6 +98,7 @@ export function SettingsPage() {
             <Notice className="mb-4">Tutorial sandbox: changes here affect practice data only.</Notice>
           )}
           {section === 'appearance' && <AppearanceSection />}
+          {section === 'animations' && <AnimationsSettings />}
           {section === 'groups' && <GroupsSettings />}
           {section === 'pins' && <PinsSettings />}
           {!SECTIONS.some((s) => s.id === section) && <ErrorMessage error="Unknown settings section." />}
@@ -231,8 +233,6 @@ function AppearanceSection() {
       try { ws.local.setMapStyle(id); toast.success('Map style saved on this device.'); } catch (e) { toast.error(e); }
     } else update.mutate({ mapStyle: id }, { onSuccess: () => toast.success('Map style saved.'), onError: (e) => toast.error(e) });
   };
-  const ambient = useAmbientEnabled();
-  const reduced = useReducedMotion();
   return (
     <div className="max-w-xl space-y-8">
       <div>
@@ -255,15 +255,7 @@ function AppearanceSection() {
         </fieldset>
       )}
       </div>
-      <Switch
-        label="Ambient map life"
-        description={reduced
-          ? 'Off because your system asks for reduced motion.'
-          : 'Decorative motion when zoomed in: a few small vehicles and walkers moving along real roads, rail lines and footpaths. It is not real-time traffic or transit. Pause or change speed from the map toolbar. Saved on this device.'}
-        checked={ambient && !reduced}
-        disabled={reduced}
-        onChange={setAmbientEnabled}
-      />
+      <p className="text-sm text-neutral-600">Moving cars, people, trains, aircraft and weather effects are in <NavLink to="/settings/animations" replace className="font-medium underline">Map animations &amp; weather</NavLink>.</p>
     </div>
   );
 }

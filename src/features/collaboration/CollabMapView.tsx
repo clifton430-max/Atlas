@@ -14,7 +14,14 @@ import { useCollabRealtime } from './realtime';
 import { Directions } from '@/features/routing/Directions';
 import { usePinDeepLink } from '@/features/pins/usePinDeepLink';
 import { SourceDetails } from '@/features/pins/SourceDetails';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { MapMouseEvent } from 'maplibre-gl';
+import { CalendarPlus, MapPinPlus, MousePointerClick, Pencil } from 'lucide-react';
+import { Dialog } from '@/components/ui/Dialog';
+import { TextArea, TextField } from '@/components/ui/Field';
+import { useMapInstance } from '@/features/map/MapContext';
+import { pinGlyph } from '@/features/pins/pinVisual';
+import { MeetupForm } from './MeetupsSection';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react';
@@ -55,6 +62,30 @@ export function CollabMapView() {
 
   useEffect(() => () => uiStore.set({ selectedSharedPinId: null }), [mapId]);
 
+  // Editors/owners can drop a pin or plan a meetup at ANY point: choose a mode, then click the map.
+  const { map } = useMapInstance();
+  const canEdit = current?.myRole === 'owner' || current?.myRole === 'editor';
+  const [placing, setPlacing] = useState<'pin' | 'meetup' | null>(null);
+  const [newAt, setNewAt] = useState<{ mode: 'pin' | 'meetup'; latitude: number; longitude: number } | null>(null);
+  const onMapClick = useCallback((e: MapMouseEvent) => {
+    setPlacing((mode) => {
+      if (mode) setNewAt({ mode, latitude: e.lngLat.lat, longitude: e.lngLat.lng });
+      return null;
+    });
+  }, []);
+  useEffect(() => {
+    if (!map || !placing) return;
+    map.on('click', onMapClick);
+    map.getCanvas().style.cursor = 'crosshair';
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setPlacing(null);
+    window.addEventListener('keydown', onKey);
+    return () => { map.off('click', onMapClick); map.getCanvas().style.cursor = ''; window.removeEventListener('keydown', onKey); };
+  }, [map, placing, onMapClick]);
+  useEffect(() => { setPlacing(null); setNewAt(null); }, [mapId]);
+  const profile = useProfile();
+  const { user } = useAuth();
+  const me = user ? { id: user.id, name: profile.data?.displayName || profile.data?.username || 'You' } : null;
+
   if (maps.isSuccess && !current) {
     return (
       <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2">
@@ -76,8 +107,32 @@ export function CollabMapView() {
           fallbackIcon={p.eventId ? 'ticket' : 'map-pin'}
           selected={p.id === selectedId}
           onSelect={() => uiStore.set({ selectedSharedPinId: p.id })}
+          glyph={pinGlyph(p)}
+          caption={p.title}
+          hover={{ title: p.title, meta: p.sharedByName ? `Added by ${p.sharedByName}` : null, description: p.note ?? p.address }}
         />
       ))}
+      {canEdit && !placing && !newAt && (
+        <div className="absolute left-1/2 top-4 z-10 flex -translate-x-1/2 gap-2" data-testid="collab-add-bar">
+          <Button size="sm" variant="secondary" className="shadow-panel" icon={<MapPinPlus className="size-4" aria-hidden />} onClick={() => setPlacing('pin')}>Add pin</Button>
+          <Button size="sm" variant="secondary" className="shadow-panel" icon={<CalendarPlus className="size-4" aria-hidden />} onClick={() => setPlacing('meetup')}>Plan meetup here</Button>
+        </div>
+      )}
+      {placing && (
+        <div className="absolute left-1/2 top-4 z-20 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white shadow-float" role="status">
+          <MousePointerClick className="size-4" aria-hidden />
+          {placing === 'pin' ? 'Click the map where the pin should go.' : 'Click the map where you’ll meet.'}
+          <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => setPlacing(null)}>Cancel (Esc)</Button>
+        </div>
+      )}
+      {newAt && current && (
+        <Dialog open onClose={() => setNewAt(null)} size="sm" title={newAt.mode === 'pin' ? 'New pin on this map' : 'Plan a meetup here'}>
+          <p className="mb-2 text-xs text-neutral-500">At {newAt.latitude.toFixed(5)}, {newAt.longitude.toFixed(5)} · visible to every member of “{current.name}”.</p>
+          {newAt.mode === 'pin'
+            ? <SharedPinForm mapId={current.id} at={newAt} onDone={(id) => { setNewAt(null); if (id) uiStore.set({ selectedSharedPinId: id }); }} />
+            : <MeetupForm mapId={current.id} at={newAt} me={me} onDone={() => setNewAt(null)} />}
+        </Dialog>
+      )}
       {shared.data?.map((p) => {
         const m = nextByPin.get(p.id);
         return m ? <MeetupBadge key={`m${m.id}`} pin={p} meetup={m} onSelect={() => uiStore.set({ selectedSharedPinId: p.id })} /> : null;
@@ -116,6 +171,7 @@ function SharedPinCard({ pin, map, onClose }: { pin: SharedPin; map: CollabMap; 
   const profile = useProfile();
   const me = user ? { id: user.id, name: profile.data?.displayName || profile.data?.username || 'You' } : null;
   const subtitle = useMemo(() => pin.address ?? `${pin.latitude.toFixed(4)}, ${pin.longitude.toFixed(4)}`, [pin]);
+  const [editing, setEditing] = useState(false);
 
   return (
     <div className="flex flex-col">
@@ -135,13 +191,16 @@ function SharedPinCard({ pin, map, onClose }: { pin: SharedPin; map: CollabMap; 
         {pin.attendance && (
           <p className="mt-1 text-xs font-medium text-neutral-700">{isMine ? 'You’re' : `${pin.sharedByName ?? 'This member'} is`} {pin.attendance === 'going' ? 'going' : 'interested'}</p>
         )}
-        {pin.note && <p className="mt-2 whitespace-pre-wrap rounded-lg bg-neutral-50 p-2 text-sm text-neutral-700">{pin.note}</p>}
+        {editing
+          ? <div className="mt-3"><SharedPinForm mapId={pin.collabMapId} existing={pin} onDone={() => setEditing(false)} /></div>
+          : pin.note && <p className="mt-2 whitespace-pre-wrap rounded-lg bg-neutral-50 p-2 text-sm text-neutral-700">{pin.note}</p>}
         {isChessVenue(pin.placeRef) && <Link to={chessRoomPath(pin.placeRef!)} className="mt-3 block rounded-xl bg-[#5b4632] px-3 py-2 text-center text-sm font-semibold text-white">Enter Chess Room</Link>}
         <div className="mt-3"><MeetupsSection pinId={pin.id} map={map} me={me} /></div>
         <div className="mt-3"><Directions latitude={pin.latitude} longitude={pin.longitude} name={pin.title} /></div>
-        {pin.source && <div className="mt-3 rounded-xl bg-canvas p-3"><SourceDetails source={pin.source} /></div>}
+        {pin.source && <div className="mt-3 rounded-xl bg-canvas p-3"><SourceDetails source={pin.source} at={pin} /></div>}
         {canRemove && (
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 flex justify-end gap-2">
+            {!editing && <Button size="sm" variant="ghost" icon={<Pencil className="size-3.5" aria-hidden />} onClick={() => setEditing(true)}>Edit</Button>}
             <Button size="sm" variant="secondary" loading={removeSharedPin.isPending}
               onClick={() => removeSharedPin.mutate({ id: pin.id, collabMapId: pin.collabMapId }, {
                 onSuccess: () => { toast.success('Removed from this map. The original pin is unaffected.'); onClose(); },
@@ -169,5 +228,40 @@ function MeetupBadge({ pin, meetup, onSelect }: { pin: SharedPin; meetup: Meetup
         {meetup.count > 0 ? <AvatarStack people={meetup.attendees} total={meetup.count} max={3} /> : <span className="pr-1 font-normal text-neutral-500">0 going</span>}
       </button>
     </MapMarker>
+  );
+}
+
+/** Create (at a point) or edit a shared pin's title and description. */
+function SharedPinForm({ mapId, at, existing, onDone }: {
+  mapId: string; at?: { latitude: number; longitude: number }; existing?: SharedPin; onDone: (id?: string) => void;
+}) {
+  const toast = useToast();
+  const { addCustomPin, updateSharedPin } = useCollabMutations();
+  const [title, setTitle] = useState(existing?.title ?? '');
+  const [note, setNote] = useState(existing?.note ?? '');
+  const [touched, setTouched] = useState(false);
+  const busy = addCustomPin.isPending || updateSharedPin.isPending;
+  const submit = () => {
+    setTouched(true);
+    if (!title.trim() || busy) return;
+    if (existing) {
+      updateSharedPin.mutate({ id: existing.id, collabMapId: mapId, title: title.trim(), note: note.trim() ? note.trim() : null }, {
+        onSuccess: () => { toast.success('Pin updated for everyone on this map.'); onDone(); }, onError: (e) => toast.error(e),
+      });
+    } else if (at) {
+      addCustomPin.mutate({ collabMapId: mapId, title: title.trim(), note: note.trim() || null, ...at }, {
+        onSuccess: (id) => { toast.success('Pin added. Members see it right away.'); onDone(id); }, onError: (e) => toast.error(e),
+      });
+    }
+  };
+  return (
+    <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); submit(); }} aria-label={existing ? 'Edit shared pin' : 'New shared pin'}>
+      <TextField label="Title" value={title} maxLength={300} autoFocus onChange={(e) => setTitle(e.target.value)} error={touched && !title.trim() ? 'Enter a title.' : null} />
+      <TextArea label="Description (optional)" value={note} maxLength={2000} onChange={(e) => setNote(e.target.value)} />
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="ghost" onClick={() => onDone()} disabled={busy}>Cancel</Button>
+        <Button size="sm" variant="cta" type="submit" loading={busy}>{existing ? 'Save' : 'Add pin'}</Button>
+      </div>
+    </form>
   );
 }

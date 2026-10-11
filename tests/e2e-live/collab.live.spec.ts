@@ -49,7 +49,7 @@ test('pins, meetups and attendance sync live between two members; cameras stay i
     // A plans a meetup in the UI; B sees the badge on the map and the meetup in the panel live.
     await pa.getByRole('button', { name: new RegExp(pinTitle) }).first().click();
     await pa.getByRole('button', { name: 'Plan a meetup' }).click();
-    await pa.getByRole('button', { name: 'Plan meetup' }).click();
+    await pa.getByRole('button', { name: 'Plan meetup', exact: true }).click();
     await expect(pa.getByText('Meetup planned. Members were notified.')).toBeVisible();
     const badgeB = pb.getByTestId('meetup-badge');
     await expect(badgeB).toBeVisible();

@@ -13,7 +13,7 @@ import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 import type { FeatureCollection, Point } from 'geojson';
 import { useMapInstance } from '@/features/map/MapContext';
 import { eventVisual } from '@/features/places/categories';
-import { DEV_FIXTURE_MARKER, MARKER_TIP_PAD } from '@/features/places/markerImages';
+import { DEV_FIXTURE_MARKER } from '@/features/places/markerImages';
 import type { AtlasEvent } from '@/lib/types';
 
 const SRC = 'discover-events';
@@ -81,13 +81,12 @@ function ensureLayers(map: maplibregl.Map) {
       'circle-pitch-alignment': 'map',
     },
   });
-  // Teardrop pins, tip on the coordinate.
+  // Small round badges centred on the coordinate (saved events are drawn as droplets instead).
   map.addLayer({
     id: L_POINT, type: 'symbol', source: SRC, filter: ['!', ['has', 'point_count']],
     layout: {
       'icon-image': ['get', 'icon'],
-      'icon-anchor': 'bottom',
-      'icon-offset': [0, MARKER_TIP_PAD],
+      'icon-anchor': 'center',
       'icon-size': 0.95,
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
@@ -171,7 +170,7 @@ export function DiscoverLayer({ events, savedIds, selectedId, onSelect, onHover 
     if (!map || styleVersion === 0 || !map.getLayer(L_SELECTED)) return;
     map.setFilter(L_SELECTED, ['==', ['get', 'id'], selectedId ?? '']);
     // Selected pin is drawn larger and on top.
-    map.setLayoutProperty(L_POINT, 'icon-size', ['case', ['==', ['get', 'id'], selectedId ?? ''], 1.2, 0.95]);
+    map.setLayoutProperty(L_POINT, 'icon-size', ['case', ['==', ['get', 'id'], selectedId ?? ''], 1.35, 0.95]);
     map.setLayoutProperty(L_POINT, 'symbol-sort-key', ['case', ['==', ['get', 'id'], selectedId ?? ''], 1, 0]);
   }, [map, selectedId, styleVersion, events]);
 

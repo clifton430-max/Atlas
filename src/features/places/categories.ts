@@ -17,9 +17,11 @@ import {
   Binoculars, Castle, Clapperboard, Coffee, Dumbbell, Film, Flower2, GalleryVerticalEnd, IceCreamCone, Landmark,
   Library, Martini, Music, Palette, PartyPopper, PawPrint, Sandwich, Sparkles, Theater, Ticket, TreePine, Trophy,
   Utensils, Croissant, Mountain, Volleyball, Drama, Waves, Beer, Disc3,
+  ShoppingBag, ShoppingCart, Shirt, BookOpen, Gift, Store, Pill, Hospital, Shield, Mail, Banknote, Church,
+  GraduationCap, BedDouble,
 } from 'lucide';
 
-export type CategoryId = 'events' | 'food' | 'pastimes' | 'parks' | 'scenic' | 'nightlife' | 'attractions' | 'arts' | 'sports';
+export type CategoryId = 'events' | 'food' | 'pastimes' | 'parks' | 'scenic' | 'nightlife' | 'attractions' | 'arts' | 'sports' | 'shopping' | 'services' | 'stays';
 
 export interface Subcategory {
   id: string;
@@ -121,6 +123,36 @@ export const CATEGORIES: Category[] = [
       { id: 'sports-centres', label: 'Sports centres & gyms', match: ['sports_centre', 'fitness_centre'], icon: Dumbbell },
       { id: 'pools', label: 'Swimming', match: ['swimming_pool', 'swimming_area'], icon: Waves },
       { id: 'courts', label: 'Courts & pitches', match: ['pitch'], icon: Volleyball },
+    ],
+  },
+  {
+    id: 'shopping', label: 'Shops', color: '#0f766e', icon: ShoppingBag, source: 'places',
+    subcategories: [
+      { id: 'groceries', label: 'Groceries & convenience', match: ['supermarket', 'convenience', 'greengrocer', 'butcher', 'deli', 'marketplace'], icon: ShoppingCart },
+      { id: 'fashion', label: 'Clothes & shoes', match: ['clothes', 'shoes', 'boutique', 'fashion', 'jewelry'], icon: Shirt },
+      { id: 'books-gifts', label: 'Books & gifts', match: ['books', 'gift', 'stationery', 'toys', 'music', 'art'], icon: BookOpen },
+      { id: 'malls', label: 'Malls & department stores', match: ['mall', 'department_store', 'variety_store'], icon: Store },
+      { id: 'home-tech', label: 'Home & electronics', match: ['electronics', 'hardware', 'furniture', 'florist', 'doityourself', 'mobile_phone', 'computer'], icon: Gift },
+    ],
+  },
+  {
+    id: 'services', label: 'Services & Health', color: '#475569', icon: Hospital, source: 'places',
+    subcategories: [
+      { id: 'pharmacies', label: 'Pharmacies', match: ['pharmacy', 'chemist'], icon: Pill },
+      { id: 'health', label: 'Hospitals & clinics', match: ['hospital', 'clinic', 'doctors', 'dentist'], icon: Hospital },
+      { id: 'banks', label: 'Banks', match: ['bank', 'bureau_de_change'], icon: Banknote },
+      { id: 'post', label: 'Post offices', match: ['post_office'], icon: Mail },
+      { id: 'safety', label: 'Police & fire', match: ['police', 'fire_station'], icon: Shield },
+      { id: 'civic', label: 'Town halls & courts', match: ['townhall', 'courthouse', 'community_centre'], icon: Landmark },
+      { id: 'worship', label: 'Places of worship', match: ['place_of_worship'], icon: Church },
+      { id: 'education', label: 'Schools & universities', match: ['school', 'college', 'university'], icon: GraduationCap },
+    ],
+  },
+  {
+    id: 'stays', label: 'Hotels & Stays', color: '#9d174d', icon: BedDouble, source: 'places',
+    subcategories: [
+      { id: 'hotels', label: 'Hotels & motels', match: ['hotel', 'motel'] },
+      { id: 'hostels', label: 'Hostels & guest houses', match: ['hostel', 'guest_house', 'apartment'] },
     ],
   },
 ];

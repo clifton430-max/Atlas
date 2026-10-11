@@ -5,6 +5,7 @@
  * initialize underneath it in parallel. Reduced-motion users get a brief
  * static display instead of animation.
  */
+import { AtlasMark } from '@/components/brand/AtlasMark';
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
@@ -34,7 +35,7 @@ export function WelcomeOverlay() {
             transition={{ duration: 0.4, ease: 'easeOut' }}
             className="flex items-center gap-3"
           >
-            <img src="/atlas.svg" alt="" className="size-9" />
+            <AtlasMark variant="tile" className="size-10 rounded-[11px] shadow-sm" />
             <span className="text-2xl font-semibold tracking-tight text-neutral-900">Welcome to Atlas</span>
           </motion.div>
         </motion.div>

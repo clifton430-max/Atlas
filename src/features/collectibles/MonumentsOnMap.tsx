@@ -199,7 +199,9 @@ function PlacementInspector({ mapId, placement }: { mapId: string; placement: Pl
       </div>
       <p className="text-[13px] text-neutral-700">{def.description}</p>
       <p className="text-xs text-neutral-500">A collectible miniature you placed on this private map — not the real landmark’s location.{' '}
-        <button type="button" className="underline" onClick={() => map?.flyTo({ center: [def.longitude, def.latitude], zoom: 15 })}>Fly to the real {def.name}</button>
+        {def.latitude != null && def.longitude != null
+          ? <button type="button" className="underline" onClick={() => map?.flyTo({ center: [def.longitude!, def.latitude!], zoom: 15 })}>Fly to the real {def.name}</button>
+          : <span>{def.name} is a fictional Atlas Original.</span>}
       </p>
       <dl className="grid grid-cols-3 gap-2 text-center text-xs">
         <div className="rounded-lg bg-canvas p-2"><dt className="text-neutral-500">Rotation</dt><dd className="font-semibold">{Math.round(placement.rotationDeg)}°</dd></div>
