@@ -40,6 +40,9 @@ export function PlacesLayer({ subclasses, selected, onSelect, onHover }: {
     if (!map || styleVersion === 0 || !map.getLayer(PLACES_LAYER)) return;
     let hovered: string | null = null;
     const onClick = (e: MapLayerMouseEvent) => {
+      // Event pins and clusters are drawn above places: a click on an overlap belongs to the event.
+      const above = ['discover-points', 'discover-clusters'].filter((l) => map.getLayer(l));
+      if (above.length && map.queryRenderedFeatures(e.point, { layers: above }).length) return;
       const p = e.features?.[0] && placeFromFeature(e.features[0]);
       if (p) cb.current.onSelect(p);
     };

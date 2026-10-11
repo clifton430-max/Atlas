@@ -1,9 +1,13 @@
 /**
- * The user's location for distance display. Requested ONLY when the user
- * clicks "Use my location" (never on hover), kept in memory on this device,
- * never sent to Atlas servers or providers, and marked stale after 15 min.
+ * The user's location for distance sorting and display. Requested ONLY when
+ * the user asks (Distance / Nearest / Go to my location / Directions), or read
+ * silently when the browser reports the permission was ALREADY granted for
+ * this site. Kept in memory on this device and marked stale after 15 min.
+ * It leaves the device only when the user explicitly requests directions
+ * (sent once to the routing service to compute that route; never stored).
  */
 import { useSyncExternalStore } from 'react';
+import { isValidLatLng } from '@/lib/validation';
 
 export interface UserLocation { latitude: number; longitude: number; accuracy: number; at: number }
 export type LocationStatus = 'idle' | 'locating' | 'granted' | 'denied' | 'unavailable';
@@ -24,6 +28,7 @@ export function requestUserLocation(): Promise<UserLocation | null> {
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        if (!isValidLatLng(pos.coords.latitude, pos.coords.longitude)) { set({ status: 'unavailable' }); resolve(null); return; }
         const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy, at: Date.now() };
         set({ location: loc, status: 'granted' });
         resolve(loc);
@@ -35,6 +40,18 @@ export function requestUserLocation(): Promise<UserLocation | null> {
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
     );
   });
+}
+
+/**
+ * If (and only if) the browser says location permission is already granted,
+ * fetch it without prompting. Never triggers a permission prompt.
+ */
+export async function restoreLocationIfPermitted(): Promise<void> {
+  if (state.location || state.status === 'locating' || typeof navigator === 'undefined' || !navigator.permissions?.query) return;
+  try {
+    const p = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+    if (p.state === 'granted') await requestUserLocation();
+  } catch { /* Permissions API unavailable: wait for an explicit request */ }
 }
 
 export function clearUserLocation() { set({ location: null, status: 'idle' }); }

@@ -1,6 +1,46 @@
 # Atlas — Implementation Status & Acceptance Checklist
 
-_Last updated: 2026-10-10 (Map & interface redesign session). Earlier sections below are kept for history._
+_Last updated: 2026-10-10 (master implementation session). Earlier sections below are kept for history._
+
+## Master implementation (data integrity, collaboration, chess, collectibles, worlds) — 2026-10-10
+
+| Area | Status | Verified by |
+|---|---|---|
+| Part 2 bug fixes: sorting, details, routing, compass, links, Discover tab, panels, pin metadata | ✅ | unit, PGlite DB, fixture E2E (`fixes.spec.ts`), live `route` function |
+| Part 3 meetups, attribution, avatars, realtime, notifications, permissions | ✅ | 5 DB tests, unit, **live two-browser E2E** (`collab.live.spec.ts`) |
+| Part 4 chess: local (all rules) and online (server authority) | ✅ | rule unit tests, 4 DB tests, 4 fixture E2E, live API test (checkmate via the authority), **live two-browser E2E** |
+| Part 5 crates: server-authoritative, published odds, idempotency, duplicates | ✅ | 11 DB tests (incl. 40k-draw uniformity), live API tests |
+| Parts 6–7 colour 3D monuments; persistent placement on personal maps | ✅ | GLB validity tests, anchoring math tests, all 18 render in-browser, **live UI journey** (roll → place → reload → select → rotate → remove) |
+| Parts 8–9 skins and Discover ↔ My Maps worlds | ✅ | applier restore test, fixture E2E (preview, restore, sweep, reduced motion, indicator), **live equip → reload** |
+
+### Final test results (this session)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` / `npm run lint` / `npm run build` | ✅. three.js is a lazy 611 KB chunk and chess.js lives in the ChessRoom chunk. The main app chunk is 479 KB. |
+| `npm test` (unit + PGlite DB/RLS) | ✅ **172 / 172** across 25 files |
+| `npm run test:e2e` (no backend, real tiles) | ✅ **70 / 70** |
+| `npm run test:live` (real Supabase project) | ✅ **40 / 40** (+1 opt-in skipped) |
+| `npm run test:e2e:live` (real Supabase, two-account tests) | ✅ **17 / 17** |
+| Supabase security advisors | No errors. Warnings are the intended signed-in SECURITY DEFINER RPCs (each re-checks permissions) plus leaked-password protection (an Auth setting). |
+| Bundle | The only JWT is the anon key. |
+
+### Labelled honestly
+
+- **Mocked vs. real:**
+  - The fixture E2E suite runs without a backend, using labelled sample events.
+  - The live suites run against the linked Supabase project with dedicated test accounts.
+  - Before each run, the live collectible tests clear those accounts' crate rolls; this is test data only.
+- **External setup:**
+  - Production routing volume needs `ROUTING_BASE_URL` (your own OSRM server).
+  - `OVERPASS_URL` is still needed for "Inside this place".
+  - SMTP is still unverified.
+- **Not built:**
+  - Paid economy, by design.
+  - Meetups on the guest demo map.
+  - Profile photos (avatars are initials).
+  - Real 3D tree models.
+  - Monuments on shared maps (placements are personal-map only, by the permission model).
 
 ## Map & interface redesign — this session
 

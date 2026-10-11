@@ -23,6 +23,7 @@ import {
 } from '../_shared/osm.ts';
 
 const DETAILS_TTL_MS = 7 * 86400_000;
+const DETAILS_VERSION = 2;
 const CHILDREN_TTL_MS = 30 * 86400_000;
 const TIMEOUT_MS = 10_000;
 
@@ -73,7 +74,8 @@ Deno.serve(async (req: Request) => {
 
   const { data: cached } = await admin.from('place_details').select('*').eq('ref', refStr).maybeSingle();
   // A failed image lookup is never cached as "no image": retry it (budget-limited).
-  const fresh = cached && Date.now() - Date.parse(cached.fetched_at) < DETAILS_TTL_MS && cached.details?._imageStatus !== 'error';
+  // _v bumps when new fields are extracted, so older cache entries are refreshed.
+  const fresh = cached && Date.now() - Date.parse(cached.fetched_at) < DETAILS_TTL_MS && cached.details?._imageStatus !== 'error' && cached.details?._v === DETAILS_VERSION;
   let details = cached?.details ?? null;
   let tagsForChildren: Record<string, string> | null = details?._tags ?? null;
 
@@ -110,7 +112,8 @@ Deno.serve(async (req: Request) => {
       const keep: Record<string, string> = {};
       for (const k of ['leisure', 'tourism', 'amenity']) if (tags[k]) keep[k] = tags[k];
       details = {
-        name: t.name, address: t.address, openingHours: t.openingHours, website: t.website, phone: t.phone,
+        _v: DETAILS_VERSION, name: t.name, address: t.address, openingHours: t.openingHours, website: t.website, phone: t.phone,
+        email: t.email, wheelchair: t.wheelchair,
         cuisine: t.cuisine, description: t.description, wikipedia: t.wikipedia, image, _tags: keep,
         _imageStatus: imageStatus, _diag: diag,
       };
@@ -155,7 +158,7 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  const { _tags: _omit, _imageStatus: _s, _diag: _d, _childrenDiag: _c, ...publicDetails } = details ?? {};
+  const { _tags: _omit, _imageStatus: _s, _diag: _d, _childrenDiag: _c, _v: _ver, ...publicDetails } = details ?? {};
   return json({
     ref: refStr, ...publicDetails,
     children: childrenSupported ? children ?? [] : [],

@@ -288,6 +288,47 @@ image overlaid as a fake map.
     1024 px the side panel does too; below 768 px the icon rail is
     replaced by a floating toggle and the tabs wrap to a second row.
 
+## Collaboration, chess, collectibles and worlds (2026-10-10)
+
+-   **Place data integrity.** Pins keep a validated, versioned source
+    snapshot (`pins.source`, `shared_pins.source`), which is separate from
+    user-authored fields. One normalizer (`pins/pinSource.ts`) is used by every
+    creation path, and the database re-validates it (`pin_source_valid`).
+-   **Distances and routes.**
+    -   Discover lists are sorted nearest first. They measure from your
+        location if you've shared it, otherwise from the map centre (labelled).
+    -   Location is never requested without a click, except that it is read
+        silently if the browser already granted permission.
+    -   Route distance and time come from OSRM (`route` Edge Function). Only
+        when routing fails is a straight-line distance shown, labelled as such.
+-   **Links.**
+    -   The official website, the OpenStreetMap page and the Atlas link are
+        separate, labelled actions.
+    -   Atlas links use stable ids: `?place=osm:…&at=…`, `?event=<id>`,
+        `/maps/<id>?pin=`, `/collab/<id>?pin=`.
+    -   Opening a link never grants access.
+-   **Meetups are user plans, never official events.** They are labelled and
+    stored separately from `public.events`. Every write is an RPC that
+    re-checks membership, role, schedule and capacity.
+-   **Realtime is transport only.** Every signal triggers a refetch through
+    RLS. Each user's camera is never moved by collaborators.
+-   **Chess.**
+    -   Offered only at canonical venues, matched by OSM id.
+    -   Local games stay in the browser.
+    -   Online games are validated by the `chess-move` Edge Function. Clients
+        never send positions or results.
+-   **Collectibles.**
+    -   No money, no currency.
+    -   The server decides rarity first, then the reward. Published odds are the
+        active server config.
+    -   An empty pool blocks the roll; it never rerolls.
+    -   Duplicates are counted.
+    -   Monuments are original 3D models with recorded provenance.
+    -   Placements and skins affect only the owner's personal maps.
+-   **Worlds.** Discover is the explorer's city. My Maps is the personal
+    world, using the equipped skin or the personal default. Switching worlds
+    never reloads the map.
+
 ## Development process
 
 Inspect the repository and available tools before editing. Preserve

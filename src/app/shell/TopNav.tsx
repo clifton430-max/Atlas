@@ -5,6 +5,7 @@
  * On narrow screens the tabs move to a second row and the search field takes
  * the remaining width; nothing is removed.
  */
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Link, NavLink, useMatch } from 'react-router-dom';
 import { cn } from '@/components/ui/cn';
 import { SearchBar } from '@/features/search/SearchBar';
@@ -15,6 +16,7 @@ import { OfflineBanner } from '../OfflineBanner';
 import { MapSwitcher } from './MapSwitcher';
 import { NotificationsMenu } from './NotificationsMenu';
 import { ShareMenu } from './ShareMenu';
+import { openSidePanel } from './IconRail';
 
 export function TopNav() {
   return (
@@ -44,18 +46,35 @@ export function TopNav() {
 
 const tabCls = (active: boolean) => cn(
   'relative flex h-11 items-center px-3 text-sm font-medium transition-colors lg:h-14',
-  active ? 'text-neutral-900 after:absolute after:inset-x-3 after:bottom-0 after:h-[3px] after:rounded-full after:bg-brand' : 'text-neutral-500 hover:text-neutral-900',
+  active ? 'text-neutral-900' : 'text-neutral-500 hover:text-neutral-900',
 );
 
-/** Discover / My Maps / Shared — the three map contexts. */
+/**
+ * Discover / My Maps / Shared — the three map contexts. One indicator bar
+ * glides to the active tab (instantly under reduced motion).
+ */
 function ContextTabs({ className }: { className?: string }) {
+  const discover = !!useMatch('/');
   const maps = !!useMatch('/maps/*');
   const collab = !!useMatch('/collab/*');
+  const nav = useRef<HTMLElement>(null);
+  const [bar, setBar] = useState<{ left: number; width: number } | null>(null);
+  const active = discover ? 0 : maps ? 1 : collab ? 2 : -1;
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = nav.current?.querySelectorAll<HTMLElement>('a')[active];
+      setBar(el ? { left: el.offsetLeft + 12, width: el.offsetWidth - 24 } : null);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [active]);
   return (
-    <nav aria-label="Map contexts" data-tour="nav-contexts" className={cn('flex items-center', className)}>
-      <NavLink to="/" end className={({ isActive }) => tabCls(isActive)} data-tour="nav-discover">Discover</NavLink>
-      <NavLink to="/maps" className={() => tabCls(maps)} aria-current={maps ? 'page' : undefined}>My Maps</NavLink>
-      <NavLink to="/collab" className={() => tabCls(collab)} aria-current={collab ? 'page' : undefined}>Shared</NavLink>
+    <nav ref={nav} aria-label="Map contexts" data-tour="nav-contexts" className={cn('relative flex items-center', className)}>
+      <NavLink to="/" end className={() => tabCls(discover)} aria-current={discover ? 'page' : undefined} data-tour="nav-discover" onClick={openSidePanel}>Discover</NavLink>
+      <NavLink to="/maps" className={() => tabCls(maps)} aria-current={maps ? 'page' : undefined} onClick={openSidePanel}>My Maps</NavLink>
+      <NavLink to="/collab" className={() => tabCls(collab)} aria-current={collab ? 'page' : undefined} onClick={openSidePanel}>Shared</NavLink>
+      {bar && <span aria-hidden data-testid="tab-indicator" className="absolute bottom-0 h-[3px] rounded-full bg-brand transition-[left,width] duration-300 ease-out motion-reduce:transition-none" style={{ left: bar.left, width: bar.width }} />}
     </nav>
   );
 }

@@ -37,6 +37,10 @@ export interface PlaceDetails {
   openingHours: string | null;
   website: string | null;
   phone: string | null;
+  /** Present when the OSM element lists a plausible email (contact:email / email). */
+  email?: string | null;
+  /** OSM `wheelchair` tag as mapped; absent = unknown (never inferred). */
+  wheelchair?: 'yes' | 'limited' | 'no' | 'designated' | null;
   cuisine: string | null;
   description: string | null;
   wikipedia: string | null;

@@ -15,6 +15,8 @@ export interface PlaceResult {
   latitude: number;
   longitude: number;
   kind: string | null;
+  /** OSM element behind the hit ("osm:node/123"), when the geocoder identifies one. */
+  osmRef: string | null;
 }
 
 interface PhotonFeature {
@@ -24,6 +26,13 @@ interface PhotonFeature {
 
 const cache = new Map<string, { at: number; results: PlaceResult[] }>();
 const TTL = 5 * 60 * 1000;
+
+/** Photon reports osm_type N/W/R and a numeric osm_id. */
+export function osmRefOf(type: unknown, id: unknown): string | null {
+  const t = type === 'N' ? 'node' : type === 'W' ? 'way' : type === 'R' ? 'relation' : null;
+  const n = Number(id);
+  return t && Number.isSafeInteger(n) && n > 0 ? `osm:${t}/${n}` : null;
+}
 
 function toPlace(f: PhotonFeature, i: number): PlaceResult | null {
   const [lng, lat] = f.geometry?.coordinates ?? [];
@@ -40,6 +49,7 @@ function toPlace(f: PhotonFeature, i: number): PlaceResult | null {
     latitude: lat as number,
     longitude: lng as number,
     kind: (p.osm_value as string) ?? null,
+    osmRef: osmRefOf(p.osm_type, p.osm_id),
   };
 }
 

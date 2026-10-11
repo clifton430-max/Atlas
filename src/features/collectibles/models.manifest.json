@@ -1,0 +1,200 @@
+{
+  "stonehenge": {
+    "file": "/models/monuments/stonehenge.glb",
+    "bytes": 65044,
+    "triangles": 848,
+    "size": {
+      "x": 3.48,
+      "y": 1,
+      "z": 3.48
+    },
+    "sha256": "d3eb03efce83ec1c"
+  },
+  "ahu-tongariki": {
+    "file": "/models/monuments/ahu-tongariki.glb",
+    "bytes": 50724,
+    "triangles": 640,
+    "size": {
+      "x": 3.6,
+      "y": 1,
+      "z": 2.1
+    },
+    "sha256": "232681a4883e328d"
+  },
+  "arc-de-triomphe": {
+    "file": "/models/monuments/arc-de-triomphe.glb",
+    "bytes": 40248,
+    "triangles": 504,
+    "size": {
+      "x": 2.289,
+      "y": 1,
+      "z": 2.289
+    },
+    "sha256": "54fdabaca478d9ac"
+  },
+  "leaning-tower-of-pisa": {
+    "file": "/models/monuments/leaning-tower-of-pisa.glb",
+    "bytes": 252312,
+    "triangles": 3456,
+    "size": {
+      "x": 1.297,
+      "y": 1,
+      "z": 1.297
+    },
+    "sha256": "9e21acdff409a0b3"
+  },
+  "big-ben": {
+    "file": "/models/monuments/big-ben.glb",
+    "bytes": 93968,
+    "triangles": 1216,
+    "size": {
+      "x": 0.631,
+      "y": 1,
+      "z": 0.631
+    },
+    "sha256": "2336ee7923583a0e"
+  },
+  "parthenon": {
+    "file": "/models/monuments/parthenon.glb",
+    "bytes": 144412,
+    "triangles": 1920,
+    "size": {
+      "x": 3.121,
+      "y": 1,
+      "z": 3.121
+    },
+    "sha256": "00fd6f9706059f6b"
+  },
+  "statue-of-liberty": {
+    "file": "/models/monuments/statue-of-liberty.glb",
+    "bytes": 62848,
+    "triangles": 770,
+    "size": {
+      "x": 1.188,
+      "y": 1,
+      "z": 1.188
+    },
+    "sha256": "6b437c7e190f0cc9"
+  },
+  "neuschwanstein": {
+    "file": "/models/monuments/neuschwanstein.glb",
+    "bytes": 73508,
+    "triangles": 954,
+    "size": {
+      "x": 1.52,
+      "y": 1,
+      "z": 1.497
+    },
+    "sha256": "057f1104fc667dd7"
+  },
+  "el-castillo": {
+    "file": "/models/monuments/el-castillo.glb",
+    "bytes": 41608,
+    "triangles": 512,
+    "size": {
+      "x": 2.632,
+      "y": 1,
+      "z": 2.632
+    },
+    "sha256": "2bbd14ddb1c2f838"
+  },
+  "colosseum": {
+    "file": "/models/monuments/colosseum.glb",
+    "bytes": 187280,
+    "triangles": 2544,
+    "size": {
+      "x": 4.087,
+      "y": 1,
+      "z": 4.087
+    },
+    "sha256": "0f324aefa95b8aea"
+  },
+  "petra-treasury": {
+    "file": "/models/monuments/petra-treasury.glb",
+    "bytes": 51940,
+    "triangles": 668,
+    "size": {
+      "x": 1.161,
+      "y": 1,
+      "z": 0.755
+    },
+    "sha256": "c7d9fb5c2f46037b"
+  },
+  "saint-basils": {
+    "file": "/models/monuments/saint-basils.glb",
+    "bytes": 160684,
+    "triangles": 2060,
+    "size": {
+      "x": 1.373,
+      "y": 1,
+      "z": 1.373
+    },
+    "sha256": "da3e04defc02859a"
+  },
+  "eiffel-tower": {
+    "file": "/models/monuments/eiffel-tower.glb",
+    "bytes": 95412,
+    "triangles": 1268,
+    "size": {
+      "x": 1.052,
+      "y": 1,
+      "z": 1.052
+    },
+    "sha256": "1d2e76bd6b62f51e"
+  },
+  "taj-mahal": {
+    "file": "/models/monuments/taj-mahal.glb",
+    "bytes": 168216,
+    "triangles": 2272,
+    "size": {
+      "x": 1.528,
+      "y": 1,
+      "z": 1.806
+    },
+    "sha256": "a1583fb7620fb93f"
+  },
+  "angkor-wat": {
+    "file": "/models/monuments/angkor-wat.glb",
+    "bytes": 46324,
+    "triangles": 600,
+    "size": {
+      "x": 1.983,
+      "y": 1,
+      "z": 2.149
+    },
+    "sha256": "df12bbb51de855f4"
+  },
+  "great-pyramid": {
+    "file": "/models/monuments/great-pyramid.glb",
+    "bytes": 78396,
+    "triangles": 1020,
+    "size": {
+      "x": 3.059,
+      "y": 1,
+      "z": 3.059
+    },
+    "sha256": "e4b6a1c6d973c903"
+  },
+  "machu-picchu": {
+    "file": "/models/monuments/machu-picchu.glb",
+    "bytes": 58324,
+    "triangles": 742,
+    "size": {
+      "x": 2.061,
+      "y": 1,
+      "z": 2.167
+    },
+    "sha256": "6f5b11c39a5aa219"
+  },
+  "hagia-sophia": {
+    "file": "/models/monuments/hagia-sophia.glb",
+    "bytes": 170440,
+    "triangles": 2268,
+    "size": {
+      "x": 2.077,
+      "y": 1,
+      "z": 2.077
+    },
+    "sha256": "ba80c5ed45097689"
+  }
+}

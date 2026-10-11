@@ -11,6 +11,9 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function audit(page: import('@playwright/test').Page) {
+  // Measure the settled UI: wait for finite entrance animations (fades) to finish;
+  // looping decorative animations (e.g. the selection halo) are ignored.
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity), null, { timeout: 5000 }).catch(() => undefined);
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .exclude('.maplibregl-canvas')
@@ -79,5 +82,21 @@ test('category Discover, place card and category dropdown have no WCAG A/AA viol
   await audit(page);
   await page.getByRole('button', { name: 'Food & Drink types' }).click();
   await expect(page.getByRole('dialog', { name: 'Food & Drink options' })).toBeVisible();
+  await audit(page);
+});
+
+test('chess room, Treasure and collection have no WCAG A/AA violations', async ({ page }) => {
+  await page.goto('/chess?venue=osm%3Anode%2F9209122821');
+  await expect(page.getByRole('grid', { name: 'Local chessboard' })).toBeVisible();
+  await page.getByRole('gridcell', { name: /^e2,/ }).click();
+  await audit(page);
+  await page.goto('/treasure');
+  await expect(page.getByRole('heading', { name: 'Treasure' })).toBeVisible();
+  await audit(page);
+  await page.getByRole('tab', { name: 'Collection' }).click();
+  await page.getByRole('list', { name: 'Monuments' }).getByRole('button').first().click();
+  await audit(page);
+  await page.goto('/maps');
+  await expect(page.getByRole('region', { name: 'Your map is empty' })).toBeVisible();
   await audit(page);
 });

@@ -15,7 +15,7 @@
   --color-lime-strong: #c4e550;
   --color-lime-soft: #f1fbd2;
   --color-lime-ink: #1d2a05;
-  --color-brand: #17915f;
+  --color-brand: #11764d;
   --color-brand-soft: #e3f5ec;
   --color-accent: #2f5bea;
   --color-accent-strong: #2348c2;
@@ -84,3 +84,31 @@
   /* Static ring instead of a pulse (the global rule would end on the invisible frame). */
   .atlas-halo { animation: none !important; transform: scale(0.85); opacity: 0.8; }
 }
+
+/* World transition (Discover <-> My Maps): a cartographic sweep across the map. */
+.atlas-world-sweep { animation: atlas-sweep 700ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.atlas-world-fade { animation: atlas-fade-veil 450ms ease-out forwards; }
+.atlas-sweep-personal { --sweep: rgba(47, 42, 85, 0.38); --edge: rgba(236, 228, 210, 0.85); }
+.atlas-sweep-discover { --sweep: rgba(23, 145, 95, 0.25); --edge: rgba(255, 246, 232, 0.85); }
+.atlas-world-sweep {
+  background: linear-gradient(105deg, transparent 0%, transparent 35%, var(--sweep) 45%, var(--edge) 50%, var(--sweep) 55%, transparent 65%, transparent 100%);
+  background-size: 300% 100%;
+}
+.atlas-world-fade { background: var(--sweep); }
+@keyframes atlas-sweep { from { background-position: 100% 0; opacity: 1; } to { background-position: 0% 0; opacity: 0.2; } }
+@keyframes atlas-fade-veil { from { opacity: 1; } to { opacity: 0; } }
+
+/* Personal pins and monuments appear with a restrained staggered reveal. */
+@keyframes atlas-pin-in { from { opacity: 0; transform: translateY(6px) scale(0.8); } to { opacity: 1; transform: none; } }
+.atlas-pin-in { animation: atlas-pin-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .atlas-world-sweep, .atlas-world-fade, .atlas-pin-in { animation: none !important; }
+}
+
+/* Crate reveal effects (off under reduced motion). */
+@keyframes atlas-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-2.5deg); } 75% { transform: rotate(2.5deg); } }
+.atlas-rays { background: repeating-conic-gradient(from 0deg, var(--ray) 0deg 8deg, transparent 8deg 20deg); animation: atlas-spin 12s linear infinite; }
+@keyframes atlas-spin { to { transform: rotate(360deg) scale(1.6); } }
+.atlas-mythic::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.65) 48%, transparent 66%); background-size: 250% 100%; animation: atlas-shimmer 2.4s ease-in-out infinite; }
+@keyframes atlas-shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+@media (prefers-reduced-motion: reduce) { .atlas-rays, .atlas-mythic::after { animation: none !important; } }

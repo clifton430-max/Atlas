@@ -18,7 +18,7 @@ import { CategoryDot } from '@/features/places/CategoryIcon';
 import { distanceLabel } from '@/features/places/geo';
 import { useUserLocation } from '@/features/places/userLocation';
 import { useDiscoverEvents } from './useDiscoverEvents';
-import { sortEvents } from './sort';
+import { sortEvents, useSortOrigin } from './sort';
 
 export function DiscoverEventList() {
   const { map } = useMapInstance();
@@ -28,7 +28,8 @@ export function DiscoverEventList() {
   const filters = useUi((s) => s.discoverFilters);
   const sort = useUi((s) => s.discoverSort);
   const n = activeFilterCount(filters);
-  const items = useMemo(() => sortEvents(filtered, sort, location), [filtered, sort, location]);
+  const { origin, from } = useSortOrigin();
+  const items = useMemo(() => sortEvents(filtered, sort, origin), [filtered, sort, origin]);
 
   if (!eventsVisible) return null;
   return (
@@ -39,6 +40,7 @@ export function DiscoverEventList() {
       </div>
       <p className="pb-2 text-xs text-neutral-500" aria-live="polite">
         {isLoading ? 'Loading…' : `${filtered.length} of ${all.length} shown${n ? ` · ${n} filter${n > 1 ? 's' : ''} active` : ''}`}
+        {sort === 'nearest' && from && <span className="block">{from === 'you' ? 'Closest to you first (straight line).' : 'Closest to the map centre first — use “Distance” to sort from where you are.'}</span>}
       </p>
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
         <EmptyState icon={<CalendarClock className="size-6" aria-hidden />} title="No events here">

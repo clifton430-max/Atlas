@@ -178,8 +178,10 @@ test('event filters via dropdowns; sort reorders only the list', async ({ page }
   await expect.poll(async () => (await names()).length).toBeGreaterThan(2);
   const before = await names();
 
-  await page.getByRole('button', { name: 'Sort: Soonest' }).click();
-  await expect(page.getByRole('radio', { name: 'Nearest' })).toBeDisabled(); // no location shared
+  // Default: nearest first, measured from the map centre until location is shared (never prompted).
+  await expect(page.locator('[data-tour="events-in-view"]')).toContainText('Closest to the map centre first');
+  await page.getByRole('button', { name: 'Sort: Nearest' }).click();
+  await expect(page.getByRole('radio', { name: 'Nearest' })).toHaveAttribute('aria-checked', 'true');
   await page.getByRole('radio', { name: 'Name (A–Z)' }).click();
   const sorted = await names();
   expect(sorted).toEqual([...before].sort((a, b) => a.localeCompare(b)));

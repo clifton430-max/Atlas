@@ -4,7 +4,12 @@
  * Group filtering is a derived view and never mutates data. Supports placing
  * new custom pins by clicking the map.
  */
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCollectiblesAccount, usePlacements } from '@/features/collectibles/api';
+import { loadMapView, saveMapView } from './mapViews';
+import { Link } from 'react-router-dom';
+import { MonumentsOnMap } from '@/features/collectibles/MonumentsOnMap';
+import { usePinDeepLink } from '@/features/pins/usePinDeepLink';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import type { MapMouseEvent } from 'maplibre-gl';
 import { MousePointerClick } from 'lucide-react';
@@ -37,6 +42,7 @@ export function PersonalMapView() {
   const { updateDetails } = usePinMutations();
   const toast = useToast();
   const current = maps.data?.find((m) => m.id === mapId);
+  const { signedIn: placementsEnabled } = useCollectiblesAccount();
 
   // Drop selections for groups that were deleted.
   useEffect(() => {
@@ -48,6 +54,7 @@ export function PersonalMapView() {
   const visible = useMemo(() => applyGroupFilter(pins.data ?? [], filter), [pins.data, filter]);
   const groupColor = useMemo(() => new Map((groups.data ?? []).map((g) => [g.id, g.color])), [groups.data]);
   const selected = pins.data?.find((p) => p.id === selectedPinId) ?? null;
+  usePinDeepLink(pins.data, (id) => uiStore.set({ selectedPinId: id }));
 
   // Placement mode: next map click chooses the custom pin location.
   const onMapClick = useCallback((e: MapMouseEvent) => {
@@ -80,6 +87,25 @@ export function PersonalMapView() {
     };
   }, [map, onMapClick, placing, movingPinId]);
 
+  // Viewport memory: restore this map's last view if nothing of it is on screen; save it on leave.
+  const placements = usePlacements(mapId);
+  const restored = useRef<string | null>(null);
+  useEffect(() => {
+    if (!map || restored.current === mapId || !pins.isSuccess || (placementsEnabled && placements.isLoading)) return;
+    restored.current = mapId;
+    const b = map.getBounds();
+    const pts = [...(pins.data ?? []).filter((p) => p.latitude != null).map((p) => [p.longitude!, p.latitude!]),
+      ...(placements.data ?? []).map((p) => [p.longitude, p.latitude])];
+    const anyVisible = pts.some(([lng, lat]) => b.contains([lng, lat]));
+    const saved = loadMapView(mapId);
+    if (!anyVisible && saved) map.easeTo({ ...saved, duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 900 });
+  }, [map, mapId, pins.isSuccess, pins.data, placements.data, placements.isLoading, placementsEnabled]);
+  useEffect(() => () => {
+    if (!map) return;
+    const c = map.getCenter();
+    saveMapView(mapId, { center: [c.lng, c.lat], zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() });
+  }, [map, mapId]);
+
   // Leaving this map clears its transient state.
   useEffect(() => () => uiStore.set({ selectedPinId: null, placingPin: false, newPinAt: null, movingPinId: null, moveTarget: null }), [mapId]);
 
@@ -89,10 +115,11 @@ export function PersonalMapView() {
 
   return (
     <>
-      {visible.map((p) =>
+      {visible.map((p, i) =>
         p.latitude != null && p.longitude != null ? (
           <PinMarker
             key={p.id}
+            revealDelay={Math.min(i * 45, 600)}
             latitude={p.id === movingPinId && moveTarget ? moveTarget.latitude : p.latitude}
             longitude={p.id === movingPinId && moveTarget ? moveTarget.longitude : p.longitude}
             label={`${pinTitle(p)}${p.groupIds.length ? '' : ' (no group)'}`}
@@ -132,8 +159,26 @@ export function PersonalMapView() {
         </InspectorPortal>
       )}
 
+      <MonumentsOnMap mapId={mapId} />
+      {pins.isSuccess && (pins.data?.length ?? 0) === 0 && !(placements.data?.length) && !placing && !newPinAt && <EmptyWorld />}
       {newPinAt && <CustomPinDialog mapId={mapId} at={newPinAt} onClose={() => uiStore.set({ newPinAt: null })} />}
     </>
+  );
+}
+
+/** A designed, actionable empty state for a personal world with nothing on it yet. */
+function EmptyWorld() {
+  const { signedIn } = useCollectiblesAccount();
+  return (
+    <section aria-label="Your map is empty" className="absolute bottom-28 left-1/2 z-10 w-[min(420px,calc(100%-24px))] -translate-x-1/2 rounded-2xl bg-white/95 p-4 text-center shadow-float ring-1 ring-black/5 backdrop-blur animate-rise-in">
+      <p className="text-[15px] font-semibold">Your map is waiting for its first landmark</p>
+      <p className="mt-1 text-xs text-neutral-600">Pins, saved places and 3D monuments you add appear here, in your personal world.</p>
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
+        <Button size="sm" variant="cta" onClick={() => uiStore.set({ placingPin: true, selectedPinId: null })}>Add a pin</Button>
+        <Link to={signedIn ? '/treasure?tab=collection' : '/treasure'} className="inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium ring-1 ring-line hover:bg-neutral-50">Place a monument</Link>
+        <Link to="/" className="inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium text-brand hover:bg-neutral-50">Explore Discover</Link>
+      </div>
+    </section>
   );
 }
 

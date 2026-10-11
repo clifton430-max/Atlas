@@ -12,7 +12,7 @@ import { PLACE_CATEGORIES, placeVisual, subclassesFor } from './categories';
 import { CategoryDot } from './CategoryIcon';
 import { distanceLabel } from './geo';
 import { usePlacesInView } from './usePlacesInView';
-import { sortPlaces } from '@/features/discover/sort';
+import { sortPlaces, useSortOrigin } from '@/features/discover/sort';
 import { useUserLocation } from './userLocation';
 
 export function PlaceResults() {
@@ -22,6 +22,7 @@ export function PlaceResults() {
   const selected = useUi((s) => s.selectedPlace);
   const { location } = useUserLocation();
   const sort = useUi((s) => s.discoverSort);
+  const { origin } = useSortOrigin();
   const placeCats = PLACE_CATEGORIES.filter((c) => visible.includes(c.id));
   const { places, supported, tooFarOut, truncated } = usePlacesInView(subclassesFor(visible, subs));
   if (placeCats.length === 0) return null;
@@ -41,7 +42,7 @@ export function PlaceResults() {
         <EmptyState title="No places here">None of the selected categories are mapped in this area.</EmptyState>
       )}
       {placeCats.map((c) => {
-        const items = sortPlaces(places.filter((p) => p.categoryId === c.id), sort, location);
+        const items = sortPlaces(places.filter((p) => p.categoryId === c.id), sort, origin);
         if (!items.length) return null;
         return (
           <Fragment key={c.id}>

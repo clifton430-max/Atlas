@@ -4,6 +4,7 @@
  * the event's timezone, and the ticket link is only rendered when it is a
  * validated https URL. Source attribution and last-checked time are shown.
  */
+import { Directions } from '@/features/routing/Directions';
 import { useState } from 'react';
 import { Bookmark, BookmarkCheck, BookmarkPlus, CalendarClock, Clock, ExternalLink, MapPin, Tag, X } from 'lucide-react';
 import type { AtlasEvent } from '@/lib/types';
@@ -16,7 +17,7 @@ import { eventVisual } from '@/features/places/categories';
 import { CategoryDot } from '@/features/places/CategoryIcon';
 import { Button, IconButton } from '@/components/ui/Button';
 
-export function EventCard({ event, onClose, onSave, saved, canSave, signInHint, footer }: {
+export function EventCard({ event, onClose, onSave, saved, canSave, signInHint, footer, showDirections }: {
   event: AtlasEvent;
   onClose?: () => void;
   onSave?: () => void;
@@ -25,6 +26,8 @@ export function EventCard({ event, onClose, onSave, saved, canSave, signInHint, 
   signInHint?: boolean;
   /** Extra section after the details (the inspector's inline Add to map form). */
   footer?: React.ReactNode;
+  /** Route distance/time section (inspector only). */
+  showDirections?: boolean;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const { location } = useUserLocation();
@@ -63,6 +66,7 @@ export function EventCard({ event, onClose, onSave, saved, canSave, signInHint, 
           )}
         </header>
 
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Official event schedule · {event.sourceName ?? event.provider}</p>
         <dl className="space-y-1.5 text-[13px] text-neutral-700">
           <Row icon={<CalendarClock className="size-4" aria-hidden />} label="Starts">
             {formatEventStart(event)}
@@ -85,6 +89,7 @@ export function EventCard({ event, onClose, onSave, saved, canSave, signInHint, 
           </Row>
         </dl>
 
+        {showDirections && <Directions latitude={event.latitude} longitude={event.longitude} name={event.venueName ?? event.name} />}
         {event.description && <p className="line-clamp-3 text-[13px] text-neutral-600">{event.description}</p>}
 
         <div className="flex flex-wrap gap-2 pt-1">

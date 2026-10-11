@@ -105,7 +105,7 @@ function SortMenu() {
       {(close) => (
         <div role="radiogroup" aria-label="Sort results" className="w-60 p-1.5">
           {SORT_OPTIONS.map((o) => {
-            const disabled = o.id === 'nearest' && !location;
+            const disabled = false;
             return (
               <button key={o.id} type="button" role="radio" aria-checked={sort === o.id} disabled={disabled}
                 onClick={() => { uiStore.set({ discoverSort: o.id }); close(); }}
@@ -116,7 +116,7 @@ function SortMenu() {
             );
           })}
           <p className="px-3 pb-1.5 pt-1 text-[11px] text-neutral-500">
-            {location ? 'Sorting changes only the order of the lists.' : '“Nearest” needs your location — use “Distance”.'}
+            {location ? 'Nearest = closest to you (straight line). Sorting changes only the order of the lists.' : 'Nearest uses the map centre until you share your location with “Distance”.'}
           </p>
         </div>
       )}

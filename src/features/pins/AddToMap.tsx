@@ -35,6 +35,8 @@ import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { useCollabMaps, useCollabMutations } from '@/features/collaboration/api';
 import type { Place } from '@/features/places/types';
 import { usePinMutations, useSavedEvents } from './api';
+import { placeToPinSource } from './pinSource';
+import { usePlaceDetails } from '@/features/places/placeDetails';
 
 export type SaveItem = { kind: 'event'; event: AtlasEvent } | { kind: 'place'; place: Place; address: string | null };
 type Target = 'personal' | 'collab';
@@ -69,6 +71,8 @@ export function AddToMap({ item }: { item: SaveItem }) {
   const { addToCollab } = useCollabMutations();
 
   const isEvent = item.kind === 'event';
+  // Verified place details (cached; already loaded by the inspector) go into the pin's source snapshot.
+  const placeDetails = usePlaceDetails(isEvent ? null : item.place);
   const itemKey = isEvent ? item.event.id : item.place.ref;
   const itemName = isEvent ? item.event.name : item.place.name;
   const noun = isEvent ? 'event' : 'place';
@@ -129,11 +133,11 @@ export function AddToMap({ item }: { item: SaveItem }) {
       if (isCollab) {
         await addToCollab.mutateAsync(isEvent
           ? { collabMapId: destId, eventId: item.event.id, attendance }
-          : { collabMapId: destId, place: { ...item.place, address: item.address } });
+          : { collabMapId: destId, place: { ...item.place, address: item.address }, source: placeToPinSource(item.place, placeDetails.data) });
       } else {
         const groupIds = await commitGroupSelection(selection, qc, ws);
         if (isEvent) await saveEvent.mutateAsync({ mapId: destId, eventId: item.event.id, groupIds, event: item.event, attendance });
-        else await savePlace.mutateAsync({ mapId: destId, place: item.place, address: item.address, groupIds });
+        else await savePlace.mutateAsync({ mapId: destId, place: item.place, address: item.address, groupIds, source: placeToPinSource(item.place, placeDetails.data) });
       }
       const msg = existing ? `Updated on ${destName ?? 'your map'}.` : `Added to ${destName ?? 'your map'}.`;
       setDone(msg);

@@ -13,6 +13,7 @@ import { loadGroupFilter, saveGroupFilter, type GroupFilter } from '@/features/g
 import { CATEGORIES, sanitizeSubFilters, type CategoryId } from '@/features/places/categories';
 import type { Place } from '@/features/places/types';
 import type { DiscoverSort } from '@/features/discover/sort';
+import type { PinSource } from '@/features/pins/pinSource';
 
 /** Hovered/focused Discover item for the preview (events by id, places by value). */
 export type HoverItem = { kind: 'event'; id: string } | { kind: 'place'; place: Place };
@@ -38,6 +39,9 @@ export interface PlacementRequest {
   longitude: number;
   title?: string;
   address?: string | null;
+  /** When placed from a search result: its OSM element and source snapshot. */
+  placeRef?: string | null;
+  source?: PinSource | null;
 }
 
 export interface AtlasUiState {
@@ -81,6 +85,24 @@ export interface AtlasUiState {
 
   // Collaboration context
   selectedSharedPinId: string | null;
+
+  /** Placing (or editing) a 3D monument on the open personal map. */
+  placingMonument: MonumentDraft | null;
+  selectedPlacementId: string | null;
+  /** Temporary skin preview on one personal map (never saved, never on shared maps). */
+  skinPreview: { mapId: string; defId: string } | null;
+}
+
+export interface MonumentDraft {
+  defId: string;
+  /** Existing placement being edited (null = new placement). */
+  editingId: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  /** True once the user clicked a position (the ghost stops following the pointer). */
+  fixed: boolean;
+  rotationDeg: number;
+  scale: number;
 }
 
 // Panels start open on wide screens; on narrow screens they overlay the map, so start closed.
@@ -91,7 +113,7 @@ const initial: AtlasUiState = {
   rightPanelOpen: width >= 1280,
   discoverFilters: EMPTY_FILTERS,
   discoverKeyword: '',
-  discoverSort: 'soonest',
+  discoverSort: 'nearest',
   discoverCategories: typeof window === 'undefined' ? DEFAULT_CATEGORIES : loadCategories().visible,
   discoverSubcategories: typeof window === 'undefined' ? {} : loadCategories().subs,
   hoverItem: null,
@@ -107,6 +129,9 @@ const initial: AtlasUiState = {
   panelToggles: 0,
   groupFilters: {},
   selectedSharedPinId: null,
+  placingMonument: null,
+  selectedPlacementId: null,
+  skinPreview: null,
 };
 
 let state: AtlasUiState = initial;
@@ -144,3 +169,6 @@ export function useGroupFilter(mapId: string): [GroupFilter, (f: GroupFilter) =>
   }, [mapId]);
   return [resolved, set];
 }
+
+// Dev-only handle for debugging and browser-driven verification (stripped from production builds).
+if (import.meta.env.DEV && typeof window !== 'undefined') (window as unknown as { __atlasUi?: typeof uiStore }).__atlasUi = uiStore;

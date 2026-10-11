@@ -437,6 +437,147 @@ rendering or animation dependency**.
 -   [x] Honesty: tooltip, legend and Settings say the motion is decorative and is not real-time traffic, transit or crowds. No live data source is implied.
 -   [x] Performance guard and pause-while-moving/hidden behaviour unchanged. At most 16 agents in one source at about 15 fps.
 
+### Phase 13 --- Master implementation: data integrity, collaboration, chess, collectibles, worlds (2026-10-10)
+
+New migrations, all additive and all applied to the linked project:
+`0014` pin source metadata · `0015` meetups, attendees, notifications, realtime ·
+`0016` online chess · `0017` collectibles (catalog, versioned odds, inventory,
+rolls, placements, map skins) · `0018` `crate_status` signed-in only.
+
+New Edge Functions: `route` (OSRM proxy) and `chess-move` (move authority).
+`place-details` now also extracts `email` and `wheelchair`, with a cache
+version bump.
+
+New dependencies (both lazy-loaded):
+-   `chess.js@1.4.0` (BSD-2), a tested rules engine shared by client and server;
+-   `three@0.186.1` (MIT), for 3D monuments in the map (custom layer) and in
+    previews. The asset build script also uses its GLTFExporter.
+
+**13.1 Bug fixes (Part 2)** — ✅
+-   [x] **Nearest-first sorting.** It is now the default. It measures from your
+    location (restored silently if permission was already granted, never
+    prompted) or from the map centre, which is labelled. Denied, timeout and
+    invalid coordinates are handled.
+-   [x] **Details.** Phone, email and wheelchair access (as mapped on OSM) are
+    shown in the main rows. "Official event schedule" is labelled. Meetups
+    are separate.
+-   [x] **Routing.** Walk and drive routes with real distance and ETA from OSRM,
+    drawn on the map (dotted for walking). A labelled straight-line fallback
+    is used when routing fails. Verified live.
+-   [x] **Compass.**
+    -   *Root cause:* the button reset to the 3D default bearing (−20°), not
+        north, and its icon never reflected the bearing.
+    -   *Fix:* the needle now rotates with the map and clicking turns the map
+        to face north (tilt kept). Tested at −20°, 90° and 200°.
+-   [x] **Copy URL.**
+    -   *Root cause:* the Share menu copied the OSM URL as the place's link.
+    -   *Fix:* Atlas link, official website and OpenStreetMap page are now
+        separate, labelled actions; there is no substitution when a website is
+        missing. Deep links open the same place, event or pin by stable id.
+-   [x] **Discover tab.**
+    -   A routing failure could not be reproduced: the tabs navigated correctly
+        in no-backend mode, signed in, and at 1440, 820 and 390 px.
+    -   *Root cause of "does nothing":* with the side panel collapsed (the
+        default below 1024 px) only the map changed.
+    -   *Fix:* every context tab and rail link now opens its panel.
+-   [x] **Marker panels.**
+    -   EventCard and PlaceCard were not keyed by selection, so internal state
+        (failed image, expanded sections) leaked between selections. Fixed.
+    -   Overlapping event and place pins both fired their click handlers;
+        places now yield to the event drawn above.
+-   [x] **Pin metadata.** A single normalizer covers Discover places, search
+    hits (Photon OSM ids, enriched with place details), shared copies
+    (`share_pin` copies `place_ref` and `source`) and guest pins. Edits never
+    touch `source`.
+
+**13.2 Collaboration (Part 3)** — ✅
+-   [x] Creator attribution (initials avatar, a colour derived from the user id,
+    since no profile photos exist), meetups, join/leave, capacity, schedule
+    validation, upcoming/live/finished/cancelled states, guest-list privacy.
+-   [x] Map labels with compact time and an avatar stack with "+N".
+-   [x] Realtime: INSERT/UPDATE are filtered by map. DELETE events can't be
+    filtered and carry only primary keys under RLS, so the client refetches
+    only when the id belongs to its cache. The app resyncs after reconnecting.
+-   [x] Notifications from triggers and RPCs, deduplicated by key and hidden
+    after you lose access. Clicking one opens the pin, meetup or game.
+-   [x] Live two-browser test: pin, meetup and attendance sync; delete sync;
+    notifications; cameras stay independent.
+
+**13.3 Chess (Part 4)** — ✅ local and online
+-   [x] The Hall of Fame is matched by `osm:node/9209122821`. A separate,
+    older Miami building with the same name exists, which is why name
+    matching would be wrong.
+-   [x] Full rules via chess.js: legal moves only, castling, en passant,
+    promotion picker, check, mate, stalemate, insufficient material,
+    threefold and fifty-move claims, resignation, draw agreement, SAN history.
+    The board has keyboard play and is axe-clean.
+-   [x] Local mode: board flip, persisted in the browser, works offline after
+    load.
+-   [x] Online mode: challenges between friends or collaborators, and the
+    accept, decline, cancel, resign and draw-offer RPCs.
+    -   Moves go only through `chess-move`, which replays the game server-side.
+    -   `apply_chess_move` is service-role only and enforces turn order and
+        `expectedPly`.
+    -   Realtime sync; refresh resumes the game.
+    -   Live tests cover the API and two browsers.
+
+**13.4 Collectibles (Parts 5–7)** — ✅
+-   [x] `open_crate()`, server-authoritative, in this order:
+    1.  Per-user advisory lock.
+    2.  Idempotency key.
+    3.  Daily free rolls (3 per crate per UTC day).
+    4.  CSPRNG draw (`gen_random_uuid` → `pg_strong_random`, rejection-sampled).
+    5.  Rarity from the active versioned weights (basis points, validated to
+        total exactly 10000).
+    6.  A uniform pick within that rarity.
+    7.  An empty pool blocks the roll.
+    8.  The inventory is incremented and duplicates are flagged.
+    -   Tests include exact rarity boundaries and a 40,000-draw uniformity
+        check.
+-   [x] Catalog: 18 monuments and 18 skins (3 per rarity). Monument coordinates
+    and Q-ids were verified on Wikidata; 5 remembered ids were wrong and
+    corrected. A test asserts the database catalog equals
+    `catalog.data.json`.
+-   [x] 3D pipeline: `scripts/models/*.mjs` builds original procedural
+    miniatures with three.js and exports binary glTF to
+    `public/models/monuments`.
+    -   Meshes are merged per material (about one draw call per colour).
+    -   The manifest records bytes, triangles, size and a hash for cache
+        busting.
+    -   Public-domain designs only.
+-   [x] Reveal: the reward is decided before the animation. While slowing,
+    the previews show only the awarded rarity, so there are no near misses.
+    Skip, reduced motion and optional synthesized sound are supported.
+    Effects are per rarity, with a stronger Mythic reveal.
+-   [x] Collection: undiscovered silhouettes, rarity and region filters,
+    completion and copies, an interactive viewer, "locate the real landmark".
+    Thumbnails use one shared renderer (browsers cap WebGL contexts).
+-   [x] Placement: choose or create a map, ghost preview, rotate, resize,
+    confirm or cancel, reposition, remove (stays in the collection).
+    -   Rendered by a MapLibre custom layer, with the transform folded into
+        the projection on the CPU in double precision.
+    -   The depth buffer is shared with the 3D buildings.
+    -   Hit-testing for selection; context-loss and failed-load handling.
+    -   Owner-only RLS, owned monuments only, 100 per map.
+
+**13.5 Skins and worlds (Parts 8–9)** — ✅
+-   [x] 18 skin themes change land, water, parks, woods, flat and 3D
+    buildings, the road hierarchy, rail, boundaries, label colour, halo and
+    font.
+    -   Effects, all really rendered: generated textures, a graticule,
+        a vignette.
+    -   The theme applier records and restores exact originals.
+-   [x] Preview (temporary, any map), equip (owned only, stored in
+    `map_skins`), restore the default. Skins apply only to personal maps.
+-   [x] World transition:
+    -   The live style cross-fades (paint transitions, 650 ms) with a
+        cartographic sweep.
+    -   Low-power devices get a fade only; reduced motion gets no animation.
+    -   The tab indicator glides, and pins reveal with a stagger.
+    -   Personal maps remember their viewport, restored only when none of the
+        map's content is on screen.
+    -   An empty personal world shows actions.
+
 ## 10. Environment and setup documentation
 
 Document required variables in `.env.example` without real secrets.

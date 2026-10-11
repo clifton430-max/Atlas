@@ -13,3 +13,12 @@ verify_jwt = false
 # Public, read-only OpenStreetMap/Wikimedia details (no user data); protected
 # by per-client rate limits, upstream budgets and a server-side cache.
 verify_jwt = false
+
+[functions.route]
+# Public routing proxy (no user data stored); per-client and global rate limits.
+verify_jwt = false
+
+[functions.chess-move]
+# Verifies the caller's session itself (works with publishable keys); the
+# move authority for online chess. Never trusts client FEN/results.
+verify_jwt = false

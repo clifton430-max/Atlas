@@ -8,6 +8,8 @@
  * All Discover state (selection, hover, categories) stays in Discover and is
  * cleared on exit so it never leaks into personal or collaboration maps.
  */
+import { useDiscoverDeepLink } from './useDiscoverDeepLink';
+import { restoreLocationIfPermitted } from '@/features/places/userLocation';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { uiStore, useUi } from '@/app/store';
@@ -67,6 +69,11 @@ export function DiscoverView() {
     }
   };
 
+  useDiscoverDeepLink();
+
+  // If location permission was already granted for this site, use it for distances (never prompts).
+  useEffect(() => { void restoreLocationIfPermitted(); }, []);
+
   // Leaving Discover clears its transient state so it can't leak into other contexts.
   useEffect(() => () => uiStore.set({ selectedEventId: null, selectedPlace: null, hoverItem: null }), []);
 
@@ -101,7 +108,9 @@ export function DiscoverView() {
       {selected && (
         <InspectorPortal title="Selected event" openKey={`event:${selected.id}`} closeLabel="Close event details" onClose={() => uiStore.set({ selectedEventId: null })}>
           <EventCard
+            key={selected.id}
             event={selected}
+            showDirections
             canSave
             signInHint={false}
             saved={savedIds.has(selected.id)}
@@ -113,6 +122,7 @@ export function DiscoverView() {
       {selectedPlace && !selected && (
         <InspectorPortal title="Selected place" openKey={`place:${selectedPlace.ref}`} closeLabel="Close place details" onClose={() => uiStore.set({ selectedPlace: null })}>
           <PlaceCard
+            key={selectedPlace.ref}
             place={selectedPlace}
             saved={savedIds.has(selectedPlace.ref)}
             onSave={revealAddToMap}

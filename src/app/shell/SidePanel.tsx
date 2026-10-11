@@ -14,7 +14,10 @@ import { DiscoverPanel } from '@/features/discover/DiscoverPanel';
 import { toggleSidePanel } from './IconRail';
 
 export function SidePanel() {
-  const discover = !!useMatch('/');
+  // The chess room is reached from a Discover place, so Discover stays alongside it.
+  const atDiscover = !!useMatch('/');
+  const atChess = !!useMatch('/chess/*');
+  const discover = atDiscover || atChess;
   const collab = !!useMatch('/collab/*');
   const title = discover ? 'Discover' : collab ? 'Shared' : 'My Maps';
   const subtitle = discover ? 'Explore events, places and more' : collab ? 'Maps you share with other people' : 'Your private maps, pins and groups';

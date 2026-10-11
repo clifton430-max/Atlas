@@ -121,13 +121,15 @@ test('Hide All hides Discover overlays only; Show all restores; no leakage into 
 });
 
 test('distance is shown only after sharing location, labelled straight-line', async ({ page, context }) => {
-  await context.grantPermissions(['geolocation']);
-  await context.setGeolocation({ latitude: 40.7681, longitude: -73.9819 }); // Columbus Circle
   await at(page, CENTRAL_PARK, 15.5, ['parks']);
   await page.goto('/');
   await waitForPlaces(page);
   const list = page.locator('[data-tour="places-in-view"]');
+  // No permission yet: nothing is requested and no distances are shown.
+  await page.waitForTimeout(500);
   await expect(list).not.toContainText('straight line');
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: 40.7681, longitude: -73.9819 }); // Columbus Circle
   await page.getByRole('button', { name: 'Use my location to show distances' }).click();
   await expect(list.locator('li').first()).toContainText(/away \(straight line\)/);
   // Every distance is labelled straight-line; none claims walking/driving time or distance.

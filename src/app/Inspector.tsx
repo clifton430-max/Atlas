@@ -80,10 +80,11 @@ export function InspectorBody() {
 function InspectorEmpty() {
   const discover = !!useMatch('/');
   const personal = !!useMatch('/maps/:mapId');
+  const collab = !!useMatch('/collab/*');
   const hint = discover
     ? 'Select an event or place on the map or in the list to see its details here.'
     : personal ? 'Select a pin on the map to see and edit its details here.'
-      : 'Select a shared pin on the map to see its details here.';
+      : collab ? 'Select a shared pin on the map to see its details here.' : 'Select something on the map to see its details here.';
   return (
     <div className="atlas-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-4">
       <h2 className="text-[17px] font-semibold tracking-tight">{discover ? 'Selected place' : 'Details'}</h2>

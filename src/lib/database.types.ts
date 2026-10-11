@@ -15,6 +15,128 @@ export type Database = {
   }
   public: {
     Tables: {
+      chess_games: {
+        Row: {
+          black_id: string
+          created_at: string
+          created_by: string
+          draw_offered_by: string | null
+          fen: string
+          id: string
+          ply: number
+          result: string | null
+          status: string
+          termination: string | null
+          updated_at: string
+          venue_ref: string | null
+          white_id: string
+        }
+        Insert: {
+          black_id: string
+          created_at?: string
+          created_by: string
+          draw_offered_by?: string | null
+          fen?: string
+          id?: string
+          ply?: number
+          result?: string | null
+          status?: string
+          termination?: string | null
+          updated_at?: string
+          venue_ref?: string | null
+          white_id: string
+        }
+        Update: {
+          black_id?: string
+          created_at?: string
+          created_by?: string
+          draw_offered_by?: string | null
+          fen?: string
+          id?: string
+          ply?: number
+          result?: string | null
+          status?: string
+          termination?: string | null
+          updated_at?: string
+          venue_ref?: string | null
+          white_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chess_games_black_id_fkey"
+            columns: ["black_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chess_games_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chess_games_draw_offered_by_fkey"
+            columns: ["draw_offered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chess_games_white_id_fkey"
+            columns: ["white_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chess_moves: {
+        Row: {
+          created_at: string
+          fen_after: string
+          game_id: string
+          played_by: string
+          ply: number
+          san: string
+          uci: string
+        }
+        Insert: {
+          created_at?: string
+          fen_after: string
+          game_id: string
+          played_by: string
+          ply: number
+          san: string
+          uci: string
+        }
+        Update: {
+          created_at?: string
+          fen_after?: string
+          game_id?: string
+          played_by?: string
+          ply?: number
+          san?: string
+          uci?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chess_moves_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "chess_games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chess_moves_played_by_fkey"
+            columns: ["played_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collab_invitations: {
         Row: {
           created_at: string
@@ -156,6 +278,117 @@ export type Database = {
           },
           {
             foreignKeyName: "collab_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collectible_defs: {
+        Row: {
+          active: boolean
+          id: string
+          kind: string
+          metadata: Json
+          name: string
+          rarity: string
+        }
+        Insert: {
+          active?: boolean
+          id: string
+          kind: string
+          metadata?: Json
+          name: string
+          rarity: string
+        }
+        Update: {
+          active?: boolean
+          id?: string
+          kind?: string
+          metadata?: Json
+          name?: string
+          rarity?: string
+        }
+        Relationships: []
+      }
+      crate_configs: {
+        Row: {
+          active: boolean
+          crate: string
+          created_at: string
+          daily_free_rolls: number
+          version: number
+          weights: Json
+        }
+        Insert: {
+          active?: boolean
+          crate: string
+          created_at?: string
+          daily_free_rolls?: number
+          version: number
+          weights: Json
+        }
+        Update: {
+          active?: boolean
+          crate?: string
+          created_at?: string
+          daily_free_rolls?: number
+          version?: number
+          weights?: Json
+        }
+        Relationships: []
+      }
+      crate_rolls: {
+        Row: {
+          config_version: number
+          copies_after: number
+          crate: string
+          created_at: string
+          def_id: string
+          duplicate: boolean
+          id: string
+          idempotency_key: string
+          rarity: string
+          roll: number
+          user_id: string
+        }
+        Insert: {
+          config_version: number
+          copies_after: number
+          crate: string
+          created_at?: string
+          def_id: string
+          duplicate: boolean
+          id?: string
+          idempotency_key: string
+          rarity: string
+          roll: number
+          user_id: string
+        }
+        Update: {
+          config_version?: number
+          copies_after?: number
+          crate?: string
+          created_at?: string
+          def_id?: string
+          duplicate?: boolean
+          id?: string
+          idempotency_key?: string
+          rarity?: string
+          roll?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crate_rolls_def_id_fkey"
+            columns: ["def_id"]
+            isOneToOne: false
+            referencedRelation: "collectible_defs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crate_rolls_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -405,6 +638,49 @@ export type Database = {
           },
         ]
       }
+      map_skins: {
+        Row: {
+          def_id: string
+          map_id: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          def_id: string
+          map_id: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Update: {
+          def_id?: string
+          map_id?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "map_skins_def_id_fkey"
+            columns: ["def_id"]
+            isOneToOne: false
+            referencedRelation: "collectible_defs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "map_skins_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: true
+            referencedRelation: "maps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "map_skins_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maps: {
         Row: {
           created_at: string
@@ -434,6 +710,271 @@ export type Database = {
           {
             foreignKeyName: "maps_owner_id_fkey"
             columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetup_attendees: {
+        Row: {
+          collab_map_id: string
+          joined_at: string
+          meetup_id: string
+          user_id: string
+        }
+        Insert: {
+          collab_map_id: string
+          joined_at?: string
+          meetup_id: string
+          user_id: string
+        }
+        Update: {
+          collab_map_id?: string
+          joined_at?: string
+          meetup_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetup_attendees_collab_map_id_fkey"
+            columns: ["collab_map_id"]
+            isOneToOne: false
+            referencedRelation: "collab_maps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetup_attendees_meetup_id_fkey"
+            columns: ["meetup_id"]
+            isOneToOne: false
+            referencedRelation: "meetups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetup_attendees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetups: {
+        Row: {
+          cancelled_at: string | null
+          capacity: number | null
+          collab_map_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          ends_at: string
+          id: string
+          shared_pin_id: string
+          starts_at: string
+          timezone: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          capacity?: number | null
+          collab_map_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          ends_at: string
+          id?: string
+          shared_pin_id: string
+          starts_at: string
+          timezone: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          capacity?: number | null
+          collab_map_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          ends_at?: string
+          id?: string
+          shared_pin_id?: string
+          starts_at?: string
+          timezone?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetups_collab_map_id_fkey"
+            columns: ["collab_map_id"]
+            isOneToOne: false
+            referencedRelation: "collab_maps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetups_shared_pin_id_fkey"
+            columns: ["shared_pin_id"]
+            isOneToOne: false
+            referencedRelation: "shared_pins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monument_placements: {
+        Row: {
+          created_at: string
+          def_id: string
+          id: string
+          latitude: number
+          longitude: number
+          map_id: string
+          owner_id: string
+          rotation_deg: number
+          scale: number
+          tint: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          def_id: string
+          id?: string
+          latitude: number
+          longitude: number
+          map_id: string
+          owner_id?: string
+          rotation_deg?: number
+          scale?: number
+          tint?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          def_id?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          map_id?: string
+          owner_id?: string
+          rotation_deg?: number
+          scale?: number
+          tint?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monument_placements_def_id_fkey"
+            columns: ["def_id"]
+            isOneToOne: false
+            referencedRelation: "collectible_defs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monument_placements_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
+            referencedRelation: "maps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monument_placements_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          actor_id: string | null
+          chess_game_id: string | null
+          collab_map_id: string | null
+          created_at: string
+          dedupe_key: string
+          id: string
+          kind: string
+          meetup_id: string | null
+          read_at: string | null
+          shared_pin_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          chess_game_id?: string | null
+          collab_map_id?: string | null
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          kind: string
+          meetup_id?: string | null
+          read_at?: string | null
+          shared_pin_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          chess_game_id?: string | null
+          collab_map_id?: string | null
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          kind?: string
+          meetup_id?: string | null
+          read_at?: string | null
+          shared_pin_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_chess_game_id_fkey"
+            columns: ["chess_game_id"]
+            isOneToOne: false
+            referencedRelation: "chess_games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_collab_map_id_fkey"
+            columns: ["collab_map_id"]
+            isOneToOne: false
+            referencedRelation: "collab_maps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_meetup_id_fkey"
+            columns: ["meetup_id"]
+            isOneToOne: false
+            referencedRelation: "meetups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_shared_pin_id_fkey"
+            columns: ["shared_pin_id"]
+            isOneToOne: false
+            referencedRelation: "shared_pins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -546,6 +1087,7 @@ export type Database = {
           place_ref: string | null
           shape: Database["public"]["Enums"]["pin_shape"]
           size: number
+          source: Json | null
           title: string | null
           updated_at: string
         }
@@ -570,6 +1112,7 @@ export type Database = {
           place_ref?: string | null
           shape?: Database["public"]["Enums"]["pin_shape"]
           size?: number
+          source?: Json | null
           title?: string | null
           updated_at?: string
         }
@@ -594,6 +1137,7 @@ export type Database = {
           place_ref?: string | null
           shape?: Database["public"]["Enums"]["pin_shape"]
           size?: number
+          source?: Json | null
           title?: string | null
           updated_at?: string
         }
@@ -706,6 +1250,7 @@ export type Database = {
           shape: Database["public"]["Enums"]["pin_shape"]
           shared_by: string
           size: number
+          source: Json | null
           source_pin_id: string | null
           title: string
           updated_at: string
@@ -730,6 +1275,7 @@ export type Database = {
           shape?: Database["public"]["Enums"]["pin_shape"]
           shared_by: string
           size?: number
+          source?: Json | null
           source_pin_id?: string | null
           title: string
           updated_at?: string
@@ -754,6 +1300,7 @@ export type Database = {
           shape?: Database["public"]["Enums"]["pin_shape"]
           shared_by?: string
           size?: number
+          source?: Json | null
           source_pin_id?: string | null
           title?: string
           updated_at?: string
@@ -796,6 +1343,45 @@ export type Database = {
           },
         ]
       }
+      user_collectibles: {
+        Row: {
+          copies: number
+          def_id: string
+          first_at: string
+          last_at: string
+          user_id: string
+        }
+        Insert: {
+          copies: number
+          def_id: string
+          first_at?: string
+          last_at?: string
+          user_id: string
+        }
+        Update: {
+          copies?: number
+          def_id?: string
+          first_at?: string
+          last_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_collectibles_def_id_fkey"
+            columns: ["def_id"]
+            isOneToOne: false
+            referencedRelation: "collectible_defs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_collectibles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -818,17 +1404,66 @@ export type Database = {
           p_latitude?: number
           p_longitude?: number
           p_place_ref?: string
+          p_source?: Json
           p_title?: string
         }
         Returns: string
       }
+      apply_chess_move: {
+        Args: {
+          p_expected_ply: number
+          p_fen_after: string
+          p_game_id: string
+          p_player: string
+          p_result?: string
+          p_san: string
+          p_termination?: string
+          p_uci: string
+        }
+        Returns: number
+      }
       are_friends: { Args: { p_a: string; p_b: string }; Returns: boolean }
+      can_challenge: {
+        Args: { p_me: string; p_other: string }
+        Returns: boolean
+      }
       can_read_pin_image: { Args: { p_image_id: string }; Returns: boolean }
       can_read_pin_image_object: { Args: { p_name: string }; Returns: boolean }
       can_view_profile: { Args: { p_target: string }; Returns: boolean }
+      cancel_chess_challenge: {
+        Args: { p_game_id: string }
+        Returns: undefined
+      }
+      cancel_meetup: { Args: { p_meetup_id: string }; Returns: undefined }
+      chess_opponents: {
+        Args: never
+        Returns: {
+          display_name: string
+          id: string
+          username: string
+        }[]
+      }
       collab_role_of: {
         Args: { p_map_id: string; p_user_id: string }
         Returns: Database["public"]["Enums"]["collab_role"]
+      }
+      crate_rolls_today: {
+        Args: { p_crate: string; p_user: string }
+        Returns: number
+      }
+      crate_status: {
+        Args: { p_crate: string }
+        Returns: {
+          config_version: number
+          daily_free_rolls: number
+          rolls_left: number
+          weights: Json
+        }[]
+      }
+      crate_weights_valid: { Args: { w: Json }; Returns: boolean }
+      create_chess_challenge: {
+        Args: { p_color?: string; p_opponent: string; p_venue_ref?: string }
+        Returns: string
       }
       create_collab_invitation: {
         Args: {
@@ -856,10 +1491,26 @@ export type Database = {
           p_longitude: number
           p_map_id: string
           p_note: string
+          p_place_ref?: string
+          p_source?: Json
           p_title: string
         }
         Returns: string
       }
+      create_meetup: {
+        Args: {
+          p_capacity?: number
+          p_description?: string
+          p_ends_at: string
+          p_join?: boolean
+          p_shared_pin_id: string
+          p_starts_at: string
+          p_timezone: string
+          p_visibility?: string
+        }
+        Returns: string
+      }
+      decline_draw: { Args: { p_game_id: string }; Returns: undefined }
       edge_consume_rate_limit: {
         Args: { p_bucket: string; p_limit: number; p_window_seconds: number }
         Returns: boolean
@@ -872,6 +1523,16 @@ export type Database = {
           username: string
         }[]
       }
+      finish_chess_game: {
+        Args: {
+          p_expected_ply: number
+          p_game_id: string
+          p_player: string
+          p_result: string
+          p_termination: string
+        }
+        Returns: undefined
+      }
       get_my_friend_code: { Args: never; Returns: string }
       invitation_status_internal: {
         Args: {
@@ -881,6 +1542,26 @@ export type Database = {
         Returns: string
       }
       is_collab_member: { Args: { p_map_id: string }; Returns: boolean }
+      join_meetup: { Args: { p_meetup_id: string }; Returns: number }
+      leave_meetup: { Args: { p_meetup_id: string }; Returns: number }
+      meetup_counts: {
+        Args: { p_collab_map_id: string }
+        Returns: {
+          attendees: number
+          me_going: boolean
+          meetup_id: string
+        }[]
+      }
+      meetup_validate: {
+        Args: {
+          p_capacity: number
+          p_ends: string
+          p_starts: string
+          p_tz: string
+          p_visibility: string
+        }
+        Returns: undefined
+      }
       my_collab_role: {
         Args: { p_map_id: string }
         Returns: Database["public"]["Enums"]["collab_role"]
@@ -904,6 +1585,45 @@ export type Database = {
           role: Database["public"]["Enums"]["collab_role"]
         }[]
       }
+      notify_chess: {
+        Args: {
+          p_actor: string
+          p_game: string
+          p_key: string
+          p_kind: string
+          p_title: string
+          p_user: string
+        }
+        Returns: undefined
+      }
+      notify_map_members: {
+        Args: {
+          p_actor: string
+          p_key: string
+          p_kind: string
+          p_map: string
+          p_meetup: string
+          p_only?: string
+          p_pin: string
+          p_title: string
+        }
+        Returns: undefined
+      }
+      offer_or_accept_draw: { Args: { p_game_id: string }; Returns: string }
+      open_crate: {
+        Args: { p_crate: string; p_idempotency_key: string }
+        Returns: {
+          config_version: number
+          copies: number
+          def_id: string
+          duplicate: boolean
+          rarity: string
+          replayed: boolean
+          roll: number
+          roll_id: string
+          rolls_left: number
+        }[]
+      }
       orphaned_pin_image_report: {
         Args: { p_min_age?: string }
         Returns: {
@@ -912,7 +1632,10 @@ export type Database = {
           total_bytes: number
         }[]
       }
+      owns_collectible: { Args: { p_def: string }; Returns: boolean }
+      owns_personal_map: { Args: { p_map: string }; Returns: boolean }
       pin_image_object_in_use: { Args: { p_name: string }; Returns: boolean }
+      pin_source_valid: { Args: { s: Json }; Returns: boolean }
       preview_collab_invitation: {
         Args: { p_token: string }
         Returns: {
@@ -924,6 +1647,10 @@ export type Database = {
           status: string
         }[]
       }
+      rarity_for_roll: {
+        Args: { p_roll: number; p_weights: Json }
+        Returns: string
+      }
       regenerate_friend_code: { Args: never; Returns: string }
       remove_friendship: {
         Args: { p_friendship_id: string }
@@ -934,6 +1661,11 @@ export type Database = {
         Returns: string
       }
       require_uid: { Args: never; Returns: string }
+      resign_chess_game: { Args: { p_game_id: string }; Returns: undefined }
+      respond_chess_challenge: {
+        Args: { p_accept: boolean; p_game_id: string }
+        Returns: undefined
+      }
       respond_collab_invitation: {
         Args: { p_accept: boolean; p_invitation_id: string }
         Returns: string
@@ -963,10 +1695,12 @@ export type Database = {
           p_longitude: number
           p_map_id: string
           p_place_ref: string
+          p_source?: Json
           p_title: string
         }
         Returns: string
       }
+      secure_random_below: { Args: { n: number }; Returns: number }
       send_friend_request: { Args: { p_target: string }; Returns: string }
       send_friend_request_by_code: { Args: { p_code: string }; Returns: string }
       set_collab_member_role: {
@@ -989,6 +1723,18 @@ export type Database = {
           p_pin_id: string
         }
         Returns: string
+      }
+      update_meetup: {
+        Args: {
+          p_capacity: number
+          p_description: string
+          p_ends_at: string
+          p_meetup_id: string
+          p_starts_at: string
+          p_timezone: string
+          p_visibility: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

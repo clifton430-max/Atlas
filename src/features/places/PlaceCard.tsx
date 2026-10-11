@@ -6,8 +6,11 @@
  * as listed on OSM and are never interpreted as "open now". Contained POIs
  * come from OSM area containment and can be selected individually.
  */
+import { Directions } from '@/features/routing/Directions';
 import { useState } from 'react';
-import { Bookmark, BookmarkPlus, ChevronDown, Clock, ExternalLink, Globe, LocateFixed, MapPin, Navigation, Phone, Utensils } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { isChessVenue, chessRoomPath } from '@/features/chess/venues';
+import { Crown, Accessibility, Bookmark, BookmarkPlus, ChevronDown, Mail, Clock, ExternalLink, Globe, LocateFixed, MapPin, Navigation, Phone, Utensils } from 'lucide-react';
 import { Button, IconButton } from '@/components/ui/Button';
 import { cn } from '@/components/ui/cn';
 import { safeExternalUrl } from '@/lib/validation';
@@ -17,6 +20,11 @@ import { distanceLabel } from './geo';
 import { usePlaceDetails, type PlaceChild } from './placeDetails';
 import { osmUrl, type Place } from './types';
 import { useUserLocation } from './userLocation';
+
+const WHEELCHAIR: Record<string, string> = {
+  yes: 'Wheelchair accessible (as mapped on OSM)', designated: 'Designed for wheelchair users (as mapped on OSM)',
+  limited: 'Limited wheelchair access (as mapped on OSM)', no: 'Not wheelchair accessible (as mapped on OSM)',
+};
 
 export function PlaceCard({ place, onSave, onSelectChild, saved, footer }: {
   place: Place;
@@ -67,6 +75,12 @@ export function PlaceCard({ place, onSave, onSelectChild, saved, footer }: {
           </div>
         </header>
 
+        {isChessVenue(place.ref) && (
+          <Link to={chessRoomPath(place.ref)} className="flex items-center gap-3 rounded-2xl bg-[#5b4632] p-3 text-white shadow-panel hover:bg-[#4a3828]">
+            <Crown className="size-6 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Enter Chess Room</span><span className="block text-xs text-white/80">Play a friend here on one device, or online</span></span>
+          </Link>
+        )}
         {d?.description && <p className="text-[13px] leading-relaxed text-neutral-600">{d.description}</p>}
 
         <dl className="space-y-2 text-[13px] text-neutral-800">
@@ -88,7 +102,11 @@ export function PlaceCard({ place, onSave, onSelectChild, saved, footer }: {
               </a>
             </Row>
           )}
+          {d?.phone && <Row icon={<Phone className="size-4" aria-hidden />} label="Phone"><a href={`tel:${d.phone.replace(/[^+\d]/g, '')}`} className="underline">{d.phone}</a></Row>}
+          {d?.email && <Row icon={<Mail className="size-4" aria-hidden />} label="Email"><a href={`mailto:${d.email}`} className="break-all underline">{d.email}</a></Row>}
+          {d?.wheelchair && <Row icon={<Accessibility className="size-4" aria-hidden />} label="Accessibility">{WHEELCHAIR[d.wheelchair]}</Row>}
         </dl>
+        <Directions latitude={place.latitude} longitude={place.longitude} name={place.name} />
         {details.isError && <p className="rounded-lg bg-neutral-50 p-2 text-xs text-neutral-600" role="status">{(details.error as Error).message} Basic map information is shown.</p>}
 
         <section className="border-t border-line pt-2">
@@ -103,12 +121,11 @@ export function PlaceCard({ place, onSave, onSelectChild, saved, footer }: {
             <div className="space-y-3 pb-1 pt-1">
               <dl className="space-y-1.5 text-[13px] text-neutral-700">
                 {d?.cuisine && <Row icon={<Utensils className="size-4" aria-hidden />} label="Cuisine">{d.cuisine.replace(/;/g, ', ').replace(/_/g, ' ')}</Row>}
-                {d?.phone && <Row icon={<Phone className="size-4" aria-hidden />} label="Phone">{d.phone}</Row>}
                 <Row icon={<LocateFixed className="size-4" aria-hidden />} label="Location">
                   {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}
                 </Row>
               </dl>
-              {!d?.cuisine && !d?.phone && !details.isLoading && <p className="text-xs text-neutral-500">No cuisine or phone details are listed for this place.</p>}
+              {!d?.cuisine && !details.isLoading && <p className="text-xs text-neutral-500">No cuisine details are listed for this place.</p>}
             </div>
           )}
         </section>

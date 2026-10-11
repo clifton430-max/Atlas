@@ -4,6 +4,7 @@
  * groups and collaboration representations as distinct types mirrors the
  * distinct tables and prevents accidentally treating one as another.
  */
+import type { PinSource } from '@/features/pins/pinSource';
 
 /** A normalized public event (Discover). Unknown values are null, never guessed. */
 export interface AtlasEvent {
@@ -126,6 +127,8 @@ export interface Pin {
   attendance: Attendance | null;
   /** Set when the pin was saved from an OpenStreetMap place ("osm:node/123"). */
   placeRef: string | null;
+  /** Validated snapshot of the source place (kept separate from user-authored fields). */
+  source: PinSource | null;
   createdAt: string;
 }
 
@@ -165,6 +168,8 @@ export interface SharedPin {
   image: PinImage | null;
   /** Events added directly to a collaboration map may record attendance. */
   attendance?: Attendance | null;
+  placeRef?: string | null;
+  source?: PinSource | null;
   createdAt: string;
 }
 

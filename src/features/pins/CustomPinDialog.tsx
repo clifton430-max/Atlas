@@ -17,6 +17,9 @@ import { commitGroupSelection } from '@/features/groups/commitSelection';
 import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import { reverseGeocode } from '@/services/events/geocoder';
 import { usePinMutations } from './api';
+import { searchResultToPinSource, type PinSource } from './pinSource';
+import { fetchPlaceDetails } from '@/features/places/placeDetails';
+import { SourceDetails } from './SourceDetails';
 
 export function CustomPinDialog({ mapId, at, onClose }: { mapId: string; at: PlacementRequest; onClose: () => void }) {
   const qc = useQueryClient();
@@ -32,6 +35,17 @@ export function CustomPinDialog({ mapId, at, onClose }: { mapId: string; at: Pla
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [source, setSource] = useState<PinSource | null>(at.source ?? null);
+
+  // A search hit identifies an OSM element: enrich its snapshot with verified details (best effort).
+  useEffect(() => {
+    if (!at.placeRef || !at.source) return;
+    const ctrl = new AbortController();
+    fetchPlaceDetails(at.placeRef, ctrl.signal)
+      .then((d) => !ctrl.signal.aborted && setSource(searchResultToPinSource({ osmRef: at.placeRef!, name: at.source!.name ?? at.title ?? '', detail: at.source!.address ?? '', kind: at.source!.subcategory ?? null }, d) ?? at.source!))
+      .catch(() => { /* keep the basic snapshot; details are optional */ });
+    return () => ctrl.abort();
+  }, [at]);
 
   // Suggest an address for clicked points (best effort; user can edit/clear).
   useEffect(() => {
@@ -58,7 +72,7 @@ export function CustomPinDialog({ mapId, at, onClose }: { mapId: string; at: Pla
       const groupIds = await commitGroupSelection(selection, qc, ws);
       const pinId = await createCustom.mutateAsync({
         mapId, title: title.trim(), note, latitude: at.latitude, longitude: at.longitude,
-        address: address.trim() || null, groupIds,
+        address: address.trim() || null, groupIds, placeRef: at.placeRef ?? null, source,
       });
       uiStore.set({ selectedPinId: pinId });
       toast.success('Pin created.');
@@ -95,6 +109,12 @@ export function CustomPinDialog({ mapId, at, onClose }: { mapId: string; at: Pla
         />
         <TextArea label="Private note (optional)" value={note} maxLength={5000} onChange={(e) => setNote(e.target.value)} hint="Only you can see notes unless you explicitly choose to share one." />
         <GroupPicker groups={groups.data ?? []} value={selection} onChange={setSelection} error={groupError} />
+        {source && (
+          <div className="rounded-xl bg-canvas p-3">
+            <SourceDetails source={source} compact />
+            <p className="mt-2 text-[11px] text-neutral-500">These details are saved with the pin, separately from your title and note.</p>
+          </div>
+        )}
         <ErrorMessage error={error ?? groups.error} />
       </form>
     </Dialog>

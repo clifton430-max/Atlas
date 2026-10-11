@@ -8,6 +8,27 @@ Atlas is a desktop-first, map-first web app. You can discover public events on a
 
 > **Current state (2026-10-10):** Atlas works without an account (**Guest Mode**, data stored on this device) and includes an **interactive tutorial**. Signed in, it runs against the linked Supabase project. Ticketmaster live data is verified through the deployed Edge Function. The one remaining external blocker is public email delivery, which needs custom SMTP. See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md).
 
+## Collaboration, chess and collectibles (2026-10-10)
+
+- **Meetups and live collaboration:**
+  - Members of a collaboration map can plan meetups at any shared pin. Meetups have a time window and time zone, an optional description, optional capacity, and a choice of who sees the guest list. Members join or leave; the organiser or map owner can edit, reschedule or cancel.
+  - Map labels show times ("Tonight 7:30 PM") with attendee avatars.
+  - Pins, meetups and attendance sync live between members over Supabase Realtime. Each member's camera stays their own.
+  - Notifications are in-app and server-generated, with duplicates suppressed.
+- **Chess at the World Chess Hall of Fame:**
+  - The room is matched by OSM id `node/9209122821`, not by name.
+  - Local two-player games are stored in the browser and work offline.
+  - Online games are between friends or collaborators. The server is the authority on every move.
+- **Treasure:** free daily Monument Crates and Map Skin Crates, with no purchases and no currency.
+  - The server decides every reward using a cryptographically secure random number generator. Odds are published and versioned: Common 30%, Uncommon 25%, Rare 20%, Epic 14%, Legendary 10%, Mythic 1%.
+  - Rolls are idempotent and duplicates are counted.
+  - **18 original, coloured 3D monument miniatures** (binary glTF, built by `node scripts/models/build.mjs`) can be placed on personal maps. They are rendered with three.js inside the map, anchored to their coordinates, and occluded by real buildings.
+  - **18 map skins** really re-theme a personal map's style.
+- **Worlds:**
+  - Discover is the warm city.
+  - My Maps is the personal world: its own palette, or the equipped skin.
+  - Switching between them cross-fades the live style, with a short cartographic sweep (a simpler fade on low-power devices, none under reduced motion).
+
 ## Interface and 3D city (redesign, 2026-10-10)
 
 - **Editor-style layout.**
@@ -216,15 +237,25 @@ npm run seed:generate                  # regenerates supabase/seed.sql from the 
 psql "$SUPABASE_DB_URL" -f supabase/seed.sql   # or paste it into the SQL editor
 ```
 
-### 4. Edge Functions (live events and place details)
+### 4. Edge Functions (live events, place details, routing, online chess)
 
 ```bash
 supabase secrets set TICKETMASTER_API_KEY=<your key>
 supabase functions deploy discover-events
 supabase functions deploy place-details          # OSM + Wikimedia details for places (no key needed)
+supabase functions deploy route                  # walking/driving distance + time (OSRM, no key needed)
+supabase functions deploy chess-move             # server authority for online chess moves
 # optional: a dedicated Overpass instance for "Inside this place" lists
 supabase secrets set OVERPASS_URL=https://<your overpass>/api/interpreter
+# optional (recommended for production volume): your own OSRM server
+supabase secrets set ROUTING_BASE_URL=https://<your osrm host>
 ```
+
+- **`route`** proxies OSRM. By default it uses FOSSGIS's public `routing.openstreetmap.de`, which permits only light use and requires attribution.
+  - It rate-limits each client to 20 requests per minute and applies a global budget of 60 per minute. It fails closed and sends an identifying User-Agent.
+  - It never logs or stores coordinates.
+  - Set `ROUTING_BASE_URL` for heavier use.
+- **`chess-move`** verifies the caller's session and replays the game with chess.js, the same engine the app uses. Moves are applied through a service-role-only SQL function with optimistic concurrency.
 
 `place-details` is public and read-only.
 - It caches results in `public.place_details` (service-role only) and rate-limits each client to 120 requests per minute.
@@ -348,6 +379,12 @@ See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for the full 
 - The Edge Function is covered by shared-module unit tests and live HTTP tests, but has no Deno-native tests.
 - `@supabase/ssr` is listed as a dependency but unused by this SPA. It's safe to remove; it was left because it was added in the initial backup.
 - `Atlas.py` (an empty file that existed before this work) is unused.
+- **Routing:** the default OSRM server is a shared public service for light use. Production traffic needs `ROUTING_BASE_URL` pointed at your own instance. Routes are estimates for the mapped network, and accessibility is not guaranteed.
+- **Collectibles:**
+  - Crates need an account, so rewards can't be forged.
+  - Monument models are original, simplified miniatures, not survey-accurate replicas. Sydney Opera House and Christ the Redeemer were left out because their designs may still be under copyright.
+  - Placements and skins apply to personal maps only.
+- **Meetups and notifications** exist for collaboration maps only. The guest demo collaboration map has no meetups.
 - **Redesign vs. the reference image:**
   - Trees are a flat canopy pattern, not 3D models; real 3D trees would need a 3D engine dependency.
   - Building heights are OpenMapTiles' mapped or estimated heights.

@@ -34,6 +34,9 @@ export interface ExtractedTags {
   openingHours: string | null;
   website: string | null;
   phone: string | null;
+  email: string | null;
+  /** OSM `wheelchair` value as mapped (yes / limited / no / designated); never inferred. */
+  wheelchair: 'yes' | 'limited' | 'no' | 'designated' | null;
   cuisine: string | null;
   description: string | null;
   wikipedia: string | null;
@@ -54,6 +57,13 @@ export function normalizeWebsite(v: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+/** A plausible single email address, else null (OSM values are free text). */
+export function normalizeEmail(v: string | null): string | null {
+  if (!v) return null;
+  const s = v.trim();
+  return /^[^\s@<>()",;:]{1,64}@[a-z0-9.-]{1,253}\.[a-z]{2,24}$/i.test(s) ? s : null;
 }
 
 /** Commons file title ("File:Foo.jpg") from a wikimedia_commons or image tag, if it really is a Commons file. */
@@ -87,6 +97,8 @@ export function extractTags(tags: Record<string, string> | null | undefined): Ex
     openingHours: clean(t.opening_hours, 300),
     website: normalizeWebsite(clean(t.website, 300) ?? clean(t['contact:website'], 300)),
     phone: clean(t.phone, 40) ?? clean(t['contact:phone'], 40),
+    email: normalizeEmail(clean(t.email, 120) ?? clean(t['contact:email'], 120)),
+    wheelchair: (['yes', 'limited', 'no', 'designated'] as const).find((v) => v === t.wheelchair) ?? null,
     cuisine: clean(t.cuisine, 120),
     description: clean(t.description, 500),
     wikipedia,

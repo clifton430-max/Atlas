@@ -13,6 +13,8 @@
  * Responsive: below xl the inspector overlays the map; below lg the side
  * panel does too; below md the icon rail is replaced by a floating toggle.
  */
+import { WorldTheme } from '@/features/map/WorldTheme';
+import { RouteLayer } from '@/features/routing/RouteLayer';
 import { Outlet } from 'react-router-dom';
 import { PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { uiStore, useUi } from './store';
@@ -65,6 +67,8 @@ export function AppShell() {
             <main className="relative min-w-0 flex-1" aria-label="Map" data-tour="map-area">
               <MapCanvas styleUrl={styleUrl}>
                 <AmbientLayer />
+                <RouteLayer />
+                <WorldTheme />
                 <Outlet />
               </MapCanvas>
               <MapToolbar />

@@ -11,6 +11,7 @@
  * Input is debounced (300 ms) and geocoder calls are aborted when superseded.
  * Results never cross contexts: each context searches only its own data.
  */
+import { searchResultToPinSource } from '@/features/pins/pinSource';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useMatch } from 'react-router-dom';
 import { CalendarDays, Loader2, MapPin, MapPinned, Search, Users, X } from 'lucide-react';
@@ -139,8 +140,12 @@ export function SearchBar() {
         id: `g${pl.id}`, section: 'Places', icon: 'place', label: pl.name, detail: pl.detail,
         run: () => {
           fly(pl.longitude, pl.latitude, 13);
-          if (personal && user) {
-            uiStore.set({ newPinAt: { latitude: pl.latitude, longitude: pl.longitude, title: pl.name, address: [pl.name, pl.detail].filter(Boolean).join(', ') } });
+          // On a personal map (account or guest), a search hit becomes a new pin that keeps its source.
+          if (personal) {
+            uiStore.set({ newPinAt: {
+              latitude: pl.latitude, longitude: pl.longitude, title: pl.name, address: [pl.name, pl.detail].filter(Boolean).join(', '),
+              placeRef: pl.osmRef, source: searchResultToPinSource(pl),
+            } });
           }
           finish(pl.name);
         },

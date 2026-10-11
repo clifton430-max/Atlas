@@ -19,6 +19,7 @@
  *   - Data loaded from storage is validated record-by-record; malformed records
  *     are dropped and unreadable data is backed up instead of crashing the app.
  */
+import { sanitizePinSource, type PinSource } from '@/features/pins/pinSource';
 import { DEFAULT_APPEARANCE, type Attendance, type AtlasEvent, type Group, type ImageMask, type PersonalMap, type Pin, type PinAppearance, type PinShape } from '@/lib/types';
 import { isValidLatLng } from '@/lib/validation';
 
@@ -35,6 +36,8 @@ export interface LocalPin {
   attendance?: Attendance | null;
   /** OpenStreetMap place this pin was saved from ("osm:node/123"). */
   placeRef?: string | null;
+  /** Validated source snapshot (see pins/pinSource.ts). */
+  source?: PinSource | null;
 }
 /** Demonstration-only collaboration state (never server-backed; always labelled "Demo"). */
 export interface DemoMember { id: string; name: string; role: 'owner' | 'editor' | 'viewer'; isYou: boolean }
@@ -157,6 +160,7 @@ export function validateState(raw: unknown): { state: LocalState; dropped: numbe
       createdAt: isIso(p.createdAt) ? p.createdAt : now(), updatedAt: isIso(p.updatedAt) ? p.updatedAt : now(),
       attendance: p.kind === 'event' && (p.attendance === 'going' || p.attendance === 'interested') ? p.attendance : null,
       placeRef: typeof p.placeRef === 'string' && /^osm:(node|way|relation)\/\d{1,15}$/.test(p.placeRef) ? p.placeRef : null,
+      source: sanitizePinSource(p.source),
     });
   }
   const demo = r.demo as Record<string, unknown> | undefined;
@@ -387,7 +391,7 @@ export class LocalWorkspace {
       longitude: p.kind === 'event' ? p.event?.longitude ?? null : p.longitude,
       address: p.address, appearance: { ...p.appearance },
       image: img ? { id: img.id, storagePath: `local:${img.id}`, mimeType: img.mimeType, byteSize: img.byteSize, width: img.width, height: img.height } : null,
-      groupIds: [...p.groupIds], attendance: p.attendance ?? null, placeRef: p.placeRef ?? null, createdAt: p.createdAt,
+      groupIds: [...p.groupIds], attendance: p.attendance ?? null, placeRef: p.placeRef ?? null, source: p.source ?? null, createdAt: p.createdAt,
     };
   }
 
@@ -425,7 +429,8 @@ export class LocalWorkspace {
     });
   }
 
-  createCustomPin(input: { mapId: string; title: string; note?: string; latitude: number; longitude: number; address?: string | null; groupIds: string[] }): string {
+  createCustomPin(input: { mapId: string; title: string; note?: string; latitude: number; longitude: number; address?: string | null; groupIds: string[]; placeRef?: string | null; source?: PinSource | null }): string {
+    const placeRef = input.placeRef && /^osm:(node|way|relation)\/\d{1,15}$/.test(input.placeRef) ? input.placeRef : null;
     const title = input.title.trim();
     if (!title || title.length > 120) throw new LocalWorkspaceError('Titles must be 1–120 characters.', 'validation');
     if (!isValidLatLng(input.latitude, input.longitude)) throw new LocalWorkspaceError('Invalid location.', 'validation');
@@ -437,14 +442,18 @@ export class LocalWorkspace {
         id: uuid(), mapId: input.mapId, kind: 'custom', eventId: null, event: null, title, note: input.note?.trim() || null,
         latitude: input.latitude, longitude: input.longitude, address: input.address?.trim() || null,
         appearance: { ...DEFAULT_APPEARANCE }, groupIds: [...new Set(input.groupIds)], createdAt: now(), updatedAt: now(),
+        placeRef, source: sanitizePinSource(input.source),
       };
+      if (placeRef && d.pins.some((x) => x.mapId === input.mapId && x.placeRef === placeRef)) {
+        throw new LocalWorkspaceError('This place is already on this map.', 'validation');
+      }
       d.pins.push(p);
       return p.id;
     });
   }
 
   /** Save an OpenStreetMap place as a custom pin at its location; one per map (updates groups). */
-  savePlace(mapId: string, place: { ref: string; name: string; latitude: number; longitude: number }, address: string | null, groupIds: string[]): string {
+  savePlace(mapId: string, place: { ref: string; name: string; latitude: number; longitude: number }, address: string | null, groupIds: string[], source: PinSource | null = null): string {
     if (!/^osm:(node|way|relation)\/\d{1,15}$/.test(place.ref)) throw new LocalWorkspaceError('Invalid place.', 'validation');
     return this.commit((d) => {
       if (!d.maps.some((m) => m.id === mapId)) throw new LocalWorkspaceError('Map not found.', 'not_found');
@@ -452,6 +461,7 @@ export class LocalWorkspace {
       const existing = d.pins.find((p) => p.mapId === mapId && p.placeRef === place.ref);
       if (existing) {
         existing.groupIds = [...new Set(groupIds)];
+        if (source) existing.source = sanitizePinSource(source); // refresh, never erase
         existing.updatedAt = now();
         return existing.id;
       }
@@ -460,7 +470,7 @@ export class LocalWorkspace {
         id: uuid(), mapId, kind: 'custom', eventId: null, event: null, title: place.name.slice(0, 120), note: null,
         latitude: place.latitude, longitude: place.longitude, address: address?.slice(0, 300) ?? null,
         appearance: { ...DEFAULT_APPEARANCE }, groupIds: [...new Set(groupIds)], createdAt: now(), updatedAt: now(),
-        attendance: null, placeRef: place.ref,
+        attendance: null, placeRef: place.ref, source: sanitizePinSource(source),
       };
       d.pins.push(p);
       return p.id;

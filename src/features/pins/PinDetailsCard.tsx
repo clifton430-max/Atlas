@@ -3,6 +3,10 @@
  * Shows the private note (owner-only data), group memberships, linked event,
  * where it is shared, and actions: edit, groups, customize, share, delete.
  */
+import { Link } from 'react-router-dom';
+import { isChessVenue, chessRoomPath } from '@/features/chess/venues';
+import { Directions } from '@/features/routing/Directions';
+import { SourceDetails } from './SourceDetails';
 import { lazy, Suspense, useState } from 'react';
 import { Brush, Move, Pencil, Share2, Tags, Trash2, Users, X } from 'lucide-react';
 import { uiStore } from '@/app/store';
@@ -76,7 +80,7 @@ export function PinDetailsCard({ pin, groups, onClose }: { pin: Pin; groups: Gro
         <IconButton label="Close pin details" size="sm" onClick={onClose}><X className="size-4" aria-hidden /></IconButton>
       </header>
 
-      <div className="max-h-[52vh] space-y-4 overflow-y-auto p-4">
+      <div className="space-y-4 p-4">
         {pin.kind === 'event' && pin.latitude == null && (
           <ErrorMessage error="This event has no verified location, so it isn’t shown on the map." />
         )}
@@ -124,7 +128,12 @@ export function PinDetailsCard({ pin, groups, onClose }: { pin: Pin; groups: Gro
             </div>
           </section>
         )}
-        {pin.placeRef && (
+        {isChessVenue(pin.placeRef) && <Link to={chessRoomPath(pin.placeRef!)} className="block rounded-xl bg-[#5b4632] px-3 py-2 text-center text-sm font-semibold text-white">Enter Chess Room</Link>}
+        <Directions latitude={pin.latitude} longitude={pin.longitude} name={pinTitle(pin)} />
+        {pin.source && (
+          <div className="rounded-xl bg-canvas p-3"><SourceDetails source={pin.source} /></div>
+        )}
+        {pin.placeRef && !pin.source && (
           <p className="text-xs text-neutral-500">
             Saved from an OpenStreetMap place ·{' '}
             <a className="underline" target="_blank" rel="noopener noreferrer" href={`https://www.openstreetmap.org/${pin.placeRef.slice(4)}`}>view on OSM</a>

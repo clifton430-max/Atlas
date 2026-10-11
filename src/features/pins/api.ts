@@ -17,11 +17,12 @@ import { EVENT_COLUMNS, eventFromRow, type EventRow } from '@/services/events/ma
 import { useWorkspace } from '@/features/workspace/WorkspaceProvider';
 import type { Database } from '@/lib/database.types';
 import { tryDeleteImage } from './images';
+import { sanitizePinSource, type PinSource } from './pinSource';
 
 type Row = Record<string, unknown>;
 
 export const IMAGE_COLUMNS = 'id, storage_path, mime_type, byte_size, width, height';
-const PIN_SELECT = `id, map_id, kind, event_id, title, note, latitude, longitude, address, created_at, attendance, place_ref,
+const PIN_SELECT = `id, map_id, kind, event_id, title, note, latitude, longitude, address, created_at, attendance, place_ref, source,
   color, shape, icon, size, border_color, border_width, image_id, image_mask,
   event:events(${EVENT_COLUMNS}),
   image:pin_images(${IMAGE_COLUMNS}),
@@ -62,6 +63,7 @@ export function pinFromRow(r: Row): Pin {
     groupIds: ((r.pin_groups as Row[] | null) ?? []).map((g) => String(g.group_id)),
     attendance: (r.attendance as Pin['attendance']) ?? null,
     placeRef: (r.place_ref as string | null) ?? null,
+    source: sanitizePinSource(r.source),
     createdAt: String(r.created_at),
   };
 }
@@ -154,13 +156,13 @@ export function usePinMutations() {
     }),
     /** Save an OpenStreetMap place to a personal map (group required; one per map). */
     savePlace: useMutation({
-      mutationFn: async (input: { mapId: string; place: Place; address: string | null; groupIds: string[] }) => {
+      mutationFn: async (input: { mapId: string; place: Place; address: string | null; groupIds: string[]; source?: PinSource | null }) => {
         if (!input.groupIds.length) throw new Error('Choose at least one group.');
-        if (ws.local) return ws.local.savePlace(input.mapId, input.place, input.address, input.groupIds);
+        if (ws.local) return ws.local.savePlace(input.mapId, input.place, input.address, input.groupIds, input.source ?? null);
         return unwrap(await requireSupabase().rpc('save_place_pin', {
           p_map_id: input.mapId, p_place_ref: input.place.ref, p_title: input.place.name,
           p_latitude: input.place.latitude, p_longitude: input.place.longitude, p_address: input.address ?? '',
-          p_group_ids: input.groupIds,
+          p_group_ids: input.groupIds, p_source: (input.source ?? undefined) as never,
         })) as string;
       },
       onSuccess: invalidatePins,
@@ -177,6 +179,8 @@ export function usePinMutations() {
       mutationFn: async (input: {
         mapId: string; title: string; note: string; latitude: number; longitude: number;
         address: string | null; groupIds: string[];
+        /** From a search result / map place: the OSM element and its source snapshot. */
+        placeRef?: string | null; source?: PinSource | null;
       }) => {
         if (!input.groupIds.length) throw new Error('Choose at least one group.');
         if (ws.local) return ws.local.createCustomPin(input);
@@ -184,6 +188,7 @@ export function usePinMutations() {
           p_map_id: input.mapId, p_title: input.title, p_note: input.note,
           p_latitude: input.latitude, p_longitude: input.longitude,
           p_address: input.address ?? '', p_group_ids: input.groupIds,
+          p_place_ref: input.placeRef ?? undefined, p_source: (input.source ?? undefined) as never,
         })) as string;
       },
       onSuccess: invalidatePins,

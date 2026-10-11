@@ -20,9 +20,11 @@ export interface PinMarkerProps {
   groupColors?: string[];
   selected?: boolean;
   onSelect: () => void;
+  /** Staggered entrance (ms) when a personal world appears; none under reduced motion. */
+  revealDelay?: number;
 }
 
-export function PinMarker({ latitude, longitude, label, appearance, image, fallbackIcon, groupColors, selected, onSelect }: PinMarkerProps) {
+export function PinMarker({ latitude, longitude, label, appearance, image, fallbackIcon, groupColors, selected, onSelect, revealDelay }: PinMarkerProps) {
   const signed = useSignedImageUrl(appearance.imageId ? image?.storagePath : null);
   return (
     <MapMarker latitude={latitude} longitude={longitude} zIndex={selected ? 10 : undefined}>
@@ -35,6 +37,7 @@ export function PinMarker({ latitude, longitude, label, appearance, image, fallb
         fallbackIcon={fallbackIcon}
         groupColors={groupColors}
         selected={selected}
+        revealDelay={revealDelay}
       />
     </MapMarker>
   );
@@ -44,7 +47,7 @@ export function PinMarker({ latitude, longitude, label, appearance, image, fallb
  * The clickable marker element placed inside a MapMarker. Its box is exactly
  * the visual's box, so the marker's center sits on the coordinate.
  */
-export function PinMarkerButton({ label, onSelect, ...visual }: Omit<PinMarkerVisualProps, 'scale'> & { label: string; onSelect: () => void }) {
+export function PinMarkerButton({ label, onSelect, revealDelay, ...visual }: Omit<PinMarkerVisualProps, 'scale'> & { label: string; onSelect: () => void; revealDelay?: number }) {
   const { zoom } = useMap();
   return (
     <button
@@ -59,7 +62,8 @@ export function PinMarkerButton({ label, onSelect, ...visual }: Omit<PinMarkerVi
         e.stopPropagation();
         onSelect();
       }}
-      className="block rounded-full leading-none focus-visible:outline-offset-4"
+      className={`block rounded-full leading-none focus-visible:outline-offset-4 ${revealDelay != null ? 'atlas-pin-in' : ''}`}
+      style={revealDelay != null ? { animationDelay: `${revealDelay}ms` } : undefined}
     >
       <PinMarkerVisual {...visual} scale={zoomScale(zoom)} />
     </button>

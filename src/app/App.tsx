@@ -9,7 +9,7 @@
  * and the standalone /auth page.
  */
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { AppShell } from './AppShell';
 import { RequireAuth } from './RequireAuth';
@@ -27,6 +27,8 @@ const AuthPage = lazy(() => import('@/features/auth/AuthPage').then((m) => ({ de
 const InvitePage = lazy(() => import('@/features/collaboration/InvitePage').then((m) => ({ default: m.InvitePage })));
 const FriendLinkPage = lazy(() => import('@/features/friends/FriendLinkPage').then((m) => ({ default: m.FriendLinkPage })));
 const DemoCollabView = lazy(() => import('@/features/collaboration/DemoCollabView').then((m) => ({ default: m.DemoCollabView })));
+const ChessRoom = lazy(() => import('@/features/chess/ChessRoom').then((m) => ({ default: m.ChessRoom })));
+const TreasureRoom = lazy(() => import('@/features/collectibles/TreasureRoom').then((m) => ({ default: m.TreasureRoom })));
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 const RouteFallback = () => (
@@ -35,6 +37,7 @@ const RouteFallback = () => (
 
 // Dev-only verification harness; the DEV guard lets the bundler drop it from production.
 const MarkerCheck = import.meta.env.DEV ? lazy(() => import('@/dev/MarkerCheck').then((m) => ({ default: m.MarkerCheck }))) : null;
+const MonumentGallery = import.meta.env.DEV ? lazy(() => import('@/dev/MonumentGallery').then((m) => ({ default: m.MonumentGallery }))) : null;
 
 export function App() {
   const { recovering } = useAuth();
@@ -48,8 +51,14 @@ export function App() {
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         {MarkerCheck && <Route path="/__dev/marker-check" element={<MarkerCheck />} />}
+        {MonumentGallery && <Route path="/__dev/monuments" element={<MonumentGallery />} />}
         <Route element={<AppShell />}>
-          <Route index element={<DiscoverView />} />
+          {/* The chess room overlays Discover (its venue is a Discover place), so the map, markers and inspector stay live underneath. */}
+          <Route element={<><DiscoverView /><Outlet /></>}>
+            <Route index element={null} />
+            <Route path="chess" element={<ChessRoom />} />
+            <Route path="chess/:gameId" element={<ChessRoom />} />
+          </Route>
           {/* Personal maps work for guests too (local workspace) — no auth wall. */}
           <Route path="maps" element={<MapsHome />} />
           <Route path="maps/:mapId" element={<PersonalMapView />} />
@@ -59,6 +68,7 @@ export function App() {
           <Route path="collab/:mapId" element={<RequireAuth><CollabMapView /></RequireAuth>} />
           <Route path="invite/:token" element={<RequireAuth reason="invite"><InvitePage /></RequireAuth>} />
           <Route path="friend/:code" element={<RequireAuth reason="friends"><FriendLinkPage /></RequireAuth>} />
+          <Route path="treasure" element={<TreasureRoom />} />
           <Route path="settings" element={<Navigate to="/settings/account" replace />} />
           <Route path="settings/:section" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -96,5 +96,8 @@ export function injectAtlasLayers(_prev: StyleSpecification | undefined, next: S
       'text-halo-width': 1.4,
     },
   });
-  return { ...city, layers };
+  // Paint changes (e.g. switching between Discover and a skinned personal map)
+  // cross-fade; instant under reduced motion.
+  const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  return { ...city, layers, transition: { duration: reduce ? 0 : 650, delay: 0 } };
 }

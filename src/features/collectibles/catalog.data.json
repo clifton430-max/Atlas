@@ -1,0 +1,295 @@
+{
+ "version": 1,
+ "monuments": [
+  {
+   "id": "stonehenge",
+   "name": "Stonehenge",
+   "rarity": "common",
+   "region": "Europe",
+   "wikidata": "Q39671",
+   "latitude": 51.17889,
+   "longitude": -1.82611,
+   "description": "Prehistoric ring of standing sarsen stones on Salisbury Plain, England (c. 3000–2000 BC)."
+  },
+  {
+   "id": "ahu-tongariki",
+   "name": "Ahu Tongariki",
+   "rarity": "common",
+   "region": "Oceania",
+   "wikidata": "Q3448354",
+   "latitude": -27.12583,
+   "longitude": -109.27694,
+   "description": "The largest ceremonial platform on Rapa Nui (Easter Island), with fifteen moai."
+  },
+  {
+   "id": "arc-de-triomphe",
+   "name": "Arc de Triomphe",
+   "rarity": "common",
+   "region": "Europe",
+   "wikidata": "Q64436",
+   "latitude": 48.87378,
+   "longitude": 2.29504,
+   "description": "Triumphal arch at the western end of the Champs-Élysées, Paris (completed 1836)."
+  },
+  {
+   "id": "leaning-tower-of-pisa",
+   "name": "Leaning Tower of Pisa",
+   "rarity": "uncommon",
+   "region": "Europe",
+   "wikidata": "Q39054",
+   "latitude": 43.72301,
+   "longitude": 10.39662,
+   "description": "Freestanding bell tower of Pisa Cathedral, famous for its tilt (1173–1372)."
+  },
+  {
+   "id": "big-ben",
+   "name": "Big Ben",
+   "rarity": "uncommon",
+   "region": "Europe",
+   "wikidata": "Q41225",
+   "latitude": 51.50067,
+   "longitude": -0.12457,
+   "description": "The Great Bell and clock tower (Elizabeth Tower) of the Palace of Westminster, London (1859)."
+  },
+  {
+   "id": "parthenon",
+   "name": "Parthenon",
+   "rarity": "uncommon",
+   "region": "Europe",
+   "wikidata": "Q10288",
+   "latitude": 37.97153,
+   "longitude": 23.7266,
+   "description": "Doric temple to Athena on the Acropolis of Athens (447–432 BC)."
+  },
+  {
+   "id": "statue-of-liberty",
+   "name": "Statue of Liberty",
+   "rarity": "rare",
+   "region": "North America",
+   "wikidata": "Q9202",
+   "latitude": 40.68921,
+   "longitude": -74.04443,
+   "description": "Copper statue by Frédéric Auguste Bartholdi on Liberty Island, New York Harbor (1886)."
+  },
+  {
+   "id": "neuschwanstein",
+   "name": "Neuschwanstein Castle",
+   "rarity": "rare",
+   "region": "Europe",
+   "wikidata": "Q4152",
+   "latitude": 47.55749,
+   "longitude": 10.74944,
+   "description": "Nineteenth-century Romanesque Revival palace above Hohenschwangau, Bavaria."
+  },
+  {
+   "id": "el-castillo",
+   "name": "El Castillo (Temple of Kukulcan)",
+   "rarity": "rare",
+   "region": "North America",
+   "wikidata": "Q1128327",
+   "latitude": 20.68289,
+   "longitude": -88.56861,
+   "description": "Step pyramid at the heart of the Maya city of Chichén Itzá, Yucatán."
+  },
+  {
+   "id": "colosseum",
+   "name": "Colosseum",
+   "rarity": "epic",
+   "region": "Europe",
+   "wikidata": "Q10285",
+   "latitude": 41.89028,
+   "longitude": 12.49222,
+   "description": "Elliptical amphitheatre in the centre of Rome (completed AD 80)."
+  },
+  {
+   "id": "petra-treasury",
+   "name": "Al-Khazneh (The Treasury)",
+   "rarity": "epic",
+   "region": "Asia",
+   "wikidata": "Q1259626",
+   "latitude": 30.32206,
+   "longitude": 35.45145,
+   "description": "Temple façade carved into sandstone in the Nabataean city of Petra, Jordan."
+  },
+  {
+   "id": "saint-basils",
+   "name": "St. Basil’s Cathedral",
+   "rarity": "epic",
+   "region": "Europe",
+   "wikidata": "Q129846",
+   "latitude": 55.7525,
+   "longitude": 37.62306,
+   "description": "Church with colourful onion domes on Red Square, Moscow (1555–1561)."
+  },
+  {
+   "id": "eiffel-tower",
+   "name": "Eiffel Tower",
+   "rarity": "legendary",
+   "region": "Europe",
+   "wikidata": "Q243",
+   "latitude": 48.8583,
+   "longitude": 2.29448,
+   "description": "Wrought-iron lattice tower on the Champ de Mars, Paris (1889)."
+  },
+  {
+   "id": "taj-mahal",
+   "name": "Taj Mahal",
+   "rarity": "legendary",
+   "region": "Asia",
+   "wikidata": "Q9141",
+   "latitude": 27.175,
+   "longitude": 78.04194,
+   "description": "White marble mausoleum on the Yamuna river, Agra (1631–1653)."
+  },
+  {
+   "id": "angkor-wat",
+   "name": "Angkor Wat",
+   "rarity": "legendary",
+   "region": "Asia",
+   "wikidata": "Q43473",
+   "latitude": 13.4125,
+   "longitude": 103.86667,
+   "description": "Twelfth-century temple complex in Siem Reap, Cambodia — the largest religious monument in the world."
+  },
+  {
+   "id": "great-pyramid",
+   "name": "Great Pyramid of Giza",
+   "rarity": "mythic",
+   "region": "Africa",
+   "wikidata": "Q37200",
+   "latitude": 29.97915,
+   "longitude": 31.13422,
+   "description": "The oldest and largest of the Giza pyramids (c. 2560 BC), the last surviving ancient wonder."
+  },
+  {
+   "id": "machu-picchu",
+   "name": "Machu Picchu",
+   "rarity": "mythic",
+   "region": "South America",
+   "wikidata": "Q676203",
+   "latitude": -13.16333,
+   "longitude": -72.54556,
+   "description": "Fifteenth-century Inca citadel on a ridge above the Urubamba valley, Peru."
+  },
+  {
+   "id": "hagia-sophia",
+   "name": "Hagia Sophia",
+   "rarity": "mythic",
+   "region": "Asia",
+   "wikidata": "Q12506",
+   "latitude": 41.00833,
+   "longitude": 28.98,
+   "description": "Domed building in Istanbul, completed in AD 537 under Justinian I."
+  }
+ ],
+ "skins": [
+  {
+   "id": "coastal-explorer",
+   "name": "Coastal Explorer",
+   "rarity": "common",
+   "description": "Bright coasts: turquoise water, sandy land, crisp white roads."
+  },
+  {
+   "id": "classic-road-atlas",
+   "name": "Classic Road Atlas",
+   "rarity": "common",
+   "description": "The glovebox road atlas: red highways, yellow main roads, pale land."
+  },
+  {
+   "id": "soft-terrain",
+   "name": "Soft Terrain",
+   "rarity": "common",
+   "description": "Muted sage and clay tones with gentle, low-contrast labels."
+  },
+  {
+   "id": "ocean-cartographer",
+   "name": "Ocean Cartographer",
+   "rarity": "uncommon",
+   "description": "Deep marine blues, sea-glass land and fine navy linework."
+  },
+  {
+   "id": "woodland-trails",
+   "name": "Woodland Trails",
+   "rarity": "uncommon",
+   "description": "Forest greens, bark-brown paths and moss-coloured parks."
+  },
+  {
+   "id": "desert-expedition",
+   "name": "Desert Expedition",
+   "rarity": "uncommon",
+   "description": "Sun-baked ochre land, terracotta roads and oasis-blue water."
+  },
+  {
+   "id": "midnight-navigator",
+   "name": "Midnight Navigator",
+   "rarity": "rare",
+   "description": "Night-mode cartography: ink-blue land, glowing amber roads."
+  },
+  {
+   "id": "vintage-survey",
+   "name": "Vintage Survey",
+   "rarity": "rare",
+   "description": "A survey sheet on aged paper: sepia ink and italic labels."
+  },
+  {
+   "id": "alpine-explorer",
+   "name": "Alpine Explorer",
+   "rarity": "rare",
+   "description": "Glacier whites, slate roads and icy lake blues."
+  },
+  {
+   "id": "golden-cartography",
+   "name": "Golden Cartography",
+   "rarity": "epic",
+   "description": "Gilded linework on deep green, like an illuminated chart."
+  },
+  {
+   "id": "imperial-atlas",
+   "name": "Imperial Atlas",
+   "rarity": "epic",
+   "description": "Crimson and ivory with gold borders — a ceremonial state atlas."
+  },
+  {
+   "id": "celestial-routes",
+   "name": "Celestial Routes",
+   "rarity": "epic",
+   "description": "A star chart: midnight sky, star-field background and a navigational grid."
+  },
+  {
+   "id": "royal-treasure-map",
+   "name": "Royal Treasure Map",
+   "rarity": "legendary",
+   "description": "Parchment texture, burnt-umber ink and red-dashed routes."
+  },
+  {
+   "id": "deep-sea-navigator",
+   "name": "Deep-Sea Navigator",
+   "rarity": "legendary",
+   "description": "Bioluminescent teal linework over abyssal blue."
+  },
+  {
+   "id": "ancient-world-atlas",
+   "name": "Ancient World Atlas",
+   "rarity": "legendary",
+   "description": "Faded fresco tones and serif-italic labels of an old world atlas."
+  },
+  {
+   "id": "living-parchment",
+   "name": "Living Parchment",
+   "rarity": "mythic",
+   "description": "Hand-inked parchment with a vignette and graticule grid."
+  },
+  {
+   "id": "astral-cartographer",
+   "name": "Astral Cartographer",
+   "rarity": "mythic",
+   "description": "Violet nebula land, star-field sky and luminous constellation routes."
+  },
+  {
+   "id": "worldmakers-atlas",
+   "name": "Worldmaker’s Atlas",
+   "rarity": "mythic",
+   "description": "Jewel-toned continents, golden roads and a parchment-and-gold frame."
+  }
+ ]
+}

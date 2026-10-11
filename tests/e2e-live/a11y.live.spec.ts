@@ -7,6 +7,7 @@ import { RUN, signIn, waitForMap } from './helpers';
 test.skip(!liveConfigured, 'live test accounts not configured');
 
 async function audit(page: Page, label: string) {
+  await page.waitForFunction(() => document.getAnimations().every((x) => x.playState !== 'running' || x.effect?.getTiming().iterations === Infinity), null, { timeout: 5000 }).catch(() => undefined);
   const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .exclude('.maplibregl-canvas').exclude('.maplibregl-ctrl-attrib').analyze();
   const summary = r.violations.map((v) => `${label} ${v.id}: ${v.help} — ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`);

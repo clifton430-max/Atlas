@@ -8,6 +8,7 @@
  *   - sharing goes through share_pin(), which verifies pin ownership and
  *     editor/owner role, then snapshots the pin into shared_pins.
  */
+import { sanitizePinSource, type PinSource } from '@/features/pins/pinSource';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { requireSupabase, unwrap } from '@/lib/supabase';
 import { qk } from '@/lib/queryClient';
@@ -70,6 +71,8 @@ export const sharedPinFromRow = (r: Row): SharedPin => {
     latitude: Number(r.latitude), longitude: Number(r.longitude), address: (r.address as string) ?? null,
     appearance: appearanceFromRow(r), image: imageFromRow(r.image as Row | null),
     attendance: (r.attendance as SharedPin['attendance']) ?? null,
+    placeRef: (r.place_ref as string | null) ?? null,
+    source: sanitizePinSource(r.source),
     createdAt: String(r.created_at),
   };
 };
@@ -81,7 +84,7 @@ export function useSharedPins(mapId: string | undefined) {
     queryFn: async () => {
       const rows = unwrap(await requireSupabase().from('shared_pins')
         .select(`id, collab_map_id, shared_by, source_pin_id, event_id, title, note, latitude, longitude, address,
-          color, shape, icon, size, border_color, border_width, image_id, image_mask, created_at, attendance, place_ref,
+          color, shape, icon, size, border_color, border_width, image_id, image_mask, created_at, attendance, place_ref, source,
           image:pin_images(${IMAGE_COLUMNS}),
           sharer:profiles!shared_pins_shared_by_fkey(username, display_name)`)
         .eq('collab_map_id', mapId!).order('created_at'));
@@ -280,6 +283,7 @@ export function useCollabMutations() {
         eventId?: string;
         place?: { ref: string; name: string; latitude: number; longitude: number; address: string | null };
         attendance?: 'going' | 'interested' | null;
+        source?: PinSource | null;
       }) => unwrap(await sb().rpc('add_to_collab', {
         p_collab_map_id: input.collabMapId,
         p_event_id: input.eventId,
@@ -289,6 +293,7 @@ export function useCollabMutations() {
         p_longitude: input.place?.longitude,
         p_address: input.place?.address ?? undefined,
         p_attendance: input.attendance ?? undefined,
+        p_source: (input.source ?? undefined) as never,
       })) as string,
       onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: qk.sharedPins(v.collabMapId) }),
     }),

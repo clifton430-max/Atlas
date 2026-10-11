@@ -4,7 +4,7 @@
  * Replaces MapLibre's built-in navigation buttons with labelled, keyboard
  * accessible controls that match the app.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Compass, Layers, Loader2, LocateFixed, Minus, Mountain, Plus, Square } from 'lucide-react';
 import { Popover } from '@/components/ui/Popover';
@@ -42,7 +42,6 @@ export function MapToolbar() {
     setViewMode(next);
     map?.easeTo(next === '3d' ? { pitch: PITCH_3D, bearing: BEARING_3D, ...anim } : { pitch: 0, bearing: 0, ...anim });
   };
-  const resetView = () => map?.easeTo(mode === '3d' ? { pitch: PITCH_3D, bearing: BEARING_3D, ...anim } : { pitch: 0, bearing: 0, ...anim });
 
   return (
     <div className="pointer-events-none absolute inset-x-3 bottom-8 z-20 flex flex-wrap items-end justify-between gap-2 md:inset-x-4">
@@ -59,7 +58,7 @@ export function MapToolbar() {
         <button type="button" className={btnCls} onClick={() => map?.zoomOut(anim)} aria-label="Zoom out" title="Zoom out" disabled={!map}><Minus className="size-4" aria-hidden /></button>
         <button type="button" className={btnCls} onClick={() => map?.zoomIn(anim)} aria-label="Zoom in" title="Zoom in" disabled={!map}><Plus className="size-4" aria-hidden /></button>
         <span className="mx-0.5 h-5 w-px bg-line" aria-hidden />
-        <button type="button" className={btnCls} onClick={resetView} aria-label="Reset map orientation" title="Reset map orientation" disabled={!map}><Compass className="size-4" aria-hidden /></button>
+        <CompassButton anim={anim} />
       </div>
 
       <AnimationsControl className={cn(groupCls, 'order-last w-full justify-center sm:order-none sm:w-auto')} />
@@ -73,6 +72,30 @@ export function MapToolbar() {
         <LayersPanel />
       </Popover>
     </div>
+  );
+}
+
+/**
+ * Compass: the needle shows where north is (rotates with the map bearing);
+ * clicking turns the map to face north. Tilt is kept. No device sensors.
+ */
+function CompassButton({ anim }: { anim: { duration?: number } }) {
+  const { map } = useMapInstance();
+  const [bearing, setBearing] = useState(() => map?.getBearing() ?? 0);
+  useEffect(() => {
+    if (!map) return;
+    const on = () => setBearing(map.getBearing());
+    on();
+    map.on('rotate', on);
+    return () => { map.off('rotate', on); };
+  }, [map]);
+  const north = Math.abs(bearing) < 0.5;
+  const label = north ? 'Map faces north' : `Reset to north (bearing ${Math.round((bearing + 360) % 360)}°)`;
+  return (
+    <button type="button" className={btnCls} disabled={!map} aria-label={label} title={label} data-bearing={Math.round(bearing)}
+      onClick={() => map?.easeTo({ bearing: 0, ...anim })}>
+      <Compass className="size-4 transition-transform" style={{ transform: `rotate(${-bearing - 45}deg)` }} aria-hidden />
+    </button>
   );
 }
 

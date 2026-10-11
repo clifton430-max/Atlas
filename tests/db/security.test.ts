@@ -608,9 +608,43 @@ describe('living-map: places, attendance and direct collaboration adds', () => {
   it('new functions are not executable by anon', async () => {
     await t.asAdmin();
     const rows = await t.query<{ f: string; ok: boolean }>(`select f, has_function_privilege('anon', f, 'execute') ok from unnest(array[
-      'public.save_place_pin(uuid,text,text,double precision,double precision,text,uuid[])',
-      'public.add_to_collab(uuid,uuid,text,text,double precision,double precision,text,text)',
+      'public.save_place_pin(uuid,text,text,double precision,double precision,text,uuid[],jsonb)',
+      'public.add_to_collab(uuid,uuid,text,text,double precision,double precision,text,text,jsonb)',
+      'public.create_custom_pin(uuid,text,text,double precision,double precision,text,uuid[],text,jsonb)',
+      'public.pin_source_valid(jsonb)',
       'public.save_event_pin(uuid,uuid,uuid[],text)']) f`);
     expect(rows.filter((r) => r.ok)).toEqual([]);
+  });
+});
+
+describe('pin source metadata (0014)', () => {
+  const src = (o: Record<string, unknown> = {}) => JSON.stringify({ v: 1, provider: 'osm', providerId: 'osm:node/77', capturedAt: '2026-10-10T00:00:00Z',
+    name: 'Cafe', openingHours: 'Mo-Fr 08:00-18:00', website: 'https://cafe.example', phone: '+1 555', wheelchair: 'limited',
+    image: { thumbUrl: 'https://upload.wikimedia.org/x.jpg', sourcePage: 'https://commons.wikimedia.org/wiki/File:X.jpg', license: 'CC BY-SA 4.0' }, ...o });
+
+  it('stores a valid snapshot, rejects invalid ones, and survives edits and sharing', async () => {
+    const g = await makeGroup(alice, 'Src');
+    await t.as(alice);
+    const { save_place_pin: pin } = await t.one<{ save_place_pin: string }>(
+      `select public.save_place_pin($1, 'osm:node/77', 'Cafe', 1, 2, '', $2, $3::jsonb)`, [aliceMap, [g], src()]);
+    expect((await t.one<{ s: { openingHours: string } }>(`select source s from public.pins where id = $1`, [pin])).s.openingHours).toBe('Mo-Fr 08:00-18:00');
+    // Invalid: unknown key, http website, non-Wikimedia image, wrong version.
+    for (const bad of [src({ secret: 'x' }), src({ website: 'http://x.example' }), src({ image: { thumbUrl: 'https://evil.example/a.jpg', sourcePage: 'https://commons.wikimedia.org/wiki/File:A' } }), src({ v: 2 })]) {
+      expect(await t.fails(`select public.create_custom_pin($1, 'X', null, 1, 1, null, $2, null, $3::jsonb)`, [aliceMap, [g], bad])).toMatch(/pins_source_valid/);
+    }
+    // Editing user-authored fields keeps the source.
+    await t.query(`update public.pins set title = 'My cafe', note = 'great' where id = $1`, [pin]);
+    expect((await t.one<{ s: { name: string } }>(`select source s from public.pins where id = $1`, [pin])).s.name).toBe('Cafe');
+    // Saving again without a source never erases it.
+    await t.query(`select public.save_place_pin($1, 'osm:node/77', 'Cafe', 1, 2, '', $2)`, [aliceMap, [g]]);
+    expect((await t.one<{ s: unknown }>(`select source s from public.pins where id = $1`, [pin])).s).not.toBeNull();
+    // Sharing copies place_ref and source to the collaboration copy.
+    const { create_collab_map: cm } = await t.one<{ create_collab_map: string }>(`select public.create_collab_map('Src trip', null)`);
+    const { share_pin: sp } = await t.one<{ share_pin: string }>(`select public.share_pin($1, $2)`, [pin, cm]);
+    const copy = await t.one<{ place_ref: string; s: { website: string } }>(`select place_ref, source s from public.shared_pins where id = $1`, [sp]);
+    expect(copy.place_ref).toBe('osm:node/77');
+    expect(copy.s.website).toBe('https://cafe.example');
+    // add_to_collab validates the snapshot too.
+    expect(await t.fails(`select public.add_to_collab($1, p_place_ref => 'osm:node/78', p_title => 'Y', p_latitude => 1, p_longitude => 1, p_source => $2::jsonb)`, [cm, src({ bogus: 1 })])).toMatch(/Invalid source/);
   });
 });
